@@ -8,7 +8,8 @@ header-img: img/post-bg-2015.jpg
 catalog: true
 tags:
     - hbase
-    - memstore
+    - Architecture
+    - HBase架构
 
 typora-copy-images-to: ..\img
 typora-root-url: ..
