@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:     HBase最佳实践－写性能优化策略
-subtitle:   HBase最佳实践－写性能优化策略
+title:     HBase原理 – Snapshot
+subtitle:   HBase原理 – 分布式系统中snapshot是怎么玩的?
 date:       2018-09-21
 author:     老张
 header-img: img/post-bg-2015.jpg
