@@ -9,8 +9,8 @@ catalog: true
 tags:
     - hbase
     - hdfs
-	- Locality
-	- 本地化
+    - Locality
+    - 本地化
 
 typora-copy-images-to: ..\img
 typora-root-url: ..
