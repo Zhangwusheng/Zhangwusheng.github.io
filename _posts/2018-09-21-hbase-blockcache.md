@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:     BlockCache 101 & Showdown
+title:     BlockCache 101 & Showdown（转）
 subtitle:   Hbase BlockCache Detail
 date:       2018-09-21
 author:     老张
