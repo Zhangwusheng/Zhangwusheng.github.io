@@ -99,6 +99,8 @@ Posted by Nick Dimiduk Feb 13th, 2014
 
 # BlockCache Showdown
 
+[原文在此](http://www.n10k.com/blog/blockcache-showdown/)
+
 The HBase [`BlockCache`](https://github.com/apache/hbase/blob/0.98/hbase-server/src/main/java/org/apache/hadoop/hbase/io/hfile/BlockCache.java) is an important structure for enabling low latency reads. As of HBase 0.96.0, there are no less than three different `BlockCache` implementations to choose from. But how to know when to use one over the other? There’s a little bit of guidance floating around out there, but nothing concrete. It’s high time the HBase community changed that! I did some benchmarking of these implementations, and these results I’d like to share with you here.
 
 Note that this is my second post on the `BlockCache`. In my [previous post](http://www.n10k.com/blog/blockcache-101/), I provide an overview of the `BlockCache` in general as well as brief details about each of the implementations. I’ll assume you’ve read that one already.
