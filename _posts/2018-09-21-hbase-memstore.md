@@ -1,7 +1,7 @@
 ---
 layout:     post
-title:     Hbase HFile
-subtitle:   Apache HBase I/O – HFile
+title:     Configuring HBase Memstore（转）
+subtitle:   Configuring HBase Memstore
 date:       2018-09-21
 author:     老张
 header-img: img/post-bg-2015.jpg

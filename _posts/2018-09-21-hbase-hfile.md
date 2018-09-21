@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:     Hbase HFile
+title:     Hbase HFile（转）
 subtitle:   Apache HBase I/O – HFile
 date:       2018-09-21
 author:     老张
