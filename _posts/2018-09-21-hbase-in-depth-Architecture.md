@@ -19,6 +19,10 @@ typora-root-url: ..
 
 In this blog post, I’ll give you an in-depth look at the HBase architecture and its main benefits over NoSQL data store solutions. Be sure and read the first blog post in this series, titled [“HBase and MapR-DB: Designed for Distribution, Scale, and Speed.”](https://mapr.com/blog/hbase-and-mapr-db-designed-distribution-scale-and-speed#.VcKFNflVhBc) 
 
+
+
+[原文在此](https://mapr.com/blog/in-depth-look-hbase-architecture/)
+
 ## HBase Architectural Components
 
 Physically, HBase is composed of three types of servers in a master slave type of architecture. Region servers serve data for reads and writes. When accessing data, clients communicate with HBase RegionServers directly. Region assignment, DDL (create, delete tables) operations are handled by the HBase Master process. Zookeeper, which is part of HDFS, maintains a live cluster state.
