@@ -8,7 +8,9 @@ header-img: img/post-bg-2015.jpg
 catalog: true
 tags:
     - hbase
-    - memstore
+    - hdfs
+	- Locality
+	- 本地化
 
 typora-copy-images-to: ..\img
 typora-root-url: ..

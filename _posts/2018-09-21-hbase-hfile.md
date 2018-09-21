@@ -8,8 +8,7 @@ header-img: img/post-bg-2015.jpg
 catalog: true
 tags:
     - hbase
-    - zookeeper
-    - 分布式锁
+    - hfile
 
 typora-copy-images-to: ..\img
 typora-root-url: ..
