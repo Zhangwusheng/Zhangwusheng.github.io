@@ -20,7 +20,7 @@ typora-root-url: ..
 
 # HBase原理 – 分布式系统中snapshot是怎么玩的？
 
-[原文在此](http://hbasefly.com/2016/12/10/hbase-parctice-write/?spm=a2c4e.11153940.blogcont208994.10.44a272b1ZRvg07)
+[原文在此](http://hbasefly.com/2017/09/17/hbase-snapshot/)
 
  [2017年9月17日](http://hbasefly.com/2016/12/10/hbase-parctice-write/)  [范欣欣](http://hbasefly.com/author/libisthanksgmail-com/)  [HBase](http://hbasefly.com/category/hbase/) 
 
