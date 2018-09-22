@@ -73,6 +73,8 @@ Each Region Server creates an ephemeral node. The HMaster monitors these nodes t
 
 If a region server or the active HMaster fails to send a heartbeat, the session is expired and the corresponding ephemeral node is deleted. Listeners for updates will be notified of the deleted nodes. The active HMaster listens for region servers, and will recover region servers on failure. The Inactive HMaster listens for active HMaster failure, and if an active HMaster fails, the inactive HMaster becomes active.
 
+从上面一段话，我们可以看出，ZK的回话的超时时间设置，对集群的稳定性有很大的影响。
+
 ## HBase First Read or Write
 
 There is a special HBase Catalog table called the META table, which holds the location of the regions in the cluster. ZooKeeper stores the location of the META table.
