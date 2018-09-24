@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:     HBase原理 – Snapshot
+title:     HBase原理 – Snapshot（转）
 subtitle:   HBase原理 – 分布式系统中snapshot是怎么玩的?
 date:       2018-09-21
 author:     老张

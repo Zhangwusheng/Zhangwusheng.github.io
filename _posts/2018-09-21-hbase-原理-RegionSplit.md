@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:     HBase原理 – Region切分
+title:     HBase原理 – Region切分（转）
 subtitle:   HBase原理 – 所有Region切分的细节都在这里了
 date:       2018-09-21
 author:     老张

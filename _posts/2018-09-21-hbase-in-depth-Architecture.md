@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:     HBase Architecture From MapR
+title:     HBase Architecture From MapR（转）
 subtitle:   An In-Depth Look at the HBase Architecture
 date:       2018-09-21
 author:     老张
