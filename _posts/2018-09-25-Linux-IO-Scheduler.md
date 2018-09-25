@@ -1,21 +1,22 @@
 ---
 layout:     post
-title:     RESOURCE ALLOCATION IN APACHE MESOS（转）
-subtitle:   RESOURCE ALLOCATION IN APACHE MESOS
+title:     Linux IO Scheduler（转）
+subtitle:   Linux IO Scheduler
 date:       2018-09-25
 author:     老张
 header-img: img/post-bg-2015.jpg
 catalog: true
 tags:
-    - MESOS
-    - RESOURCE
+    - Linux
+    - Scheduler
+    - IO
 typora-copy-images-to: ../img
 typora-root-url: ..
 ---
 
 
 
-# [Linux IO Scheduler转](https://www.cnblogs.com/cobbliu/p/5389556.html)
+# [Linux IO Scheduler](https://www.cnblogs.com/cobbliu/p/5389556.html)
 
 [原文在此](https://www.cnblogs.com/cobbliu/p/5389556.html)
 
