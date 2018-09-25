@@ -7,7 +7,7 @@ author:     老张
 header-img: img/post-bg-2015.jpg
 catalog: true
 tags:
-    - Linux
+    - linux
     - Scheduler
     - IO
 typora-copy-images-to: ../img
