@@ -17,7 +17,7 @@ typora-root-url: ..
 
 # PLAYING TRAFFIC COP: RESOURCE ALLOCATION IN APACHE MESOS
 
-[原文在此]([http://cloudarchitectmusings.com/2015/04/08/playing-traffic-cop-resource-allocation-in-apache-mesos/](http://cloudarchitectmusings.com/2015/04/08/playing-traffic-cop-resource-allocation-in-apache-mesos/))
+[原文在此]([http://cloudarchitectmusings.com/2015/04/08/playing-traffic-cop-resource-allocation-in-apache-mesos/](http://cloudarchitectmusings.com/2015/04/08/playing-traffic-cop-resource-allocation-in-apache-mesos/)
 
 A key capability that makes Apache Mesos a viable uber resource manager for the data center is its ability to play traffic cop amongst a diversity of workloads.  The purpose of this post will be to dig into the internals of resource allocation in Mesos and how it balances fair resource sharing with customer workload needs.  Before going on, you may want to read the other posts in this series if you have not already done so.  An overview of Mesos can be found [here](http://cloudarchitectmusings.com/2015/03/23/apache-mesos-the-true-os-for-the-software-defined-data-center/), followed by an explanation of its two-level architecture [here](http://cloudarchitectmusings.com/2015/03/26/digging-deeper-into-apache-mesos/), and then a post [here](http://cloudarchitectmusings.com/2015/03/31/dealing-with-persistent-storage-and-fault-tolerance-in-apache-mesos/) on data storage and on fault tolerance.  I also write about what I see is [going right](http://wp.me/p2MZ5x-IK) in the Mesos project.  If you are interested in spinning up and trying out Mesos, I link to some resources in another [blog post](http://cloudarchitectmusings.com/2015/04/30/trying-out-apache-mesos/).
 
