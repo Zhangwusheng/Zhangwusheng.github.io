@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:     yum下载（转）
+title:     Linux:yum下载（转）
 subtitle:    yum只下载不安装软件
 date:       2018-09-20
 author:     老张

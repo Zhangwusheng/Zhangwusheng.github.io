@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:     RESOURCE ALLOCATION IN APACHE MESOS（转）
+title:     Mesos:RESOURCE ALLOCATION IN APACHE MESOS（转）
 subtitle:   RESOURCE ALLOCATION IN APACHE MESOS
 date:       2018-09-25
 author:     老张

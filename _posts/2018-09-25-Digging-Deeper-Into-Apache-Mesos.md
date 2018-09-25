@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:     Digging Deeper Into Apache Mesos（转）
+title:     Mesos:Digging Deeper Into Apache Mesos（转）
 subtitle:   Digging Deeper Into Apache Mesos
 date:       2018-09-25
 author:     老张

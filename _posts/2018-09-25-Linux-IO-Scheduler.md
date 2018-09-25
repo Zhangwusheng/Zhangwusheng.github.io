@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:     Linux IO Scheduler（转）
+title:     Linux: IO Scheduler（转）
 subtitle:   Linux IO Scheduler
 date:       2018-09-25
 author:     老张
