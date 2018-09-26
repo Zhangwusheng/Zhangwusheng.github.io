@@ -1,18 +1,15 @@
 ---
 layout:     post
-title:     Cassandra:Compaction for Time Series Data（转）
-subtitle:   DateTieredCompactionStrategy: Compaction for Time Series Data
-date:       2018-09-25
+title:     Cassandra:Compaction for Time Series Data
+subtitle:    实战SSH端口转发
+date:       2018-09-20
 author:     老张
 header-img: img/post-bg-2015.jpg
 catalog: true
 tags:
-    - DateTieredCompactionStrategy 
-    - DTCS
-    - Compaction 
-    - Series 
-typora-copy-images-to: ../img
-typora-root-url: ..
+    - Cassandra
+    - Compaction
+    - DateTieredCompactionStrategy	
 ---
 
 
