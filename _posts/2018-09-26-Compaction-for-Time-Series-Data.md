@@ -2,7 +2,7 @@
 layout:     post
 title:     Cassandra: Compaction for Time Series Data（转）
 subtitle:   DateTieredCompactionStrategy: Compaction for Time Series Data
-date:       2018-09-21
+date:       2018-09-26
 author:     老张
 header-img: img/post-bg-2015.jpg
 catalog: true
