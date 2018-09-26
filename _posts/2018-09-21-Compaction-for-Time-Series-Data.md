@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:     Cassandra: Compaction for Time Series Data（转）
+title:     Cassandra:Compaction for Time Series Data（转）
 subtitle:   DateTieredCompactionStrategy: Compaction for Time Series Data
 date:       2018-09-25
 author:     老张
