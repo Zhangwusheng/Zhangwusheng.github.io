@@ -18,6 +18,8 @@ typora-root-url: ..
 
 # DateTieredCompactionStrategy: Compaction for Time Series Data
 
+
+
 [原文在此](https://www.datastax.com/dev/blog/datetieredcompactionstrategy)
 
 This post will introduce DateTieredCompactionStrategy (DTCS) which is a new compaction strategy that ships with Cassandra 2.0.11, 2.1.1 and later. It aims to keep data written at the same time in the same SSTables to improve performance of time series-like workloads. DTCS was contributed by Björn Hegerfors at Spotify.
