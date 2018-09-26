@@ -14,9 +14,7 @@ typora-copy-images-to: ../img
 typora-root-url: ..
 ---
 
-
-
-# [Linux IO Scheduler](https://www.cnblogs.com/cobbliu/p/5389556.html)
+# Linux IO Scheduler
 
 [原文在此](https://www.cnblogs.com/cobbliu/p/5389556.html)
 
