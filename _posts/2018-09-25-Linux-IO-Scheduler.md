@@ -96,7 +96,7 @@ noop anticipatory deadline [cfq]
 
  
 
-6，一些磁盘相关的内核参数
+### 6，一些磁盘相关的内核参数
 
 /sys/block/sda/queue/nr_requests 磁盘队列长度。默认只有 128 个队列,可以提高到 512 个.会更加占用内存,但能更加多的合并读写操作,速度变慢,但能读写更加多的量
 
