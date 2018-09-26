@@ -12,7 +12,7 @@ tags:
     - Compaction 
     - Series 
 
-typora-copy-images-to: ..\img
+typora-copy-images-to: ../img
 typora-root-url: ..
 ---
 
