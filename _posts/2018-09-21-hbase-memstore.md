@@ -1,6 +1,6 @@
 ---
 layout:     post
-title:     HBASE: Configuring HBase Memstore（转）
+title:     HBASE Configuring HBase Memstore（转）
 subtitle:   Configuring HBase Memstore
 date:       2018-09-21
 author:     老张
