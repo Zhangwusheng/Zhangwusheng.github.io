@@ -1,18 +1,20 @@
 ---
 layout:     post
-title:     Linux:实战SSH端口转发（转）
-subtitle:    实战SSH端口转发
-date:       2018-09-20
+title:     Linux:实战 SSH 端口转发（转）
+subtitle:    实战 SSH 端口转发
+date:       2018-09-24
 author:     老张
 header-img: img/post-bg-2015.jpg
 catalog: true
 tags:
-    - linux
     - SSH
-	- 端口转发
+    - 端口转发
+typora-copy-images-to: ..\img
+typora-root-url: ..
 ---
 
-# 实战 SSH 端口转发
+# 实战SSH 端口转发
+
 
 
 申 毅 和 邵 华   2009 年 10 月 31 日发布
