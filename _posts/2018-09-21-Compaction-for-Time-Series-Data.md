@@ -10,6 +10,8 @@ tags:
     - Cassandra
     - Compaction
     - DateTieredCompactionStrategy	
+typora-copy-images-to: ..\img
+typora-root-url: ..
 ---
 
 
