@@ -1,0 +1,77 @@
+ambari-3.0.0.0.2.7.0.0-897-source.tar.gz
+
+wget node-v10.11.0.tar.gz
+./configure
+make && make install
+
+cd ambari-web
+npm install -g brunch
+brunch build
+
+
+
+wget -c 'https://github.com/Medium/phantomjs/releases/download/v2.1.1/phantomjs-2.1.1-linux-x86_64.tar.bz2'
+tar jxvf phantomjs-2.1.1-linux-x86_64.tar.bz2 
+ln -fs /data/zhangwusheng/phantomjs-2.1.1-linux-x86_64/bin/phantomjs /usr/local/bin/phantomjs  
+  
+  
+  cd /data/zhangwusheng/ambari-3.0.0.0.2.7.0.0-897
+  mvn -DskipTests=true  -Drat.skip=true package
+  
+  
+   cd ambari-metrics/ambari-metrics-timelineservice/
+  vi pom.xml
+  <properties>
+    <!-- Needed for generating FindBugs warnings using parent pom -->
+    <!--<yarn.basedir>${project.parent.parent.basedir}</yarn.basedir>-->
+    <protobuf.version>2.5.0</protobuf.version>
+    <hadoop.version>3.1.0.3.0.0.0-1578</hadoop.version>
+    <phoenix.version>5.0.0.3.0.0.0-1578</phoenix.version>
+    <hbase.version>2.0.0.3.0.0.0-1578</hbase.version>
+  </properties>
+ 
+
+
+/data/zhangwusheng/ambari-3.0.0.0.2.7.0.0-897/ambari-metrics/pom.xml
+<properties>
+     39     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+     40     <python.ver>python &gt;= 2.6</python.ver>
+     41     <deb.python.ver>python (&gt;= 2.6)</deb.python.ver>
+     42     <!--TODO change to HDP URL-->
+     43     <hbase.tar>http://dev.hortonworks.com.s3.amazonaws.com/HDP/centos7/3.x/BUILDS/3.0.0.0-1634/tars/hbase/hbase-2.0.0.3.0.0.0-163        4-bin.tar.gz</hbase.tar>
+     44     <hbase.folder>hbase-2.0.0.3.0.0.0-1578</hbase.folder>
+     45     <hadoop.tar>http://dev.hortonworks.com.s3.amazonaws.com/HDP/centos7/3.x/BUILDS/3.0.0.0-1634/tars/hadoop/hadoop-3.1.0.3.0.0.0-        1634.tar.gz</hadoop.tar>
+     46     <hadoop.folder>hadoop-3.1.0.3.0.0.0-1634</hadoop.folder>
+     47     <grafana.folder>grafana-2.6.0</grafana.folder>
+     48     <grafana.tar>https://grafanarel.s3.amazonaws.com/builds/grafana-2.6.0.linux-x64.tar.gz</grafana.tar>
+     49     <phoenix.tar>http://dev.hortonworks.com.s3.amazonaws.com/HDP/centos7/3.x/BUILDS/3.0.0.0-1634/tars/phoenix/phoenix-5.0.0.3.0.0        .0-1634.tar.gz</phoenix.tar>
+     50     <phoenix.folder>phoenix-5.0.0.3.0.0.0-1634</phoenix.folder>
+     51     <resmonitor.install.dir>/usr/lib/python2.6/site-packages/resource_monitoring</resmonitor.install.dir>
+     52     <powermock.version>1.6.2</powermock.version>
+     53     <distMgmtSnapshotsId>apache.snapshots.https</distMgmtSnapshotsId>
+     54     <distMgmtSnapshotsName>Apache Development Snapshot Repository</distMgmtSnapshotsName>
+     55     <distMgmtSnapshotsUrl>https://repository.apache.org/content/repositories/snapshots</distMgmtSnapshotsUrl>
+     56     <distMgmtStagingId>apache.staging.https</distMgmtStagingId>
+     57     <distMgmtStagingName>Apache Release Distribution Repository</distMgmtStagingName>
+     58     <distMgmtStagingUrl>https://repository.apache.org/service/local/staging/deploy/maven2</distMgmtStagingUrl>
+     59     <fasterxml.jackson.version>2.9.5</fasterxml.jackson.version>
+     60   </properties>
+
+	 
+  
+ 1578-> 1634
+ 
+ 
+ 
+ 
+ 编译ambari-logsearch
+cd ambari-logsearch
+ mvn versions:set -DnewVersion=2.7.0.0.0
+ mvn clean package -P native,rpm -DskipTest
+ 
+ 
+ 
+cd ambari-infra
+  mvn versions:set -DnewVersion=2.7.0.0.0
+ mvn clean package -P native,rpm -DskipTest
+ 
