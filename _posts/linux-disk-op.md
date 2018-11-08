@@ -203,7 +203,6 @@ cp /var/www/html/ambari/ambari/centos7/2.7.0.0-897/ambari.repo /etc/yum.repos.d/
 vi /etc/yum.repos.d/ambari.repo 
 #修改baseurl和gpgcheck
 [ambari-2.7.0.0]
-name=HDP Version - ambari-2.7.0.0
 baseurl=http://192.168.0.47/ambari/ambari/centos7/2.7.0.0-897/
 gpgcheck=0
 
@@ -253,8 +252,6 @@ ssh t3s3 yum makecache
 ssh t3s3 yum repolist
 
 
-
-yum install ambari-server
 
 /etc/sysctl.conf 
 net.ipv6.conf.all.disable_ipv6=1

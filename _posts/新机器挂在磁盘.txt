@@ -1,0 +1,63 @@
+df -h
+fdisk -l
+mkdir /data1 /data2 /data3 /data4 /data5
+mkfs.ext4 /dev/vdb1 
+mount /dev/vdb1 /data1
+df -h
+mkfs.ext4 /dev/vdc 
+mount /dev/vdc /data2
+mkfs.ext4 /dev/vdd
+mount /dev/vdd /data3
+mkfs.ext4 /dev/vde
+mount /dev/vde /data4
+mkfs.ext4 /dev/vdf
+mount /dev/vdf /data5
+df -h
+history
+
+
+mkdir /data1 /data2 /data3 /data4 /data5
+mkfs.ext4 /dev/vdb 
+mount /dev/vdb /data1
+df -h
+mkfs.ext4 /dev/vdc 
+mount /dev/vdc /data2
+mkfs.ext4 /dev/vdd
+mount /dev/vdd /data3
+mkfs.ext4 /dev/vde
+mount /dev/vde /data4
+mkfs.ext4 /dev/vdf
+mount /dev/vdf /data5
+
+umount /data1
+umount /data2
+umount /data3
+umount /data4
+umount /data5
+
+
+
+192.168.1.162 t162 t162.ecloud.com
+192.168.1.146 t146 t146.ecloud.com
+192.168.1.134 t134 t134.ecloud.com
+
+
+192.168.1.16 t16 t16.ecloud.com
+192.168.1.61 t61 61.ecloud.com
+
+
+scp /data1/jdk-8u161-linux-x64.tar.gz 192.168.1.162:/data1
+scp /data1/jdk-8u161-linux-x64.tar.gz 192.168.1.146:/data1
+
+
+
+tar zxvf /data1/jdk-8u161-linux-x64.tar.gz -C /usr/local/
+ln -fs /usr/local/jdk1.8.0_161 /usr/local/jdk
+
+echo 'export JAVA_HOME=/usr/local/jdk' > /etc/profile.d/java.sh
+echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile.d/java.sh
+source /etc/profile.d/java.sh
+
+
+
+
