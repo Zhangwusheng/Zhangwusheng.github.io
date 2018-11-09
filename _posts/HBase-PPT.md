@@ -77,7 +77,7 @@ HBase的数据模型也是由一张张的表组成，每一张表里也有数据
 
 
 
-![img](https://img-blog.csdn.net/20160425203317625?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQv/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/Center) 
+![img](/img/20160425203317625.jpg) 
 
 ## Multidimensional sorted Map
 
@@ -85,7 +85,7 @@ A Map (sometimes called and associative array) is a collection where the index o
 
 
 
-![img](https://img-blog.csdn.net/20160425203414834?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQv/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/Center) 
+![img](/img/20160425203414834.jpg) 
 
 
 
