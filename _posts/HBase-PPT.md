@@ -99,3 +99,9 @@ A Map (sometimes called and associative array) is a collection where the index o
 | HDFS does not support fast individual record lookups.        | HBase provides fast lookups for larger tables.               |
 | It provides high latency batch processing; no concept of batch processing. | It provides low latency access to single rows from billions of records (Random access). |
 | It provides only sequential access of data.                  | HBase internally uses Hash tables and provides random access, and it stores the data in indexed HDFS files for faster lookups. |
+
+
+
+
+
+NOnce机制
