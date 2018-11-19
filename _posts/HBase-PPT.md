@@ -696,4 +696,20 @@ When WAL (in HBase it is called HLog) grows very big, it may take a lot of time 
 With HBase it is advised to compress the data stored on HDFS (i.e. HFiles). In addition to saving on space occupied by data this reduces the disk & network IO significantly. Data is compressed when it is written to HDFS, i.e. when Memstore flushes. **Compression should not slow down flushing process a lot, otherwise we may hit many of the problems** above, like blocking writes caused by Memstore being too big (hit upper limit) and such.
 
 **Hint**: when choosing compression type favor compression *speed* over compression ratio. SNAPPY showed to be a good choice here.
->>>>>>> 307e7e40016dfa3113ae50ec97a55e212278b27c
+> >>>>>>307e7e40016dfa3113ae50ec97a55e212278b27c
+> >>>>>>
+
+
+RegionServer的启动过程：
+1.读取zk，获取Master的地址和端口，监听的zk地址为：zookeeper.znode.master，没有的话，是配置项：zookeeper.znode.parent，（默认值为/hbase），目录下面的master，默认目录是/hbase/master,通过类来监控：MasterAddressTracker，然后建立与Master的RPC连接。两者有一个握手的过程，发一个  RegionServerStartupRequest，接收一个 RegionServerStartupResponse
+
+2. RS abort的时候，会发送ReportRSFatalErrorRequest到Master，Master会记录下来，这个RS已经abort了
+
+
+
+
+
+
+ProcedureExecutor
+
+Procedure都会序列化到WAL里面去！
