@@ -175,7 +175,12 @@ SELINUX=enforcing 改为 SELINUX=disabled
 
 ```
 
+禁用IPV6
 
+vi /etc/sysctl.conf 
+net.ipv6.conf.all.disable_ipv6=1
+net.ipv6.conf.default.disable_ipv6=1
+sysctl  -p
 
 # 3.离线YUM源配置
 
@@ -183,7 +188,18 @@ SELINUX=enforcing 改为 SELINUX=disabled
 
 ```
 yum -y install httpd
-service httpd restart
+
+
+修改默认端口
+vi /etc/httpd/conf/httpd.conf 
+Listen 80
+改为：
+Listen 8181
+
+systemctl restart httpd 
+检查启动情况：
+netstat -anp|grep 8181
+
 cd /var/www/html/
 
 mkdir -p /var/www/html/ambari
@@ -256,7 +272,7 @@ ssh t3s3 yum repolist
 
 yum install ambari-server
 
-/etc/sysctl.conf 
+vi /etc/sysctl.conf 
 net.ipv6.conf.all.disable_ipv6=1
 net.ipv6.conf.default.disable_ipv6=1
 sysctl  -p
