@@ -1,4 +1,4 @@
----
+--- 
 layout:     post
 title:     Ambari安装HDP3.0.0
 subtitle:   用Ambari2.7安装HDP3.0.0
