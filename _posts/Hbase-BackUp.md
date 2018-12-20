@@ -389,7 +389,7 @@ public void execute() throws IOException {
    * @param backupRoot directory path to backup destination
    看HBase的注释，读取最近一次备份成功的pStartCode(时间戳），如果没有，或者长度为0，说明，迄今未回，还没有成功备份过数据(到这个目录！)
    
-   
+   是不是第一次运行全量备份，是通过StartCode来判断的！
 
       savedStartCode = backupManager.readBackupStartCode();
       firstBackup = savedStartCode == null || Long.parseLong(savedStartCode) == 0L;
@@ -408,6 +408,7 @@ public void execute() throws IOException {
       // the snapshot.
       LOG.info("Execute roll log procedure for full backup ...");
 
+    #这里执行roll log的Procedure，这里会重点分析
       Map<String, String> props = new HashMap<String, String>();
       props.put("backupRoot", backupInfo.getBackupRootDir());
       admin.execProcedure(LogRollMasterProcedureManager.ROLLLOG_PROCEDURE_SIGNATURE,
@@ -499,3 +500,189 @@ public void execute() throws IOException {
   }
 ```
 
+LogRollMasterProcedureManager重要的一步就是把LogRoll掉，这一步怎么做到的呢？
+
+首先，我们启用备份的时候是需要配置几个选项的：
+
+```
+<property>
+  <name>hbase.backup.enable</name>
+  <value>true</value>
+</property>
+<property>
+  <name>hbase.master.logcleaner.plugins</name>
+  <value>org.apache.hadoop.hbase.backup.master.BackupLogCleaner,...</value>
+</property>
+<property>
+  <name>hbase.procedure.master.classes</name>
+  <value>org.apache.hadoop.hbase.backup.master.LogRollMasterProcedureManager,...</value>
+</property>
+<property>
+  <name>hbase.procedure.regionserver.classes</name>
+  <value>org.apache.hadoop.hbase.backup.regionserver.LogRollRegionServerProcedureManager,...</value>
+</property>
+<property>
+  <name>hbase.coprocessor.region.classes</name>
+  <value>org.apache.hadoop.hbase.backup.BackupObserver,...</value>
+</property>
+<property>
+  <name>hbase.master.hfilecleaner.plugins</name>
+  <value>org.apache.hadoop.hbase.backup.BackupHFileCleaner,...</value>
+</property>
+```
+
+我们重点跟进LogRollMasterProcedureManager，LogRollRegionServerProcedureManager
+
+
+
+
+
+
+
+```
+public class MasterProcedureManagerHost extends
+    ProcedureManagerHost<MasterProcedureManager> {
+
+  private Hashtable<String, MasterProcedureManager> procedureMgrMap = new Hashtable<>();
+
+  @Override
+  public void loadProcedures(Configuration conf) {
+    loadUserProcedures(conf, MASTER_PROCEDURE_CONF_KEY);
+    for (MasterProcedureManager mpm : getProcedureManagers()) {
+      procedureMgrMap.put(mpm.getProcedureSignature(), mpm);
+    }
+  }
+  
+   public static final String ROLLLOG_PROCEDURE_SIGNATURE = "rolllog-proc";
+  @Override
+  public String getProcedureSignature() {
+    return ROLLLOG_PROCEDURE_SIGNATURE;
+  }
+```
+
+
+
+```
+public class RegionServerProcedureManagerHost extends
+    ProcedureManagerHost<RegionServerProcedureManager> {
+
+  private static final Logger LOG = LoggerFactory
+      .getLogger(RegionServerProcedureManagerHost.class);
+
+  public void initialize(RegionServerServices rss) throws KeeperException {
+    for (RegionServerProcedureManager proc : procedures) {
+      LOG.debug("Procedure {} initializing", proc.getProcedureSignature());
+      proc.initialize(rss);
+      LOG.debug("Procedure {} initialized", proc.getProcedureSignature());
+    }
+  }
+  ......
+
+  @Override
+  public void loadProcedures(Configuration conf) {
+    loadUserProcedures(conf, REGIONSERVER_PROCEDURE_CONF_KEY);
+    // load the default snapshot manager
+    procedures.add(new RegionServerSnapshotManager());
+    // load the default flush region procedure manager
+    procedures.add(new RegionServerFlushTableProcedureManager());
+  }
+
+
+org.apache.hadoop.hbase.backup.regionserver.LogRollRegionServerProcedureManager
+
+  @Override
+  public String getProcedureSignature() {
+    return "backup-proc";
+  }
+}
+```
+
+
+
+
+
+```
+public class HRegionServer extends HasThread implements
+    RegionServerServices, LastSequenceId, ConfigurationObserver {
+    
+    ......
+    
+    private RegionServerProcedureManagerHost rspmHost;
+    
+     private void initializeZooKeeper() throws IOException, InterruptedException {
+ ...
+ try {
+      rspmHost = new RegionServerProcedureManagerHost();
+      rspmHost.loadProcedures(conf);
+      rspmHost.initialize(this);
+    } catch (KeeperException e) {
+      this.abort("Failed to reach coordination cluster when creating procedure handler.", e);
+    }
+ 
+ }
+ 
+ 
+ public class HMaster extends HRegionServer implements MasterServices {
+private MasterProcedureManagerHost mpmHost;
+ void initializeZKBasedSystemTrackers() throws IOException,
+      InterruptedException, KeeperException {
+   ......
+   this.mpmHost = new MasterProcedureManagerHost();
+    this.mpmHost.register(this.snapshotManager);
+    this.mpmHost.register(new MasterFlushTableProcedureManager());
+    this.mpmHost.loadProcedures(conf);
+    this.mpmHost.initialize(this, this.metricsMaster);
+  }
+```
+
+
+
+```
+MasterProcedureManager的注释
+```
+
+```
+/**
+* A life-cycle management interface for globally barriered procedures on master.
+* See the following doc on details of globally barriered procedure:
+* https://issues.apache.org/jira/secure/attachment/12555103/121127-global-barrier-proc.pdf
+*
+* To implement a custom globally barriered procedure, user needs to extend two classes:
+* {@link MasterProcedureManager} and {@link RegionServerProcedureManager}. Implementation of
+* {@link MasterProcedureManager} is loaded into {@link org.apache.hadoop.hbase.master.HMaster}
+* process via configuration parameter 'hbase.procedure.master.classes', while implementation of
+* {@link RegionServerProcedureManager} is loaded into
+* {@link org.apache.hadoop.hbase.regionserver.HRegionServer} process via
+* configuration parameter 'hbase.procedure.regionserver.classes'.
+*
+* An example of globally barriered procedure implementation is
+* {@link org.apache.hadoop.hbase.master.snapshot.SnapshotManager} and
+* {@link org.apache.hadoop.hbase.regionserver.snapshot.RegionServerSnapshotManager}.
+*
+* A globally barriered procedure is identified by its signature (usually it is the name of the
+* procedure znode). During the initialization phase, the initialize methods are called by both
+* {@link org.apache.hadoop.hbase.master.HMaster}
+* and {@link org.apache.hadoop.hbase.regionserver.HRegionServer} which create the procedure znode
+* and register the listeners. A procedure can be triggered by its signature and an instant name
+* (encapsulated in a {@link ProcedureDescription} object). When the servers are shutdown,
+* the stop methods on both classes are called to clean up the data associated with the procedure.
+*/
+```
+
+
+
+
+
+主要的类：
+
+org.apache.hadoop.hbase.backup.regionserver.LogRollBackupSubprocedure#LogRollBackupSubprocedure
+
+
+
+
+
+ROllLog的最终输出：
+
+1.Log roll掉
+
+2.写metatable，rslogts：${Root}${server},列名：meta:rs-log-ts,值是WAL的最大的时间戳那个timestamp
