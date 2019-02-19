@@ -686,3 +686,185 @@ ROllLog的最终输出：
 1.Log roll掉
 
 2.写metatable，rslogts：${Root}${server},列名：meta:rs-log-ts,值是WAL的最大的时间戳那个timestamp
+
+
+
+
+
+
+
+1.数据生成：
+
+使用PE生成10条记录：
+
+
+
+hbase org.apache.hadoop.hbase.PerformanceEvaluation --table=zws_backup_test23 --nomapred --rows=100000 --presplit=10 sequentialWrite 1 
+
+
+
+ hbase org.apache.hadoop.hbase.PerformanceEvaluation --table=zws_backup_test --nomapred --rows=100000 --presplit=10 sequentialWrite 1 
+
+hdfs dfs -rmr hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test23
+
+hdfs dfs -mkdir -p hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test23
+
+
+
+hbase backup history backup_1546186503026
+
+hbase backup create full hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test23 -t zws_backup_test23
+
+
+
+hbase backup create incremenal hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test22   -t zws_backup_test22 
+
+
+
+做一次数据清理：
+
+首先列出所有的备份：
+
+ hbase backup history
+
+hbase backup delete backup_1546187947866
+
+echo 'disable "zws_backup_test22" '|hbase shell -n 
+
+echo 'drop "zws_backup_test22" '|hbase shell -n 
+
+
+
+echo 'disable "zws_backup_test23" '|hbase shell -n 
+
+echo 'drop "zws_backup_test23" '|hbase shell -n 
+
+[zws_backup_test](http://t3s1.ecloud.com:16010/table.jsp?name=zws_backup_test) 
+
+echo 'disable "zws_backup_test" '|hbase shell -n 
+
+echo 'drop "zws_backup_test" '|hbase shell -n 
+
+
+
+echo  'disable "backup:system"'|hbase shell -n 
+
+echo 'drop "backup:system" '|hbase shell -n 
+
+echo  'disable "backup:system_bulk"'|hbase shell -n 
+
+echo 'drop "backup:system_bulk" '|hbase shell -n 
+
+
+
+
+
+
+
+hdfs dfs -rmr hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test22
+
+hdfs dfs -rmr hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test23
+
+hdfs dfs -mkdir -p hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test_A   
+
+
+
+put 'zws_backup_test22', 'r1', 'info0:c1', 'value'
+
+ get 'zws_backup_test22', 'r1', 'info0:c1'
+
+
+
+hbase backup create incremental hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test_A   -t zws_backup_test 
+
+
+
+测试步骤：
+
+1. 首先写入数据，10万条，做一次全量备份到 目录A
+
+    hbase org.apache.hadoop.hbase.PerformanceEvaluation --table=zws_backup_test --nomapred --rows=100000 --presplit=10 sequentialWrite 1 
+
+   查看hbase table的情况，只有memstore，storefile的num为0，这时候没有达到触发flush的条件
+
+   hdfs dfs -rmr hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test_A
+
+   hdfs dfs -mkdir -p hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test_A   
+
+   hdfs dfs -ls /apps/hbase/data/data/backup
+
+   hdfs dfs -ls /apps/hbase/data/data/default/zws_backup_test/*/info0
+
+   这时候没有文件
+
+   hbase backup create full hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test_A   -t zws_backup_test 
+
+   这是storefile数目都是1，memstore都是0，都刷新到磁盘去了
+
+   
+
+2. 写入10条记录，继续全量备份，到目录B
+
+   put 'zws_backup_test', 'r1', 'info0:c1', 'value1'
+
+   put 'zws_backup_test', 'r2', 'info0:c1', 'value2'
+
+   put 'zws_backup_test', 'r3', 'info0:c1', 'value3'
+
+   put 'zws_backup_test', 'r4', 'info0:c1', 'value4'
+
+   put 'zws_backup_test', 'r5', 'info0:c1', 'value5'
+
+   put 'zws_backup_test', 'r6', 'info0:c1', 'value6'
+
+   put 'zws_backup_test', 'r7', 'info0:c1', 'value7'
+
+   put 'zws_backup_test', 'r8', 'info0:c1', 'value8'
+
+   put 'zws_backup_test', 'r9', 'info0:c1', 'value9'
+
+   put 'zws_backup_test', 'r10', 'info0:c1', 'value10'
+
+   hdfs dfs -mkdir -p hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test_B
+
+   hbase backup create full hdfs://t3s1.ecloud.com:8020/tmp/zws_backup_test_B   -t zws_backup_test 
+
+3. 做一次增量备份，到目录A，看看这次有没有写数据，这次应该是有WAL转换成的HFile的
+
+4. 写入10条数据，做一次增量备份到B，看看这次有没有写数据，这次应该是有这次的10条WAL转换成的HFile的
+
+
+
+
+
+为什么会出现oldWALs？
+【原因】
+
+当/hbase/WALs中的HLog文件被持久化到存储文件中，且这些Hlog日志文件不再被需要时，就会被转移到{hbase.rootdir}/oldWALs目录下，该目录由HMaster上的定时任务负责定期清理。
+
+HMaster在做定期清理的时候首先会检查zookeeper中/hbase/replication/rs下是否有对应的复制文件，如果有就放弃清理，如果没有就清理对应的hlog。在手动清理oldWALs目录数据的同时，如果没有删除对应的znode数据，就会导致HMaster不会自动清理oldWALs。
+另附某网友的解答：
+
+The folder gets cleaned regularly by a chore in master. When a WAL file is not needed any more for recovery purposes (when HBase can guaratee HBase has flushed all the data in the WAL file), it is moved to the oldWALs folder for archival. The log stays there until all other references to the WAL file are finished. There is currently two services which may keep the files in the archive dir. First is a TTL process, which ensures that the WAL files are kept at least for 10 min. This is mainly for debugging. You can reduce this time by setting hbase.master.logcleaner.ttl configuration property in master. It is by default 600000. The other one is replication. If you have replication setup, the replication processes will hang on to the WAL files until they are replicated. Even if you disabled the replication, the files are still referenced.
+
+
+
+【解决】
+
+(1) 进到zookeeper的节点下，删除相关节点，如截图所示
+
+
+
+![img](https://img-blog.csdn.net/20180131201446330?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvcXFfMzE1OTgxMTM=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast) 
+
+(2) 确保hbase-site.xml中的属性hbase.replication=false和属性hbase.backup.enable=false 如果是true就改成false，如果没有那两个属性则添加上去后重启整个hbase集群。
+
+
+
+(3) (我是在Ambari中)添加属性hbase.backup.enable=false到hbase-site.xml中去，再重启整个hbase集群，然后很快就能在hdfs中查看到{hbae.rootdir}/oldWALs目录大小为零了。所以说 hbase.backup.enable=false 属性是清除oldWALs文件的关键一步。
+
+可以从截图中看到，原来1.6T的oldWALs，被hmaster清理掉了：
+
+
+
+![img](https://img-blog.csdn.net/20180131204516418?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvcXFfMzE1OTgxMTM=/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast) 

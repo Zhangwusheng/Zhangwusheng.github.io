@@ -1,4 +1,4 @@
---- 
+---
 layout:     post
 title:     Ambari安装HDP3.0.0
 subtitle:   用Ambari2.7安装HDP3.0.0
@@ -64,8 +64,9 @@ ln -fs /usr/local/jdk1.8.0_161 /usr/local/jdk
 ```
 #每台机器执行
 cat /etc/profile.d/java.sh 
-export JAVA_HOME=/usr/local/jdk
-export PATH=$JAVA_HOME/bin:$PATH
+echo 'export JAVA_HOME=/usr/local/jdk' > /etc/profile.d/java.sh
+echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile.d/java.sh
+source /etc/profile.d/java.sh
 ```
 
 - 设置ulimit：
@@ -239,6 +240,28 @@ vi /etc/yum.repos.d/hdp.gpl.repo
 
 baseurl=http://192.168.0.47/ambari/HDP-GPL/centos7/3.0.0.0-1634
 gpgcheck=0
+
+
+--------------------------------------------
+[ambari-2.7.0.0]
+name=HDP Version - ambari-2.7.0.0
+baseurl=http://192.168.1.4:8081/ambari/ambari/centos7/2.7.0.0-897/
+gpgcheck=0
+
+[HDP-3.0.0.0]
+name=HDP Version - HDP-3.0.0.0
+baseurl=http://192.168.1.4:8081/ambari/HDP/centos7/3.0.0.0-1634
+gpgcheck=0
+[HDP-UTILS-1.1.0.22]
+name=HDP-UTILS Version - HDP-UTILS-1.1.0.22
+baseurl=http://192.168.1.4:8081/ambari/HDP-UTILS/centos7/1.1.0.22
+gpgcheck=0
+
+[HDP-GPL-3.0.0.0]
+name=HDP GPL Version - HDP-3.0.0.0
+baseurl=http://192.168.1.4:8081/ambari/HDP-GPL/centos7/3.0.0.0-1634
+gpgcheck=0
+--------------------------------------------------
 
 #clean这一步我觉得没有必要
 yum clean all
