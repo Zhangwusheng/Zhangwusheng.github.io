@@ -1,0 +1,6 @@
+yum install centos-release-scl-rh centos-release-scl
+
+devtoolset-6-gcc-c++
+
+source /opt/rh/devtoolset-6/enable
+100M最大

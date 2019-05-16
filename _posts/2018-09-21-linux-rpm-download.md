@@ -85,3 +85,29 @@ If downloading a installed package, "yumdownloader" is useful.
 
 
 This solution is part of Red Hat’s fast-track publication program, providing a huge library of solutions that Red Hat engineers have created while supporting our customers. To give you the knowledge you need the instant it becomes available, these articles may be presented in a raw and unedited form.
+
+
+
+### Yum安装源码
+
+以uname为例:
+
+whereis uname
+
+或者which sort
+
+ rpm -qf /usr/bin/sort
+
+coreutils-8.22-21.el7.x86_64
+
+
+
+ yumdownloader --source coreutils
+
+rpm -qpl ./coreutils-8.22-23.el7.src.rpm |grep tar
+coreutils-8.22.tar.xz
+
+ rpm2cpio coreutils-8.22-23.el7.src.rpm |cpio -idv  coreutils-8.22.tar.xz
+
+tar xJvf  coreutils-8.22.tar.xz
+
