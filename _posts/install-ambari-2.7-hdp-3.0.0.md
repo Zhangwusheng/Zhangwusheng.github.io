@@ -105,6 +105,10 @@ echo '* soft nofile 65536' >> /etc/security/limits.conf
 echo '* hard nofile 65536' >> /etc/security/limits.conf
 echo '* soft nproc 131072' >> /etc/security/limits.conf
 echo '* hard nproc 131072' >> /etc/security/limits.conf
+echo '* soft core unlimited' >> /etc/security/limits.conf
+
+mkdir -p /data2/core_files
+echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
 
 ```
 
@@ -212,17 +216,19 @@ SELINUX=enforcing 改为 SELINUX=disabled
 
 ```
 
-禁用IPV6
+- 禁用IPV6
 
-vi /etc/sysctl.conf 
-net.ipv6.conf.all.disable_ipv6=1
-net.ipv6.conf.default.disable_ipv6=1
+
+```bash
+echo 'net.ipv6.conf.all.disable_ipv6=1' >> /etc/sysctl.conf 
+echo 'net.ipv6.conf.default.disable_ipv6=1' >> /etc/sysctl.conf 
 sysctl  -p
+```
+
+- ssh设置
 
 
-
-
-
+```bash
 mkdir /root/.ssh;chmod 600 /root/.ssh
 
 允许ROOT ssh
@@ -236,8 +242,6 @@ PermitRootLogin yes
 
 systemctl restart sshd
 
-
-
 修改:
 
 vi /etc/hosts.allow
@@ -247,6 +251,46 @@ sshd:36.111.140.40:allow
 vi /root/.ssh/authorized_keys
 
 chmod 644 /root/.ssh/authorized_keys
+
+```
+
+- 修改core文件
+
+  
+
+  ```bash
+  3、core文件的设置
+       1)/proc/sys/kernel/core_uses_pid可以控制core文件的问价名是否添加PID作为扩展，文件的内容为1，
+             标识添加PID作为扩展，生成的core文件格式为core.XXXX;为0则表示生成的core文件统一命名为
+            core；可通过一下命令修改此文件：
+             echo "1" > /proc/sys/kernel/core_uses_pid
+       2）core文件的保存位置和文件名格式
+           echo "/corefile/core-%e-%p-%t" > core_pattern，可以将core文件统一生成到/corefile目录
+            下，产生的文件名为core-命令名-pid-时间戳
+             以下是参数列表:
+             %p - insert pid into filename 添加pid
+             %u - insert current uid into filename 添加当前uid
+             %g - insert current gid into filename 添加当前gid
+             %s - insert signal that caused the coredump into the filename 添加导致产生core的信号
+             %t - insert UNIX time that the coredump occurred into filename 添加core文件生成的unix时间
+            %h - insert hostname where the coredump happened into filename 添加主机名
+             %e - insert coredumping executable name into filename 添加命令名
+             
+             
+             
+             
+             
+     mkdir -p /data1/core_files
+     echo '/data1/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
+  ```
+
+  
+
+
+
+
+
+
 
 
 
@@ -545,8 +589,6 @@ grant all privileges on database hive to hive;
 create user root with password 'hive';
 
 grant all privileges on database hive to root;
-
-
 
 create user kylin with password 'hive';
 
@@ -1740,6 +1782,10 @@ kylin.engine.spark-conf.spark.executor.instances=40
 
 kylin.engine.spark-conf.spark.network.timeout=10000000 
 
+
+
+
+
 ## 3.修复Tomcat
 
 copy spark的common configuration 1.6 jar包
@@ -1853,11 +1899,33 @@ ANALYST/ANALYST@1234@#&
 
 # 卸载:
 
+
+
+cd /etc/yum.repos.d
+
+rm -f ambari* hdp.*
+
+yum makecache fast
+
+
+
+yum list installed|grep HDP|awk '{print "yum remove -y "$1;}'|sort -u
+
+
+
+
+
 yum list installed |grep hadoop
 
 
 
+yum list installed |grep HDP 
 
+yum list installed |grep 1634
+
+yum list installed |grep ambari
+
+yum list installed |grep HDP|awk '{print "rpm -e "$1;}'|sort -u
 
 
 
@@ -1875,76 +1943,6 @@ rm -rf /data9/hadoop
 rm -rf /data10/hadoop
 
 
-
-rpm -e phoenix_3_0_0_0_1634-5.0.0.3.0.0.0-1634.noarch
-
-rpm -e hive_3_0_0_0_1634-hcatalog-3.1.0.3.0.0.0-1634.noarch
-
- rpm -e spark2_3_0_0_0_1634-python-2.3.1.3.0.0.0-1634.noarch
-
- rpm -e livy2_3_0_0_0_1634-0.5.0.3.0.0.0-1634.noarch
-
-rpm -e spark2_3_0_0_0_1634-2.3.1.3.0.0.0-1634.noarch
-
-rpm -e hive_3_0_0_0_1634-3.1.0.3.0.0.0-1634.noarch
-
-rpm -e tez_3_0_0_0_1634-0.9.1.3.0.0.0-1634.noarch
-
-rpm -e hive_3_0_0_0_1634-jdbc-3.1.0.3.0.0.0-1634.noarch
-
-rpm -e hadoop_3_0_0_0_1634-client-3.1.0.3.0.0.0-1634.x86_64
-
-rpm -e hadoop_3_0_0_0_1634-mapreduce-3.1.0.3.0.0.0-1634.x86_64
-
-rpm -e hadoop_3_0_0_0_1634-yarn-3.1.0.3.0.0.0-1634.x86_64
-
-rpm -e hbase_3_0_0_0_1634-2.0.0.3.0.0.0-1634.noarch
-
-rpm -e hadoop_3_0_0_0_1634-libhdfs-3.1.0.3.0.0.0-1634.x86_64
-
-rpm -e hadoop_3_0_0_0_1634-3.1.0.3.0.0.0-1634.x86_64
-
-rpm -e hadoop_3_0_0_0_1634-hdfs-3.1.0.3.0.0.0-1634.x86_64
-
-rpm -e hadoop_3_0_0_0_1634.x86_64
-
-rpm -e hadoop_3_0_0_0_1634-hdfs.x86_64
-
- rpm -e ranger_3_0_0_0_1634-hdfs-plugin.x86_64
-
-rpm -e atlas-metadata_3_0_0_0_1634-hbase-plugin.noarch
-
-rpm -e ranger_3_0_0_0_1634-hbase-plugin.x86_64
-
-rpm -e hive_warehouse_connector_3_0_0_0_1634.noarch
-
-rpm -e spark2_3_0_0_0_1634-yarn-shuffle.noarch
-
-rpm -e zookeeper_3_0_0_0_1634-server.noarch
-
-rpm -e zookeeper_3_0_0_0_1634.noarch
-
-rpm -e ranger_3_0_0_0_1634-yarn-plugin.x86_64
-
-rpm -e smartsense-hst.x86_64
-
-rpm -e bigtop-jsvc.x86_64
-
-rpm -e hdp-select.noarch
-
-rpm -e atlas-metadata_3_0_0_0_1634-hive-plugin.noarch
-
-rpm -e ranger_3_0_0_0_1634-hive-plugin
-
-rpm -e ambari-metrics-hadoop-sink
-
-
-
-rpm -e ambari-metrics-monitor
-
-rpm -e ambari-metrics-collector
-
-rpm -e ambari-metrics-grafana
 
 
 
@@ -2006,14 +2004,57 @@ file:///data7/var/lib/ambari-metrics-collector/hbase
 
 
 
+# TimelineService
 
+ sudo -u yarn hdfs dfs -mkdir -p /ats/hbase/coprocessor
+
+sudo -u yarn hdfs dfs -put /usr/hdp/current/hadoop-yarn-timelineserver/timelineservice/hadoop-yarn-server-timelineservice-3.1.0.3.0.0.0-1634.jar /ats/hbase/coprocessor
+
+
+
+原来的值为:
+
+{{yarn_timeline_jar_location}}
+
+修改为:
+
+/ats/hbase/coprocessor/hadoop-yarn-server-timelineservice-3.1.0.3.0.0.0-1634.jar
+
+```
+<property>
+  <name>yarn.timeline-service.hbase.coprocessor.jar.hdfs.location</name>
+  <value>/ats/hbase/coprocessor/hadoop-yarn-server-timelineservice-3.1.0.3.0.0.0-1634.jar</value>
+</property>
+```
 
 # 安装kerberos
+
+
+
+HDP3.0 Ambari的几个坑:
+1.yarn dns默认端口 hadoop自己是5353,安装的时候变成了53,导致启动yarndns的机器在运行kadmin时出问题
+2.kerberos 一定要使用域名,不能使用IP
+3.kerberos一定要他管理krb5.conf,不能清除那个选项,使用自己的配置文件
+
+
+
+
 
 1.安装KDC Server
 
 ```
 yum install krb5-server krb5-libs krb5-workstation krb5-devel -y
+
+rpm -qa|grep krb5
+krb5-workstation-1.15.1-37.el7_6.x86_64
+krb5-libs-1.15.1-37.el7_6.x86_64
+krb5-devel-1.15.1-37.el7_6.x86_64
+krb5-server-1.15.1-37.el7_6.x86_64
+
+这个 -37  -8  -18都可以的
+汪聘  15:41:06
+以前就遇到过-19 的不行
+
 ```
 
 2.设置HOSTS
@@ -2058,7 +2099,7 @@ CDNLOG = {  #修改
 ecloud.com=CDNLOG  #修改
 
 ```
-4.修改文件：/var/kerberos/krb5kdc
+4.修改文件：/var/kerberos/krb5kdc/kdc.conf 
 
 ```bash
 ------------------------------------
@@ -2104,7 +2145,11 @@ systemctl enable kadmin.service
 
 ```
 # kadmin.local -q "addprinc admin/admin@CDNLOG"
+kadmin.local -q "addprinc admin/admin@CTYUNCDN.NET"
 cdnlog@kdc!@#
+
+
+kadmin.local -q "addprinc kadmin/192.168.1.66@CDNLOG"
 
 Authenticating as principal root/admin@CDNLOG with password.
 WARNING: no policy specified for admin/admin@CDNLOG; defaulting to no policy
@@ -2113,6 +2158,7 @@ Re-enter password for principal "admin/admin@CDNLOG":
 Principal "admin/admin@CDNLOG" created.
 
 # kadmin.local -q "xst -norandkey admin/admin@CDNLOG"
+kadmin.local -q "xst -norandkey admin/admin@CTYUNCDN.NET"
 cdnlog@kdc!@#
 
 Authenticating as principal root/admin@CDNLOG with password.
@@ -2174,8 +2220,287 @@ unzip -o -j -q  /data1/jce_policy-8.zip -d $JAVA_HOME/jre/lib/security
 
 
 
+unzip -o -j -q  /data10/soft/jce_policy-8.zip  -d $JAVA_HOME/jre/lib/security
+
+
+
 krb5-config --version
 
 
 
 ![1557912194106](/img/ambari-install-kerberos.png)
+
+
+
+
+
+
+
+# 设置队列
+
+
+
+capacity-scheduler=null
+yarn.scheduler.capacity.default.minimum-user-limit-percent=100
+yarn.scheduler.capacity.maximum-am-resource-percent=0.2
+yarn.scheduler.capacity.maximum-applications=10000
+yarn.scheduler.capacity.node-locality-delay=40
+yarn.scheduler.capacity.resource-calculator=org.apache.hadoop.yarn.util.resource.DefaultResourceCalculator
+yarn.scheduler.capacity.root.accessible-node-labels=*
+yarn.scheduler.capacity.root.acl_administer_queue=*
+yarn.scheduler.capacity.root.acl_submit_applications=*
+yarn.scheduler.capacity.root.capacity=100
+yarn.scheduler.capacity.root.default.acl_administer_jobs=*
+yarn.scheduler.capacity.root.default.acl_submit_applications=*
+yarn.scheduler.capacity.root.default.capacity=10
+yarn.scheduler.capacity.root.default.maximum-capacity=100
+yarn.scheduler.capacity.root.default.state=RUNNING
+yarn.scheduler.capacity.root.default.user-limit-factor=1
+
+yarn.scheduler.capacity.schedule-asynchronously.enable=true
+yarn.scheduler.capacity.schedule-asynchronously.maximum-threads=1
+yarn.scheduler.capacity.schedule-asynchronously.scheduling-interval-ms=10
+
+yarn.scheduler.capacity.root.queues=default,develop
+yarn.scheduler.capacity.root.develop.etl.acl_administer_jobs=*
+yarn.scheduler.capacity.root.develop.etl.acl_submit_applications=*
+yarn.scheduler.capacity.root.develop.etl.capacity=60
+yarn.scheduler.capacity.root.develop.etl.maximum-capacity=100
+yarn.scheduler.capacity.root.develop.etl.state=RUNNING
+yarn.scheduler.capacity.root.develop.etl.user-limit-factor=1
+
+yarn.scheduler.capacity.root.develop.kylin.acl_administer_jobs=*
+yarn.scheduler.capacity.root.develop.kylin.acl_submit_applications=*
+yarn.scheduler.capacity.root.develop.kylin.capacity=40
+yarn.scheduler.capacity.root.develop.kylin.maximum-capacity=80
+yarn.scheduler.capacity.root.develop.kylin.state=RUNNING
+yarn.scheduler.capacity.root.develop.kylin.user-limit-factor=1
+
+yarn.scheduler.capacity.root.develop.queues=etl,kylin
+
+
+
+
+
+# TEZUI
+
+
+
+yarn.timeline-service.webapp.address
+
+timeline: "http://hbase135.ecloud.com:8188",
+
+
+
+hadoop.http.cross-origin.allowed-origins *
+
+yarn.resourcemanager.webapp.address
+
+rm: "http://hbase73.ecloud.com:8088",
+
+
+
+vi configs.env 
+
+```
+<property>
+      <name>tez.history.logging.service.class</name>
+      <value>org.apache.tez.dag.history.logging.ats.ATSHistoryLoggingService</value>
+</property>
+<property>
+       <description>URL for where the Tez UI is hosted</description>
+       <name>tez.tez-ui.history-url.base</name>
+       <value>http://36.111.140.41:28288/tez-ui/</value>
+</property>
+```
+
+http://36.111.140.41:28288/tez-ui/#/?rowCount=100
+
+# GC设置:
+
+```bash
+timestamp_str=`date +'%Y%m%d%H%M'`
+rm_gc_log_name="{{yarn_log_dir_prefix}}/$USER/yarn-resourcemanager-gc-${timestamp_str}.log"
+rm_gc_log_enable_opts="-verbose:gc -Xloggc:$rm_gc_log_name"
+rm_gc_log_rotation_opts="-XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10M"
+rm_gc_log_format_opts="-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps"
+rm_gc_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB -XX:ErrorFile={{yarn_log_dir_prefix}}/rm_err_pid%p.log" 
+rm_OOMHANDLER="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath={{yarn_log_dir_prefix}}/resourcemanager-heapdump.hprof.${timestamp_str}"
+rm_gc_log_opts="$rm_gc_log_enable_opts $rm_gc_log_rotation_opts $rm_gc_log_format_opts ${rm_gc_opts} ${rm_OOMHANDLER}"
+YARN_RESOURCEMANAGER_OPTS="${YARN_RESOURCEMANAGER_OPTS} ${rm_gc_log_opts}"	
+
+
+function getGcOpts()
+{
+   local component_name=$1
+   local timestamp_str=`date +'%Y%m%d%H%M'`
+   local gc_log_filename="{{yarn_log_dir_prefix}}/gc-yarn-${component_name}-${timestamp_str}.log"
+   local gc_log_enable_opts="-verbose:gc -Xloggc:${gc_log_filename}"
+   local gc_log_rotation_opts="-XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10M"
+   local gc_log_format_opts="-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps"
+   local gc_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB " 
+   local gc_error_opt="-XX:ErrorFile={{yarn_log_dir_prefix}}/gc_err_${component_name}_pid%p.log"
+   local gc_oom_opt="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath={{yarn_log_dir_prefix}}/heapdump-${component_name}-${timestamp_str}.hprof."
+   
+   echo "${gc_opts} ${gc_log_enable_opts} ${gc_log_rotation_opts} ${gc_log_format_opts} ${gc_error_opt} ${gc_oom_opt}"
+}
+
+
+
+function getHBaseGcOpts()
+{
+   local component_name=$1
+   local timestamp_str=`date +'%Y%m%d%H%M'`
+   local gc_log_filename="{{yarn_log_dir_prefix}}/gc-hbase-${component_name}-${timestamp_str}_pid%p.log"
+   local gc_log_enable_opts="-verbose:gc -Xloggc:${gc_log_filename}"
+   local gc_log_rotation_opts="-XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10M"
+   local gc_log_format_opts="-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps"
+   local gc_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB " 
+   local gc_error_opt="-XX:ErrorFile={{hbase_log_dir}}/gc_err_${component_name}_pid%p.log"
+   local gc_oom_opt="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath={{hbase_log_dir}}/heapdump-${component_name}-${timestamp_str}.hprof."
+   
+   echo "${gc_opts} ${gc_log_enable_opts} ${gc_log_rotation_opts} ${gc_log_format_opts} ${gc_error_opt} ${gc_oom_opt}"
+}
+
+YARN_RESOURCEMANAGER_OPTS=`getGcOpts resourcemanager`
+echo $YARN_RESOURCEMANAGER_OPTS
+```
+
+
+
+目前kylin 30个container
+
+**kylin.storage.hbase.min-region-count**                                                             
+
+​                                                               20                   
+
+​                     **kylin.source.hive.redistribute-flat-table**                                                             
+
+​                                                               false                   
+
+​                     **kylin.engine.spark-conf.spark.executor.cores**                                                             
+
+​                                                               2                   
+
+​                     **kylin.engine.spark-conf.spark.yarn.queue**                                                             
+
+​                                                               kylin                   
+
+​                     **kylin.engine.spark-conf.spark.executor.instances**                                                             
+
+​                                                               30                   
+
+占了集群的65%,大概跑满了80%,所以这里可以配置成55%
+
+kylin setenv.sh里面启用了 12G内存
+
+
+
+如果想要跑到3分钟以内,要40个container,65%的资源,4分钟以内需要30个container,56的资源
+
+
+
+
+
+# 加装机器:
+
+1.杀掉所有的进程
+
+
+
+
+
+
+
+
+
+
+
+# 修改内网网卡:
+
+修改内网网卡 Advanced hadoop-env:
+
+```
+export MY_LOCAL_IP=`/sbin/ifconfig|grep 192|awk '{print $2;}'`
+      export HADOOP_OPTS="-Djava.net.preferIPv4Stack=true ${HADOOP_OPTS} -Dlocal.bind.address=${MY_LOCAL_IP}"
+
+```
+
+dfs.datanode.ipc.address    ${local.bind.address}:8010
+
+dfs.journalnode.http-address                                                         
+
+​          [            ](http://36.111.140.40:18080/#)           [            ](http://36.111.140.40:18080/#)                 [            ](http://36.111.140.40:18080/#)     
+
+
+
+
+
+network.negotiate-auth.trusted-uris;http://t36:50070/,http://t36
+
+
+
+
+
+hadoop.http.authentication.simple.anonymous.allowed   true
+
+yarn.timeline-service.http-authentication.type kerberos->simple?
+
+# 
+
+
+
+
+
+Zookeeper的修改:
+
+```bash
+#########################################################
+cat $ZOOCFG |grep -v clientPortAddress > ${ZOOCFG}.2
+MY_LOCAL_IP=`hostname`
+echo "clientPortAddress=${MY_LOCAL_IP}" >> ${ZOOCFG}.2
+mv ${ZOOCFG}.2 ${ZOOCFG}
+#########################################################
+```
+
+
+
+
+
+# 替换SPARK包:
+
+```bash
+cp /usr/hdp/3.0.0.0-1634/hadoop/lib/jackson-core-2.9.5.jar 
+
+ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson--2.6.7
+ ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson--2.9.5
+
+ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7*jar
+
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar  /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar .BAK
+
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-annotations-2.6.7.jar.BAK
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar.BAK
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-databind-2.6.7.jar.BAK
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-core-2.6.7.jar.BAK
+cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-databind-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-annotations-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-core-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+
+
+
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar  /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-databind-2.6.7.1.jar.BAK
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-core-2.6.7.jar.BAK
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-annotations-2.6.7.jar.BAK
+
+cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-databind-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-annotations-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-core-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+
+ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-*-2.6.7*jar
+```
+
+
+
+
+
