@@ -1252,24 +1252,59 @@ vim /etc/ssh/sshd_config
 
 # 10.Kylin安装
 
+## 1.增加用户
+
 ```bash
-export KYLIN_HOME=/data1/apache-kylin-2.6.1-bin-hadoop3
-export HADOOP_HOME=/usr/hdp/3.0.0.0-1634/hadoop
-export SPARK_HOME=/data1/spark-2.3.2-bin-hadoop2.7
-
-export PATH=$PATH:$SPARK_HOME/bin
-
-
-
+groupadd cdnlog
+useradd kylin -g cdnlog
 ```
 
 
 
-mkdir -p /usr/bin/zwsBak
+## 2.设置环境变量
 
-mv /usr/bin/spark-* /usr/bin/zwsBak
+```bash
+##Standalone版本
+export KYLIN_HOME=/data1/apache-kylin-2.6.1-bin-hadoop3
+export HADOOP_HOME=/usr/hdp/3.0.0.0-1634/hadoop
+export SPARK_HOME=/data1/spark-2.3.2-bin-hadoop2.7
+export PATH=$PATH:$SPARK_HOME/bin
 
-mv /data1/spark-2.3.2-bin-hadoop2.7/bin/beeline /data1/spark-2.3.2-bin-hadoop2.7/bin/beeline-nono
+##HDP版本
+echo 'export SPARK_HOME=/usr/hdp/3.0.0.0-1634/spark2' > /etc/profile.d/spark.sh
+echo 'export PATH=$PATH:$SPARK_HOME/bin' >> /etc/profile.d/spark.sh
+mv /usr/hdp/3.0.0.0-1634/spark2/bin/beeline /usr/hdp/3.0.0.0-1634/spark2/bin/spark-beeline
+source /etc/profile.d/spark.sh
+
+```
+
+## 3.修改Hive脚本(非kerberos)
+
+```bash
+vi /usr/hdp/current/hive-client/bin/hive.distro 
+
+  if [ SERVICE == "cli" -o SERVICE == "beeline" ]
+  then
+      $TORUN -p hive -n kylin "@"
+  else
+      $TORUN "@"
+  fi
+
+```
+
+## 4.修复Tomacat
+
+```bash
+cd /data1/apache-kylin-2.6.1-bin-hadoop3/tomcat/webapps
+mkdir kylin
+unzip  ../kylin.war 
+
+上传 F:\Soft\HDP\Kylin
+commons-configuration-1.6-zws-added.jar
+
+```
+
+https://blog.csdn.net/qq_42606051/article/details/82713476
 
 
 
@@ -2493,10 +2528,23 @@ cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-core-2.9.5.jar /usr/hdp/3.0.0.0-1
 mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar  /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-databind-2.6.7.1.jar.BAK
 mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-core-2.6.7.jar.BAK
 mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-annotations-2.6.7.jar.BAK
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-jaxb-annotations-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-jaxb-annotations-2.6.7.jar.BAK
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-scala_2.11-2.6.7.1.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-scala_2.11-2.6.7.1.jar.BAK
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-dataformat-cbor-2.6.7.jar.BAK
 
+
+手工上传jackson-dataformat-cbor-2.9.5.jar
+cd /usr/hdp/3.0.0.0-1634/spark2/jars
+scp /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar 192.168.1.66:/usr/hdp/3.0.0.0-1634/spark2/jars/
+scp /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar 192.168.1.66:/usr/hdp/3.0.0.0-1634/spark2/jars/
+
+
+cp /usr/hdp/3.0.0.0-1634/hbase/lib/jackson-module-scala_2.11-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+cp /usr/hdp/3.0.0.0-1634/hadoop-yarn/lib/jackson-module-jaxb-annotations-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
 cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-databind-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
 cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-annotations-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
 cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-core-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+
 
 ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-*-2.6.7*jar
 
