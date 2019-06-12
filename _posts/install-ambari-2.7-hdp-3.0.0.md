@@ -2031,7 +2031,8 @@ sudo -u yarn hdfs dfs -put /usr/hdp/current/hadoop-yarn-timelineserver/timelines
 
 
 
-HDP3.0 Ambari的几个坑:
+## HDP3.0 Ambari的几个坑:
+
 1.yarn dns默认端口 hadoop自己是5353,安装的时候变成了53,导致启动yarndns的机器在运行kadmin时出问题
 2.kerberos 一定要使用域名,不能使用IP
 3.kerberos一定要他管理krb5.conf,不能清除那个选项,使用自己的配置文件
@@ -2498,6 +2499,16 @@ cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-annotations-2.9.5.jar /usr/hdp/3.
 cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-core-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
 
 ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-*-2.6.7*jar
+
+反过来:
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-databind-2.6.7.1.jar.BAK  /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-core-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.6.7.jar
+mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-annotations-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7.jar
+
+rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.9.5.jar
+rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.9.5.jar
+rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.9.5.jar
+
 ```
 
 
