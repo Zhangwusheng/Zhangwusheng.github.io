@@ -24,7 +24,10 @@ typora-root-url: ..
 
 # 1.下载离线安装包
 
-see [ambari2.7.0.0](https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/ambari_repositories.html) && [hdp-3.0.0](https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/hdp_30_repositories.html)
+ambari2.7.0.0下载页面:
+https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/ambari_repositories.html 
+hdp-3.0.0下载页面:
+https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/hdp_30_repositories.html
 
 ambari-2.7.0.0
 
@@ -56,7 +59,7 @@ http://public-repo-1.hortonworks.com/HDP-GPL/centos7/3.x/updates/3.1.0.0/HDP-GPL
 
 # 2.环境准备
 
-**注意一定要上来先停掉防火墙，否则很容易出现网络问题！！**
+**注意一定要上来先停掉防火墙，否则很容易出现莫名其妙的问题！！**
 
 
 
@@ -67,20 +70,31 @@ http://public-repo-1.hortonworks.com/HDP-GPL/centos7/3.x/updates/3.1.0.0/HDP-GPL
 | 192.168.0.110 | NameNode，ZooKeeper,DataNode             |
 | 192.168.0.201 | DataNode，ZooKeeper                      |
 
+-   关闭防火墙
 
+```
+#每台机器执行
+systemctl disable firewalld
+systemctl stop firewalld
+```
 
- mkfs.ext4 /dev/vdb 
+-   挂载磁盘
 
+```
+#每台机器执行
+mkfs.ext4 /dev/vdb 
 mkdir /data1;mount /dev/vdb /data1
+```
 
-- 下载jdk-8u161-linux-x64.tar.gz
+- 安装JDK
 
 ```shell
+#每台机器执行
 tar zxvf /data1/jdk-8u161-linux-x64.tar.gz -C /usr/local/
 ln -fs /usr/local/jdk1.8.0_161 /usr/local/jdk
 ```
 
-- 设置环境变量：
+- 设置JDK环境变量：
 
 ```
 #每台机器执行
@@ -112,6 +126,17 @@ echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
 
 ```
 
+>  *core_pattern的参数说明*
+>
+> ​         *%p - inse*rt pid into filename 添加pid*
+> ​          %u - insert current uid into filename 添加当前uid*
+> ​          *%g - insert current gid into filename 添加当前gid*
+> ​          *%s - insert signal that caused the coredump into the filename 添加导致产生core的信号*
+> ​          *%t - insert UNIX time that the coredump occurred into filename 添加core文件生成的unix时间*
+> ​          *%h - insert hostname where the coredump happened into filename 添加主机名*
+> ​          %e - insert coredumping executable name into filename 添加命令名*  
+
+
 - 设置hostname
 
 ```
@@ -134,8 +159,6 @@ echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
   192.168.0.110  t3s1.ecloud.com t3s1
   192.168.0.201  t3s3.ecloud.com t3s3
   
-  
-  
   192.168.1.73  hbase73.ecloud.com hbase73
   192.168.1.105  hbase105.ecloud.com hbase105
   192.168.1.135  hbase135.ecloud.com hbase135
@@ -148,13 +171,6 @@ echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
   sed -i -e 's/t197/hbase197/g' -e 's/t246/hbase246/g' -e  's/t177/hbase177/g' /etc/hosts 
 ```
 
--   关闭防火墙
-
-```
-#每台机器执行
-systemctl disable firewalld
-systemctl stop firewalld
-```
 
 - 设置ssh免密登录
 
@@ -195,7 +211,7 @@ crontab -e
 
 上面这一步为必须设置的步骤。
 
-临时关闭selinux
+-    临时关闭selinux
 
 ```
 sestatus
@@ -229,74 +245,75 @@ sysctl  -p
 
 
 ```bash
-mkdir /root/.ssh;chmod 600 /root/.ssh
-
-允许ROOT ssh
+#mkdir /root/.ssh;chmod 600 /root/.ssh
+#允许ROOT ssh
 
 vi /etc/ssh/sshd_config
 
 #PermitRootLogin no
 PermitRootLogin yes
 
-
-
+#重启sshd
 systemctl restart sshd
 
-修改:
+#修改hosts.allow:
 
 vi /etc/hosts.allow
 
+#加入自己的IP
 sshd:36.111.140.40:allow
 
+#不能ssh-copy-id的时候手工编辑这个文件
 vi /root/.ssh/authorized_keys
 
 chmod 644 /root/.ssh/authorized_keys
 
 ```
 
-- 修改core文件
-
-  
-
-  ```bash
-  3、core文件的设置
-       1)/proc/sys/kernel/core_uses_pid可以控制core文件的问价名是否添加PID作为扩展，文件的内容为1，
-             标识添加PID作为扩展，生成的core文件格式为core.XXXX;为0则表示生成的core文件统一命名为
-            core；可通过一下命令修改此文件：
-             echo "1" > /proc/sys/kernel/core_uses_pid
-       2）core文件的保存位置和文件名格式
-           echo "/corefile/core-%e-%p-%t" > core_pattern，可以将core文件统一生成到/corefile目录
-            下，产生的文件名为core-命令名-pid-时间戳
-             以下是参数列表:
-             %p - insert pid into filename 添加pid
-             %u - insert current uid into filename 添加当前uid
-             %g - insert current gid into filename 添加当前gid
-             %s - insert signal that caused the coredump into the filename 添加导致产生core的信号
-             %t - insert UNIX time that the coredump occurred into filename 添加core文件生成的unix时间
-            %h - insert hostname where the coredump happened into filename 添加主机名
-             %e - insert coredumping executable name into filename 添加命令名
-             
-             
-             
-             
-             
-     mkdir -p /data1/core_files
-     echo '/data1/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
-  ```
-
-  
 
 
+# 3.配置YUM离线源
+
+***Amber-Server服务器执行***
+
+- 配置离线源
+
+```
+yum -y install httpd
 
 
+#修改默认端口
+sed -i 's/Listen 80/Listen 18181/g' /etc/httpd/conf/httpd.conf 
+#启动服务
+systemctl restart httpd 
+检查启动情况：
+netstat -anp|grep 18181
 
+mkdir -p /var/www/html/ambari
+cd /data1/HDP-3.0.0/
 
+tar zxvf ambari-2.7.0.0-centos7.tar.gz -C /var/www/html/ambari
+tar zxvf HDP-3.0.0.0-centos7-rpm.tar.gz  -C /var/www/html/ambari
+tar zxvf HDP-UTILS-1.1.0.22-centos7.tar.gz -C  /var/www/html/ambari
+tar zxvf HDP-GPL-3.0.0.0-centos7-gpl.tar.gz -C /var/www/html/ambari
 
+vi /etc/yum.repos.d/ambari.repo 
+[ambari-2.7.0.0]
+name=HDP Version - ambari-2.7.0.0
+baseurl=http://192.168.0.47/ambari/ambari/centos7/2.7.0.0-897/
+gpgcheck=0
 
+#检查是否正确
+yum repolist
 
-# 3.离线YUM源配置
+出问题的话可以这样子：
+rm -rf /var/lib/rpm/__db*
+```
+- 安装AmbariServer
 
-跳板机服务器执行：
+```
+yum install -y ambari-server
+```
 
 ```
 yum -y install httpd
@@ -323,10 +340,8 @@ tar zxvf HDP-UTILS-1.1.0.22-centos7.tar.gz -C  /var/www/html/ambari
 tar zxvf HDP-GPL-3.0.0.0-centos7-gpl.tar.gz -C /var/www/html/ambari
 
 #访问192.168.0.47/ambari看看能否访问
-
-yum install yum-utils createrepo yum-plugin-priorities -y
-
-cp /var/www/html/ambari/ambari/centos7/2.7.0.0-897/ambari.repo /etc/yum.repos.d/
+#yum install yum-utils createrepo yum-plugin-priorities -y
+#cp /var/www/html/ambari/ambari/centos7/2.7.0.0-897/ambari.repo /etc/yum.repos.d/
 
 vi /etc/yum.repos.d/ambari.repo 
 #修改baseurl和gpgcheck
@@ -1292,7 +1307,7 @@ vi /usr/hdp/current/hive-client/bin/hive.distro
 
 ```
 
-## 4.修复Tomacat
+## 4.修复Tomcat
 
 ```bash
 cd /data1/apache-kylin-2.6.1-bin-hadoop3/tomcat/webapps
