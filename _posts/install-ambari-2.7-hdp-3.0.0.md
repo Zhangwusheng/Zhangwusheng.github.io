@@ -70,6 +70,17 @@ http://public-repo-1.hortonworks.com/HDP-GPL/centos7/3.x/updates/3.1.0.0/HDP-GPL
 | 192.168.0.110 | NameNode，ZooKeeper,DataNode             |
 | 192.168.0.201 | DataNode，ZooKeeper                      |
 
+-   变量设置
+
+```bash
+#jdk安装软件所在目录
+JAVA_SOFT=/data1
+#HDP所在目录
+HDP_SOFT=/data1/HDP-3.0
+#所有机器IP列表,最后一位
+HOSTS="36 66 160"
+```
+
 -   关闭防火墙
 
 ```
@@ -150,7 +161,7 @@ echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
 -   设置hosts文件
 
 
-```
+```bash
   #每台机器执行
   # cat /etc/hosts
   
@@ -169,17 +180,23 @@ echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
   echo '192.168.1.246  hbase246.ecloud.com hbase246' >> /etc/hosts
   
   sed -i -e 's/t197/hbase197/g' -e 's/t246/hbase246/g' -e  's/t177/hbase177/g' /etc/hosts 
+  
+HOST_PREFIX=hbase
+hostip=`ifconfig|grep 192|awk '{print $2;}'|awk -vhost=${HOST_PREFIX} -F'.' '{print $4;}'`
+echo "hostname ${HOST_PREFIX}${hostip}.ecloud.com"|bash
+echo "${HOST_PREFIX}${hostip}.ecloud.com" > /etc/hostname
+cat /etc/hostname
 ```
 
 
 - 设置ssh免密登录
 
 ```
-#从跳板机免密登录到其他三台机器
-ssh-keygen -t rsa  
-ssh-copy-id t3m2
-ssh-copy-id t3s1
-ssh-copy-id t3s3
+#从Ambari主机免密登录到其他三台机器
+ssh-keygen -t rsa 
+ssh-copy-id hbase36.ecloud.com
+ssh-copy-id hbase66.ecloud.com
+ssh-copy-id hbase160.ecloud.com
 ```
 
 -   ntp服务
@@ -1272,6 +1289,8 @@ vim /etc/ssh/sshd_config
 ```bash
 groupadd cdnlog
 useradd kylin -g cdnlog
+usermod -G hadoop kylin
+echo 'kylin   ALL=(ALL)       NOPASSWD: ALL' > /etc/sudoers
 ```
 
 
@@ -1318,6 +1337,36 @@ unzip  ../kylin.war
 commons-configuration-1.6-zws-added.jar
 
 ```
+
+5.设置kerberos权限
+
+```bash
+#每台机器
+chmod g+r /etc/security/keytabs/hdfs.headless.keytab
+#check-env.sh增加下面一行
+<--
+hadoop ${hadoop_conf_param} fs -mkdir -p $WORKING_DIR
+-->
+/bin/kinit  -kt /etc/security/keytabs/hdfs.headless.keytab hdfs-cdnlog
+hadoop ${hadoop_conf_param} fs -mkdir -p $WORKING_DIR
+kdestory
+
+#check-port-availability.sh增加sudo
+
+
+#任意选择一台机器?
+su - hive
+klist -k /etc/security/keytabs/hive.service.keytab 
+kinit -kt  /etc/security/keytabs/hive.service.keytab hive/hbase66.ecloud.com
+echo $?
+klist
+
+# hive
+SHOW CURRENT ROLES;
+
+```
+
+
 
 https://blog.csdn.net/qq_42606051/article/details/82713476
 
