@@ -18,9 +18,13 @@ typora-root-url: ..
 
 # 0.参考文章：
 
-[Ambari官方文档](https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/setting_up_a_local_repository_with_temporary_internet_access.html)
+Ambari官方文档
 
-[网上的一片博客](https://www.cnblogs.com/zhang-ke/p/8944240.html)
+https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/setting_up_a_local_repository_with_temporary_internet_access.html
+
+网上的一篇博客
+
+https://www.cnblogs.com/zhang-ke/p/8944240.html
 
 # 1.下载离线安装包
 
@@ -131,7 +135,9 @@ echo '* hard nofile 65536' >> /etc/security/limits.conf
 echo '* soft nproc 131072' >> /etc/security/limits.conf
 echo '* hard nproc 131072' >> /etc/security/limits.conf
 echo '* soft core unlimited' >> /etc/security/limits.conf
-
+```
+- 设置core文件：
+```bash
 mkdir -p /data2/core_files
 echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
 
@@ -150,37 +156,9 @@ echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
 
 - 设置hostname
 
-```
-  #每台机器执行，每台机器hostname都不一样
-  hostname XXXX
-  vi  /etc/hostname
-  
-  echo hbase171 > /etc/hostname
-```
-
--   设置hosts文件
-
-
 ```bash
-  #每台机器执行
-  # cat /etc/hosts
-  
-  192.168.0.47   t3m1.ecloud.com t3m1
-  192.168.0.193  t3m2.ecloud.com t3m2
-  192.168.0.110  t3s1.ecloud.com t3s1
-  192.168.0.201  t3s3.ecloud.com t3s3
-  
-  192.168.1.73  hbase73.ecloud.com hbase73
-  192.168.1.105  hbase105.ecloud.com hbase105
-  192.168.1.135  hbase135.ecloud.com hbase135
-  
-  
-  echo '192.168.1.177  hbase177.ecloud.com hbase177' >> /etc/hosts
-  echo '192.168.1.197  hbase197.ecloud.com hbase197' >> /etc/hosts
-  echo '192.168.1.246  hbase246.ecloud.com hbase246' >> /etc/hosts
-  
-  sed -i -e 's/t197/hbase197/g' -e 's/t246/hbase246/g' -e  's/t177/hbase177/g' /etc/hosts 
-  
+#每台机器执行，每台机器hostname都不一样，这里根据IP设置HostName
+
 HOST_PREFIX=hbase
 hostip=`ifconfig|grep 192|awk '{print $2;}'|awk -vhost=${HOST_PREFIX} -F'.' '{print $4;}'`
 echo "hostname ${HOST_PREFIX}${hostip}.ecloud.com"|bash
@@ -188,10 +166,24 @@ echo "${HOST_PREFIX}${hostip}.ecloud.com" > /etc/hostname
 cat /etc/hostname
 ```
 
+-   设置hosts文件
+
+
+```bash
+#每台机器执行
+grep -v ecloud  /etc/hosts  > /etc/hosts2 
+for ip in `echo ${HOSTS}`
+do	
+	echo "192.168.1.${ip}  hbase${ip}.ecloud.com" >> /etc/hosts2
+done
+mv /etc/hosts2 /etc/hosts
+cat /etc/hosts
+```
+
 
 - 设置ssh免密登录
 
-```
+```bash
 #从Ambari主机免密登录到其他三台机器
 ssh-keygen -t rsa 
 ssh-copy-id hbase36.ecloud.com
@@ -201,7 +193,7 @@ ssh-copy-id hbase160.ecloud.com
 
 -   ntp服务
 
-```
+```bash
 #跳板机做ntpserver
 yum -y install ntp
 
@@ -220,30 +212,25 @@ ntpdate 0.centos.pool.ntp.org
 
 可以不设置。
 
-```
+```bash
 #在其他三台节点上执行，以跳板机的为准
 crontab -e
-0-59/10 * * * * /usr/sbin/ntpdate t3m1
+0-59/10 * * * * /usr/sbin/ntpdate t3m1 #这里的主机自己随便选，可以选择ambariserver所在的主机
 ```
 
 上面这一步为必须设置的步骤。
 
 -    临时关闭selinux
 
-```
-sestatus
-setenforce 0
-getenforce
-
-
-临时关闭：
+```bash
+#临时关闭：
 [root@localhost ~]# getenforce
 Enforcing
 [root@localhost ~]# setenforce 0
 [root@localhost ~]# getenforce
 Permissive
 
-永久关闭：
+#永久关闭：
 [root@localhost ~]# vim /etc/sysconfig/selinux
 SELINUX=enforcing 改为 SELINUX=disabled
 
@@ -253,8 +240,13 @@ SELINUX=enforcing 改为 SELINUX=disabled
 
 
 ```bash
-echo 'net.ipv6.conf.all.disable_ipv6=1' >> /etc/sysctl.conf 
-echo 'net.ipv6.conf.default.disable_ipv6=1' >> /etc/sysctl.conf 
+#这样幂等
+echo 1> /proc/sys/net/ipv6/conf/all/disable_ipv6 
+echo 1> proc/sys/net/ipv6/conf/default/disable_ipv6 
+#或者这样也行
+grep -v 'net.ipv6.conf.all.disable_ipv6=1' /etc/sysctl.conf > /etc/sysctl.conf2
+grep -v 'net.ipv6.conf.default.disable_ipv6=1' /etc/sysctl.conf2 > /etc/sysctl.conf3
+mv /etc/sysctl.conf3 /etc/sysctl.conf
 sysctl  -p
 ```
 
@@ -264,25 +256,23 @@ sysctl  -p
 ```bash
 #mkdir /root/.ssh;chmod 600 /root/.ssh
 #允许ROOT ssh
-
 vi /etc/ssh/sshd_config
 
 #PermitRootLogin no
 PermitRootLogin yes
 
-#重启sshd
+#然后重启sshd
 systemctl restart sshd
 
 #修改hosts.allow:
-
 vi /etc/hosts.allow
 
 #加入自己的IP
 sshd:36.111.140.40:allow
 
-#不能ssh-copy-id的时候手工编辑这个文件
+#不能ssh-copy-id的时候手工编辑这个文件，把pub文件拷贝过来
 vi /root/.ssh/authorized_keys
-
+#一定要修改权限
 chmod 644 /root/.ssh/authorized_keys
 
 ```
@@ -291,195 +281,92 @@ chmod 644 /root/.ssh/authorized_keys
 
 # 3.配置YUM离线源
 
-***Amber-Server服务器执行***
+***Amber-Server服务器执行，自己选择一台机器作为AmbariServer***
 
-- 配置离线源
+- 安装httpd并且修改端口
 
-```
+```bash
+#安装httpd
 yum -y install httpd
-
-
 #修改默认端口
 sed -i 's/Listen 80/Listen 18181/g' /etc/httpd/conf/httpd.conf 
 #启动服务
 systemctl restart httpd 
-检查启动情况：
+#检查启动情况：
 netstat -anp|grep 18181
+```
 
+-   解压安装软件
+
+```bash
 mkdir -p /var/www/html/ambari
-cd /data1/HDP-3.0.0/
+cd  ${HDP_SOFT}
 
 tar zxvf ambari-2.7.0.0-centos7.tar.gz -C /var/www/html/ambari
 tar zxvf HDP-3.0.0.0-centos7-rpm.tar.gz  -C /var/www/html/ambari
 tar zxvf HDP-UTILS-1.1.0.22-centos7.tar.gz -C  /var/www/html/ambari
 tar zxvf HDP-GPL-3.0.0.0-centos7-gpl.tar.gz -C /var/www/html/ambari
+```
 
-vi /etc/yum.repos.d/ambari.repo 
+
+
+- 配置离线源
+
+```bash
+#baseurl改成自己的ambariserver在的机器
+cat > /etc/yum.repos.d/ambari.repo<<<EOF 
 [ambari-2.7.0.0]
 name=HDP Version - ambari-2.7.0.0
 baseurl=http://192.168.0.47/ambari/ambari/centos7/2.7.0.0-897/
 gpgcheck=0
+EOF
 
 #检查是否正确
 yum repolist
+#yum clean all
+#yum makecache
 
-出问题的话可以这样子：
+#出问题的话可以这样子：
 rm -rf /var/lib/rpm/__db*
 ```
 - 安装AmbariServer
 
-```
+```bash
 yum install -y ambari-server
-```
-
-```
-yum -y install httpd
-
-
-修改默认端口
-vi /etc/httpd/conf/httpd.conf 
-Listen 80
-改为：
-Listen 8181
-
-systemctl restart httpd 
-检查启动情况：
-netstat -anp|grep 8181
-
-cd /var/www/html/
-
-mkdir -p /var/www/html/ambari
-cd /data1/HDP-3.0.0/
-
-tar zxvf ambari-2.7.0.0-centos7.tar.gz -C /var/www/html/ambari
-tar zxvf HDP-3.0.0.0-centos7-rpm.tar.gz  -C /var/www/html/ambari
-tar zxvf HDP-UTILS-1.1.0.22-centos7.tar.gz -C  /var/www/html/ambari
-tar zxvf HDP-GPL-3.0.0.0-centos7-gpl.tar.gz -C /var/www/html/ambari
-
-#访问192.168.0.47/ambari看看能否访问
-#yum install yum-utils createrepo yum-plugin-priorities -y
-#cp /var/www/html/ambari/ambari/centos7/2.7.0.0-897/ambari.repo /etc/yum.repos.d/
-
-vi /etc/yum.repos.d/ambari.repo 
-#修改baseurl和gpgcheck
-[ambari-2.7.0.0]
-name=HDP Version - ambari-2.7.0.0
-baseurl=http://192.168.0.47/ambari/ambari/centos7/2.7.0.0-897/
-gpgcheck=0
-
-cp /var/www/html/ambari/HDP/centos7/3.0.0.0-1634/hdp.repo /etc/yum.repos.d/
-
-vi /etc/yum.repos.d/hdp.repo 
-[HDP-3.0.0.0]
-name=HDP Version - HDP-3.0.0.0
-baseurl=http://192.168.0.47/ambari/HDP/centos7/3.0.0.0-1634
-gpgcheck=0
-[HDP-UTILS-1.1.0.22]
-name=HDP-UTILS Version - HDP-UTILS-1.1.0.22
-baseurl=http://192.168.0.47/ambari/HDP-UTILS/centos7/1.1.0.22
-gpgcheck=0
-
-vi /etc/yum.repos.d/hdp.gpl.repo 
-
-baseurl=http://192.168.0.47/ambari/HDP-GPL/centos7/3.0.0.0-1634
-gpgcheck=0
-
-
---------------------------------------------
-vi /etc/yum.repos.d/ambari.repo 
-
-[ambari-2.7.0.0]
-name=HDP Version - ambari-2.7.0.0
-baseurl=http://192.168.1.4:8081/ambari/ambari/centos7/2.7.0.0-897/
-gpgcheck=0
-
-[HDP-3.0.0.0]
-name=HDP Version - HDP-3.0.0.0
-baseurl=http://192.168.1.4:8081/ambari/HDP/centos7/3.0.0.0-1634
-gpgcheck=0
-
-[HDP-UTILS-1.1.0.22]
-name=HDP-UTILS Version - HDP-UTILS-1.1.0.22
-baseurl=http://192.168.1.4:8081/ambari/HDP-UTILS/centos7/1.1.0.22
-gpgcheck=0
-
-[HDP-GPL-3.0.0.0]
-name=HDP GPL Version - HDP-3.0.0.0
-baseurl=http://192.168.1.4:8081/ambari/HDP-GPL/centos7/3.0.0.0-1634
-gpgcheck=0
-
-
-sed -i 's/192.168.1.4:8081/192.168.1.177:8081/g' /etc/yum.repos.d/ambari.repo 
-
-vi替换
-:%s/
---------------------------------------------------
-
---------------------------------------------
-[ambari-2.7.3.0]
-name=HDP Version - ambari-2.7.3.0
-baseurl=http://192.168.1.171:17280/ambari/ambari/centos7/2.7.3.0-139/
-gpgcheck=0
-
-[HDP-3.1.0.0]
-name=HDP Version - HDP-3.1.0.0
-baseurl=http://192.168.1.171:17280/ambari/HDP/centos7/3.1.0.0-78/
-gpgcheck=0
-[HDP-UTILS-1.1.0.22]
-name=HDP-UTILS Version - HDP-UTILS-1.1.0.22
-baseurl=http://192.168.1.171:17280/ambari/HDP-UTILS/centos7/1.1.0.22/
-gpgcheck=0
-
-[HDP-GPL-3.1.0.0]
-name=HDP GPL Version - HDP-3.0.0.0
-baseurl=http://192.168.1.171:17280/ambari/HDP-GPL/centos7/3.1.0.0-78/
-gpgcheck=0
---------------------------------------------------
-
-
-
-#clean这一步我觉得没有必要
-yum clean all
-yum makecache
-yum repolist
-
-出问题的话可以这样子：
-rm -rf /var/lib/rpm/__db*
-
-
-
-scp /etc/yum.repos.d/hdp.repo t3m2:/etc/yum.repos.d
-scp /etc/yum.repos.d/ambari.repo t3m2:/etc/yum.repos.d
-scp /etc/yum.repos.d/hdp.gpl.repo t3m2:/etc/yum.repos.d
-ssh t3m2 yum makecache
-ssh t3m2 yum repolist
-
-scp /etc/yum.repos.d/hdp.repo t3s1:/etc/yum.repos.d
-scp /etc/yum.repos.d/ambari.repo t3s1:/etc/yum.repos.d
-scp /etc/yum.repos.d/hdp.gpl.repo t3s1:/etc/yum.repos.d
-ssh t3s1 yum makecache
-ssh t3s1 yum repolist
-
-scp /etc/yum.repos.d/hdp.repo t3s3:/etc/yum.repos.d
-scp /etc/yum.repos.d/ambari.repo t3s3:/etc/yum.repos.d
-scp /etc/yum.repos.d/hdp.gpl.repo t3s3:/etc/yum.repos.d
-ssh t3s3 yum makecache
-ssh t3s3 yum repolist
-
-
-
-yum install -y ambari-server
-
-vi /etc/sysctl.conf 
-net.ipv6.conf.all.disable_ipv6=1
-net.ipv6.conf.default.disable_ipv6=1
-sysctl  -p
+#修改ambari端口
+echo echo 'client.api.port=18080' >> /etc/ambari-server/conf/ambari.properties
+#或者
+grep -v 'client.api.port' /etc/ambari-server/conf/ambari.properties > /etc/ambari-server/conf/ambari.properties2
+echo 'client.api.port=18080' >> /etc/ambari-server/conf/ambari.properties2
+mv /etc/ambari-server/conf/ambari.properties2 /etc/ambari-server/conf/ambari.properties2
 ```
 
 
 
+# 4.安装mysql（跳过）
 
-# 4.安装mysql
+
+
+```bash
+5.6版本：
+
+my.cnf
+basedir =/usr/local/mysql
+datadir =/usr/local/mysql/data
+log-err = /usr/local/mysql/data/error.log
+
+/usr/local/mysql/scripts/mysql_install_db --verbose --user=root --defaults-file=/usr/local/mysql/my.cnf --datadir=/usr/local/mysql/data --basedir=/usr/local/mysql --pid-file=/usr/local/mysql/data/mysql.pid --tmpdir=/tmp
+
+
+/usr/local/mysql/bin/mysqld_safe --defaults-file=/usr/local/mysql/my.cnf --socket=/tmp/mysql.sock --user=root &
+
+use mysql;
+update user set password=password("root") where user="CdnLogRoot!$&";
+FLUSH PRIVILEGES; 
+
+```
+
+
 
 ```
 yum install -y mariadb-server
@@ -512,8 +399,10 @@ root!@#$%^
 
 CREATE DATABASE ambari;  
 use ambari;  
-CREATE USER 'ambari'@'%' IDENTIFIED BY 'ambari'; 
+drop user  'ambari';
+CREATE USER 'ambari'@'%' IDENTIFIED BY 'bigdata'; 
 GRANT ALL PRIVILEGES ON *.* TO 'ambari'@'%';  
+FLUSH PRIVILEGES; 
 
 CREATE USER 'ambari'@'localhost' IDENTIFIED BY 'ambari';  
 GRANT ALL PRIVILEGES ON *.* TO 'ambari'@'localhost';  
@@ -599,51 +488,13 @@ server.jdbc.driver.path=/usr/share/java/mysql-connector-java.jar
 
 ```
 
-## Hive使用Postgresql:
-
-vi /var/lib/pgsql/data/pg_hba.conf
-
-host    all   hive   10.142.235.1/24         md5
-
-systemctl restart postgresql
-
-su postgres
-
-psql
-
-create user hive with password 'hive';
-
-create database hive owner hive;
-grant all privileges on database hive to hive;
-
-
-
-create user root with password 'hive';
-
-grant all privileges on database hive to root;
-
-create user kylin with password 'hive';
-
-grant all privileges on database hive to kylin ;
-
-\q
-
-ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/lib/ambari-server/postgresql-42.2.2.jar
-
-jdbc:postgresql://hbase177.ecloud.com:5432/hive
-
-org.postgresql.Driver
-
-
-
-ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/lib/ambari-server/postgresql-42.2.2.jar
-
 
 
 # 5.设置ambari-server并启动
 
-```
-ambari-server setup
+```bash
+# 设置ambari-server，在这一步修改jdk为自己的jdk
+# ambari-server setup
 
 Using python  /usr/bin/python
 Setup ambari-server
@@ -703,11 +554,11 @@ Ambari repo file contains latest json url http://public-repo-1.hortonworks.com/H
 Adjusting ambari-server permissions and ownership...
 Ambari Server 'setup' completed successfully.
 
-
+# 设置ambari-server使用mysql，跳过，使用自带的postgresql
 ambari-server setup --jdbc-db=mysql --jdbc-driver=/usr/share/java/mysql-connector-java.jar
 
-
-ambari-server start
+# 
+# ambari-server start
 
 Using python  /usr/bin/python
 Starting ambari-server
@@ -722,18 +573,61 @@ Server started listening on 8080
 
 DB configs consistency check: no errors and warnings were found.
 Ambari Server 'start' completed successfully.
-
-vi /etc/ambari-server/conf/ambari.properties 
-echo 'client.api.port=8081' >> /etc/ambari-server/conf/ambari.properties 
 ```
 
-# 6.安装配置部署HDP集群
 
-secucrt做了端口映射，把本机的8080 映射到了 192.168.0.47的8080
 
-http://localhost:8080/#/login
+# 6.配置Hive使用Postgresql
 
-admin/admin
+vi /var/lib/pgsql/data/pg_hba.conf
+
+host    all   hive   10.142.235.1/24         md5
+
+systemctl restart postgresql
+
+su postgres
+
+psql
+
+create user hive with password 'hive';
+
+create database hive owner hive;
+grant all privileges on database hive to hive;
+
+
+
+create user root with password 'hive';
+
+grant all privileges on database hive to root;
+
+create user kylin with password 'hive';
+
+grant all privileges on database hive to kylin ;
+
+\q
+
+ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/lib/ambari-server/postgresql-42.2.2.jar
+
+jdbc:postgresql://hbase177.ecloud.com:5432/hive
+
+org.postgresql.Driver
+
+
+
+ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/lib/ambari-server/postgresql-42.2.2.jar
+
+
+
+
+
+# 7.安装配置部署HDP集群
+
+- 第一步：
+
+
+打开ambariserver    http://localhost:8080/#/login
+
+初始密码为：admin/admin
 
 本地仓库地址：
 
@@ -745,45 +639,30 @@ http://192.168.0.47/ambari/HDP-UTILS/centos7/1.1.0.22
 
 
 
+- 第二步：
 
-
-http://192.168.1.73:8081/ambari/HDP/centos7/3.0.0.0-1634
-
-http://192.168.1.73:8081/ambari/HDP-GPL/centos7/3.0.0.0-1634
-
-http://192.168.1.73:8081/ambari/HDP-UTILS/centos7/1.1.0.22
-
-
-
-第二步：
 
 ![1537716187931](/img/ambari-1537716187931.png)
 
 
 
-第三步：
+- 第三步：
+
 
 ![1537716424901](/img/ambari-1537716424901.png)
 
 
 
-第四步：
+- 第四步：
+
 
 
 
 ![1537717128168](/img/ambari-4-1537717128168.png)
 
+- 
+  第五步：选择服务
 
-
-这里可能需要修改:
-
-vi  /etc/ambari-agent/conf/ambari-agent.ini
-
-[server]
-hostname=192.168.2.40
-
-
-第五步：选择服务
 
 
 
@@ -791,9 +670,8 @@ hostname=192.168.2.40
 
 
 
+- 第六步：
 
-
-第六步：
 
 有用户名的，都是和用户名相同，没有用户名的，都是rangeradmin；rangerkms的密码也是rangeradmin
 
@@ -851,8 +729,6 @@ hostname=192.168.2.40
 
 atlas.admin.password 修改为：atlasadmin123
 
-
-
 Ranger Admin user's password for Ambari ：rangeradmin123
 
 Ranger Admin user's password ：rangeradmin123
@@ -865,58 +741,210 @@ Ranger Usersync user's password ：rangeradmin123
 
 
 
+***记得修改所有组件的日志目录！***
 
+***HDFS设置storage policy***
 
-# 7.主要问题
+***机器设置RACK***
 
-启动ranger时，数据库使用了utf8，导致字段长度超长，减少字段长度
+# 8.Rack配置
 
-Zeppelin缺少了/var/run/zeppelin需要手工创建
-
-hdfs的一个配置错误，由1改为0；
-
-
-
-OOZIE问题：
-
-https://stackoverflow.com/questions/49276756/ext-js-library-not-installed-correctly-in-oozie
-
-1. Stop Oozie service from Ambari
-2. Copy it to the path:  /usr/hdp/current/oozie-client/libext/ 
-3. /usr/hdp/current/oozie-server/bin/oozie-setup.sh prepare-war 
-4. Start Oozie again
+https://community.hortonworks.com/articles/43164/rack-awareness-series-2.html
 
 
 
-Atlas：
+9.Ambari密码：
 
-[忘记密码了看这里](https://community.hortonworks.com/questions/144519/how-to-change-default-atlas-ui-admin-password.html)
-
-Configs-> Advanced -> Advanced atlas-env -> Admin password 
-
-导入示例数据：
-
-/usr/hdp/current/atlas-client/bin/quick_start.py 'http://t3s3.ecloud.com:21000'
-
-
-
-
-
-
-
-
+改成复杂一点的
 
 # 8.Kerberos安装
 
+> ## HDP3.0 Ambari的几个坑:
+>
+> 1.yarn dns默认端口 hadoop自己是5353,安装的时候变成了53,导致启动yarndns的机器在运行kadmin时出问题
+> 2.kerberos 一定要使用域名,不能使用IP
+> 3.kerberos一定要他管理krb5.conf,不能清除那个选项,使用自己的配置文件
+
+## 1.安装所需软件
+
 在KDC服务器安装
 
-为了做KDC主备,我在几台机器上都安装了
+```bash
+#安装软件
+yum -y install krb5-server krb5-devel krb5-workstation
+#检查版本
+rpm -qa|grep krb5
+krb5-config --version
+```
+> kerberos有版本要求 -37  -8  -18都可以，但是以前就遇到过-19 的不行（汪聘）
 
-yum -y install krb5-server krb5-devel
+每台机器安装jce
 
-yum -y install krb5-workstation
+```bash
+https://www.oracle.com/technetwork/java/javase/downloads/jce-all-download-5170447.html
+C:\work\Source\
+unzip -o -j -q /data1/jce_policy-8.zip -d $JAVA_HOME/jre/lib/security/
+```
+
+## 2.配置KDC
+
+```bash
+# cat /var/kerberos/krb5kdc/kdc.conf
+
+[kdcdefaults]
+ kdc_ports = 88
+ kdc_tcp_ports = 88
+
+[realms]
+ CTYUN.NET = {
+  #master_key_type = aes256-cts
+  acl_file = /var/kerberos/krb5kdc/kadm5.acl
+  dict_file = /usr/share/dict/words
+  admin_keytab = /var/kerberos/krb5kdc/kadm5.keytab
+  supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal arcfour-hmac:normal camellia256-cts:normal camellia128-cts:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
+  
+  max_renewable_life = 3650d 0h 0m 0s
+ }
+ 
+#关键
+kadmin.local -q "modprinc -maxrenewlife 7days krbtgt/CTYUN.NET"
+
+ssh -p 9000 192.168.254.12 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey kylin/cdnlog012.ctyun.net"'
 
 
+ssh -p 9000 192.168.254.3 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog003.ctyun.net"'
+
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog040.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog031.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog032.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog041.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog042.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
+
+ see https://www.jianshu.com/p/54cd2a659698
+```
+
+## 3.修改其它配置文件
+
+```bash
+#修改自己的域的管理员
+# cat /var/kerberos/krb5kdc/kadm5.acl
+#change here
+*/admin@CTYUN.NET     *
+```
+
+## 4.创建KDC数据库
+
+```bash
+kdb5_util create  -s -r CTYUN.NET
+密码:cdnlog@kdc!@#
+```
+
+## 5.启动KDC
+
+```bash
+systemctl restart krb5kdc
+systemctl restart kadmin
+systemctl enable krb5kdc.service
+systemctl enable kadmin.service
+```
+
+## 6.创建远程管理员
+
+```bash
+kadmin.local:  addprinc root/admin
+密码：cdnlog@kdc!@#
+```
+
+> https://www.jianshu.com/p/4200c260c152?utm_campaign=maleskine&utm_content=note&utm_medium=seo_notes&utm_source=recommendation
+>
+> 网上看到的关于admin/admin与root/admin的区别
+>
+> 管理帐号包含两种kadmin.local和kadmin帐号，其中kadmin.local是kdc服务器上的本地管理帐号，一定要在kdc服务器才能登录，还有kadmin管理帐号会在部署了各个节点上的krb5配置后会作为各个节点的的管理帐号
+>
+> 其中admin/admin为kdc服务上kadmin.local的管理帐号，同时还需要创建一个root/admin的各个客户端的管理帐号(密码都设置为clife.data)
+
+## 7.重启服务
+
+```bash
+systemctl restart kadmin.service
+systemctl restart krb5kdc.service
+```
+
+## 8.Ambari安装Kerberos
+
+## 9.Kerberos启动主从
+
+## 10.KDC保活
+
+vi /usr/lib/systemd/system/krb5kdc.service 
+
+[Service]
+Restart=on-abnormal
+
+```bash
+
+
+
+-----------------------------------------
+# kadmin.local -q "addprinc admin/admin@CDNLOG"
+kadmin.local -q "addprinc admin/admin@CTYUNCDN.NET"
+cdnlog@kdc!@#
+
+
+kadmin.local -q "addprinc kadmin/192.168.1.66@CDNLOG"
+
+Authenticating as principal root/admin@CDNLOG with password.
+WARNING: no policy specified for admin/admin@CDNLOG; defaulting to no policy
+Enter password for principal "admin/admin@CDNLOG": 
+Re-enter password for principal "admin/admin@CDNLOG": 
+Principal "admin/admin@CDNLOG" created.
+
+# kadmin.local -q "xst -norandkey admin/admin@CDNLOG"
+kadmin.local -q "xst -norandkey admin/admin@CTYUNCDN.NET"
+cdnlog@kdc!@#
+
+Authenticating as principal root/admin@CDNLOG with password.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type aes256-cts-hmac-sha1-96 added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type aes128-cts-hmac-sha1-96 added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type des3-cbc-sha1 added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type arcfour-hmac added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type camellia256-cts-cmac added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type camellia128-cts-cmac added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type des-hmac-sha1 added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type des-cbc-md5 added to keytab FILE:/etc/krb5.keytab.
+
+
+
+
+kadmin.local
+Authenticating as principal root/admin@CDNLOG with password.
+kadmin.local:  listprincs
+K/M@CDNLOG
+admin/admin@CDNLOG
+kadmin/admin@CDNLOG
+kadmin/changepw@CDNLOG
+kadmin/hbase73.ecloud.com@CDNLOG
+kiprop/hbase73.ecloud.com@CDNLOG
+krbtgt/CDNLOG@CDNLOG
+
+kadmin.local:  addprinc root/admin
+cdnlog@kdc!@#
+
+WARNING: no policy specified for root/admin@CDNLOG; defaulting to no policy
+Enter password for principal "root/admin@CDNLOG": 
+Re-enter password for principal "root/admin@CDNLOG": 
+Principal "root/admin@CDNLOG" created.
+kadmin.local:  
+```
+
+
+
+
+
+- krb5.conf 
+
+由Ambari管理！修改realm即可
 
 ```bash
 [root@hbase171 yum.repos.d]#  cat /etc/krb5.conf 
@@ -952,48 +980,6 @@ ecloud.com = ECLOUD.COM
 
 
 
-每台机器都需要:
-[root@hbase171 yum.repos.d]# cat /var/kerberos/krb5kdc/kdc.conf
-[kdcdefaults]
- kdc_ports = 10088
- kdc_tcp_ports = 10088
-
-[realms]
-#change here
- ECLOUD.COM = {
-  #master_key_type = aes256-cts
-  acl_file = /var/kerberos/krb5kdc/kadm5.acl
-  dict_file = /usr/share/dict/words
-  admin_keytab = /var/kerberos/krb5kdc/kadm5.keytab
-  supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal arcfour-hmac:normal camellia256-cts:normal camellia128-cts:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
- }
- 
- 
- 
- 
- [root@hbase171 yum.repos.d]# cat /var/kerberos/krb5kdc/kadm5.acl
- #change here
-*/admin@ECLOUD.COM     *
-
-
-
-kdb5_util create -s -r ECLOUD.COM
-
-[root@hbase171 3.1.0.0-78]#kdb5_util create -s -r ECLOUD.COM
-Loading random data
-Initializing database '/var/kerberos/krb5kdc/principal' for realm 'ECLOUD.COM',
-master key name 'K/M@ECLOUD.COM'
-You will be prompted for the database Master Password.
-It is important that you NOT FORGET this password.
-Enter KDC database master key: kerberos
-Re-enter KDC database master key to verify: kerberos
-
-
-
-[root@hbase171 3.1.0.0-78]#systemctl start krb5kdc
-[root@hbase171 3.1.0.0-78]# systemctl enable  krb5kdc
-Created symlink from /etc/systemd/system/multi-user.target.wants/krb5kdc.service to /usr/lib/systemd/system/krb5kdc.service.
-
 [root@hbase171 3.1.0.0-78]# kadmin.local 
 Authenticating as principal root/admin@ECLOUD.COM with password.
 kadmin.local:  addprinc admin/admin@ECLOUD.COM
@@ -1014,19 +1000,7 @@ scp /etc/krb5.conf 192.168.1.48:/etc
 
 
 
-[root@hbase106 ~]# cat /var/kerberos/krb5kdc/kdc.conf
-[kdcdefaults]
- kdc_ports = 10088
- kdc_tcp_ports = 10088
 
-[realms]
- ECLOUD.COM = {
-  #master_key_type = aes256-cts
-  acl_file = /var/kerberos/krb5kdc/kadm5.acl
-  dict_file = /usr/share/dict/words
-  admin_keytab = /var/kerberos/krb5kdc/kadm5.keytab
-  supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal arcfour-hmac:normal camellia256-cts:normal camellia128-cts:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
- }
  
  
  
@@ -1035,7 +1009,7 @@ scp /etc/krb5.conf 192.168.1.48:/etc
 
 下载jce
 
-https://www.oracle.com/technetwork/java/javase/downloads/jce-all-download-5170447.html
+
 
 jdk8
 
@@ -1043,7 +1017,19 @@ jdk8
 
 
 
-unzip -o -j -q /data1/jce_policy-8.zip -d $JAVA_HOME/jre/lib/security/
+
+
+
+
+krb5-config --version
+
+
+
+![1557912194106](/img/ambari-install-kerberos.png)
+
+
+
+
 
 
 
@@ -1256,41 +1242,40 @@ kpasswd(1), gkadmin(1M), kadmin(1M), kadmind(1M), kdb5_ldap_util(1M), kproplog(1
 The global –f is made obsolete with the –sf argument for specifying a non-default stash file location. The global –f argument might be removed in a future release of the Solaris operating system. Use caution in specifying –f as it has different semantics in subcommands as distinguished from its use as a global argument.
 ```
 
-# 9.ES安装
 
-useradd es
 
-cd /data2
+# 9.启用Hadoop和Spark Basic认证
 
-tar zxvf elasticsearch-6.7.0.tar.gz
-
-su - es
+yarn/hdfs/spark在启用了kerberos后，webui访问比较麻烦，需要windows下安装kerberos客户端，所以改成basic访问，用户输入用户名和密码。
 
 
 
-[1]: max file descriptors [32768] for elasticsearch process is too low, increase to at least [65535]
-[2]: max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144]
+yarn:CdnYarnMd5!$&  3a033cd5793abaa4fe8975f19cc93096
 
-sysctl -w vm.max_map_count=262144
+yarn:3a033cd5793abaa4fe8975f19cc93096
 
-ulimit -n 65535
-
- vim /etc/pam.d/sshd
-session    required  /usr/lib64/security/pam_limits.so
-
-vim /etc/ssh/sshd_config
+| HDFS                                                         |                                                              |
+| ------------------------------------------------------------ | ------------------------------------------------------------ |
+| hadoop.http.authentication.type                              | com.ctg.hadoop.security.authentication.server.BasicAuthenticationHandler |
+| hadoop.http.authentication.basic.userCredential              | yarn:4ae173c92b702cd54eea8ccb04f64036                        |
+| SPARK2（目前是简单密码，需要改成和上面一样，加上md5）        |                                                              |
+| Advanced spark2-env                                          | {% if security_enabled %}里面的kerberos参数注释掉            |
+| Custom spark2-defaults                                       |                                                              |
+| spark.ui.filters                                             | com.ctg.security.spark.SparkBasicAuthFilter                  |
+| spark.com.ctg.security.spark.SparkBasicAuthFilter.param.username | spark                                                        |
+| spark.com.ctg.security.spark.SparkBasicAuthFilter.param.password | spark123456                                                  |
 
 
 
 # 10.Kylin安装
 
-## 1.增加用户
+## 1.增加kylin用户
 
 ```bash
 groupadd cdnlog
 useradd kylin -g cdnlog
 usermod -G hadoop kylin
-echo 'kylin   ALL=(ALL)       NOPASSWD: ALL' > /etc/sudoers
+echo 'kylin   ALL=(ALL)       NOPASSWD: ALL' >> /etc/sudoers
 ```
 
 
@@ -1299,7 +1284,7 @@ echo 'kylin   ALL=(ALL)       NOPASSWD: ALL' > /etc/sudoers
 
 ```bash
 ##Standalone版本
-export KYLIN_HOME=/data1/apache-kylin-2.6.1-bin-hadoop3
+export KYLIN_HOME=/data2/apache-kylin-2.6.1-bin-hadoop3
 export HADOOP_HOME=/usr/hdp/3.0.0.0-1634/hadoop
 export SPARK_HOME=/data1/spark-2.3.2-bin-hadoop2.7
 export PATH=$PATH:$SPARK_HOME/bin
@@ -1310,6 +1295,11 @@ echo 'export PATH=$PATH:$SPARK_HOME/bin' >> /etc/profile.d/spark.sh
 mv /usr/hdp/3.0.0.0-1634/spark2/bin/beeline /usr/hdp/3.0.0.0-1634/spark2/bin/spark-beeline
 source /etc/profile.d/spark.sh
 
+
+#北京CDN
+echo 'export SPARK_HOME=/usr/hdp/3.1.0.0-78/spark2' > /etc/profile.d/spark.sh
+echo 'export PATH=$PATH:$SPARK_HOME/bin' >> /etc/profile.d/spark.sh
+source /etc/profile.d/spark.sh
 ```
 
 ## 3.修改Hive脚本(非kerberos)
@@ -1338,33 +1328,754 @@ commons-configuration-1.6-zws-added.jar
 
 ```
 
-5.设置kerberos权限
+## 5.修改并运行check-env.sh
 
 ```bash
-#每台机器
-chmod g+r /etc/security/keytabs/hdfs.headless.keytab
-#check-env.sh增加下面一行
-<--
-hadoop ${hadoop_conf_param} fs -mkdir -p $WORKING_DIR
--->
-/bin/kinit  -kt /etc/security/keytabs/hdfs.headless.keytab hdfs-cdnlog
-hadoop ${hadoop_conf_param} fs -mkdir -p $WORKING_DIR
-kdestory
+#首先在hdfs上创建kylin目录(root用户)
+kinit  -kt /etc/security/keytabs/hdfs.headless.keytab hdfs-cdnlog
+hdfs dfs -mkdir /kylin
+hdfs dfs -chown -R kylin:cdnlog /kylin
+hdfs dfs -mkdir /user/kylin
+hdfs dfs -chown -R kylin:cdnlog /user/kylin
+kdestroy
 
 #check-port-availability.sh增加sudo
+kylin_port_in_use=`sudo netstat -tlpn | grep "\b${kylin_port}\b"`
 
+vi find-hive-dependency.sh 
+#加上""否则会报错:too many arguments
+if [ -z "$hive_env" ]
 
-#任意选择一台机器?
-su - hive
-klist -k /etc/security/keytabs/hive.service.keytab 
-kinit -kt  /etc/security/keytabs/hive.service.keytab hive/hbase66.ecloud.com
-echo $?
+#北京CDN生产：
+kinit  -kt /etc/security/keytabs/hdfs.headless.keytab hdfs-cdnlog
+hdfs dfs -mkdir /kylin
+hdfs dfs -chown -R kylin:hadoop /kylin
+hdfs dfs -mkdir /user/kylin
+hdfs dfs -chown -R kylin:hadoop /user/kylin
+kdestroy
+
+#check-port-availability.sh增加sudo
+kylin_port_in_use=`sudo netstat -tlpn | grep "\b${kylin_port}\b"`
+
+vi find-hive-dependency.sh 
+#加上""否则会报错:too many arguments
+if [ -z "$hive_env" ]
+```
+
+## 6.Kerberos增加kylin princ(root)
+
+```bash
+kadmin:
+输入密码：cdnlog@kdc!@#
+
+运行命令：
+addprinc kylin/hbase36.ecloud.com@ECLOUD.COM
+xst -k /etc/security/keytabs/kylin.keytab  kylin/hbase36.ecloud.com@ECLOUD.COM
+quit
+
+systemctl restart krb5kdc
+systemctl restart kadmin
+
+cp /etc/krb5.keytab /etc/security/keytabs/kylin.keytab
+chown kylin:hadoop  /etc/security/keytabs/kylin.keytab
+#验证是否能够成功
+kinit -kt  /etc/security/keytabs/kylin.keytab  kylin
+
+#北京
+addprinc kylin/cdnlog040.ctyun.net@CTYUN.NET
+xst -k /etc/security/keytabs/kylin.keytab  kylin/cdnlog040.ctyun.net@CTYUN.NET
+systemctl restart krb5kdc
+systemctl restart kadmin
+chown kylin:hadoop  /etc/security/keytabs/kylin.keytab
+kinit -kt  /etc/security/keytabs/kylin.keytab  kylin/cdnlog040.ctyun.net
 klist
+```
 
-# hive
-SHOW CURRENT ROLES;
+## 7.建立Kylin专用hive库
+
+```bash
+#先建立目录,然后kylin库指定到这个目录
+kinit  -kt /etc/security/keytabs/hdfs.headless.keytab hdfs-cdnlog
+sudo -u hdfs hdfs dfs -mkdir  /warehouse/tablespace/external/hive/kylin.db
+sudo -u hdfs hdfs dfs -chown -R kylin:hadoop  /warehouse/tablespace/external/hive/kylin.db
+kdestroy
+
+kinit -kt  /etc/security/keytabs/kylin.keytab  kylin
+#hive建kylin库,修改为kylin用户的
+
+beeline:
+CREATE DATABASE IF NOT EXISTS kylin LOCATION "hdfs://cdnlog/warehouse/tablespace/external/hive/kylin.db"
+
+#修改kylin配置
+#修改hive库默认为kylin
+#kylin.source.hive.database-for-flat-table=default
+kylin.source.hive.database-for-flat-table=kylin
+
+#北京
+kinit  -kt /etc/security/keytabs/hdfs.headless.keytab hdfs-cdnlog
+sudo -u hdfs hdfs dfs -mkdir  /warehouse/tablespace/external/hive/kylin.db
+sudo -u hdfs hdfs dfs -chown -R kylin:hadoop  /warehouse/tablespace/external/hive/kylin.db
+kdestroy
+
+klist -k /etc/security/keytabs/hive.service.keytab 
+kinit -kt /etc/security/keytabs/hive.service.keytab hive/cdnlog040.ctyun.net
+
+hive
+CREATE DATABASE IF NOT EXISTS kylin LOCATION "hdfs://cdnlog/warehouse/tablespace/external/hive/kylin.db"
+#修改hive库默认为kylin
+#kylin.source.hive.database-for-flat-table=default
+kylin.source.hive.database-for-flat-table=kylin
+kylin.storage.hbase.namespace=kylin
+```
+
+## 8.修改Kylin运行hive
+
+```bash
+vi kylin.properties
+kylin.source.hive.beeline-shell=/usr/bin/beeline
+#注意这里一定是hive,不能是kylin
+kylin.source.hive.beeline-params=kylin.source.hive.beeline-params=-u"jdbc:hive2://hbase36.ecloud.com:10000;principal=hive/hbase36.ecloud.com@ECLOUD.COM"
+kylin.web.timezone=GMT+8
+
+vi find-hive-dependency.sh 
+#这里去掉那些参数
+hive_env=`${beeline_shell}  -e"set;" 2>&1 | grep --text 'env:CLASSPATH' `
 
 ```
+
+## 9.Kylin的Hbase配置
+
+```bash
+
+kylin.storage.hbase.namespace=kylin
+kylin.storage.hbase.compression-codec=snappy
+kylin.metadata.url=kylin:kylin_metadata@hbase
+#
+klist -k /etc/security/keytabs/hbase.service.keytab 
+kinit -kt /etc/security/keytabs/hbase.service.keytab  hbase/hbase36.ecloud.com
+hbase shell:
+create_namespace "kylin"
+grant 'kylin','RWXCA','@kylin'
+quit
+
+
+
+```
+
+
+
+启动kylin
+
+```bash
+#启动kylin
+su - kylin
+
+kinit -kt  /etc/security/keytabs/kylin.keytab  kylin/cdnlog040.ctyun.net
+ln -fs /data2/apache-kylin-2.6.1-bin-hadoop3 /usr/local/kylin
+
+#删除两个树形，这个不能运行时修改
+kylin_hive_conf.xml
+dfs.replication
+mapreduce.job.split.metainfo.maxsize
+
+firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.26 port port=7070 protocol=tcp accept'
+
+firewall-cmd --reload
+firewall-cmd --list-all
+```
+
+
+
+
+
+# 11.集群参数优化
+
+TODO，参照现有集群
+
+# 12.设置集群队列
+
+TODO
+
+# 13.集群打安全补丁
+
+```bash
+#系统安全
+
+echo 'net.ipv4.tcp_sack = 0' >> /etc/sysctl.conf;sysctl -p
+
+#看这里==============================================
+ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-*-2.6.7*jar
+
+for ip in `echo 27 28 40 41 42 43 44 45`
+do
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar  /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-databind-2.6.7.1.jar.BAK
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-core-2.6.7.jar.BAK
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-annotations-2.6.7.jar.BAK
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-jaxb-annotations-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-jaxb-annotations-2.6.7.jar.BAK
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-scala_2.11-2.6.7.1.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-scala_2.11-2.6.7.1.jar.BAK
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-dataformat-cbor-2.6.7.jar.BAK
+done
+
+
+#手工上传jackson-dataformat-cbor-2.9.5.jar到目录/usr/hdp/3.0.0.0-1634/spark2/jars
+
+cd /usr/hdp/3.0.0.0-1634/spark2/jars
+for ip in `echo 27 28 41 42 43 44 45`
+do
+	scp /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar 192.168.2.${ip}:/usr/hdp/3.0.0.0-1634/spark2/jars/
+done
+
+
+for ip in `echo 27 28 40 41 42 43 44 45`
+do
+ssh 192.168.2.${ip} cp /usr/hdp/3.0.0.0-1634/hbase/lib/jackson-module-scala_2.11-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+ssh 192.168.2.${ip} cp /usr/hdp/3.0.0.0-1634/hadoop-yarn/lib/jackson-module-jaxb-annotations-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+ssh 192.168.2.${ip} cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-databind-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+ssh 192.168.2.${ip} cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-annotations-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+ssh 192.168.2.${ip} cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-core-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+done
+
+
+ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-*-2.6.7*jar
+
+#回退:
+
+for ip in `echo 27 28 40 41 42 43 44 45`
+do
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-databind-2.6.7.1.jar.BAK  /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-core-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.6.7.jar
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-annotations-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7.jar
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-jaxb-annotations-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-jaxb-annotations-2.6.7.jar
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-scala_2.11-2.6.7.1.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-scala_2.11-2.6.7.1.jar
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-dataformat-cbor-2.6.7.jar
+
+
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.9.5.jar
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.9.5.jar
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.9.5.jar
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-jaxb-annotations-2.9.5.jar
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-scala_2.11-2.9.5.jar
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar 
+
+done
+
+```
+
+
+
+# 14.用户运行说明
+
+kylin运行在kylin用户下
+
+自己的mr运行在cdnlog用户下
+
+
+
+# 15.kafka权限
+
+***备注：Ambari对于kafka的支持就是一坨屎，很多配置必须手工确认！***
+
+- 创建全新的Kafka环境
+
+```
+NEW_ZK_DIR="kafka-test-auth3"
+/usr/hdp/current/zookeeper-client/bin/zkCli.sh -server ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181 create /${NEW_ZK_DIR} "data-of-${NEW_ZK_DIR}"
+```
+
+
+
+- 修改Kafka配置：
+
+| 字段名                               | 字段值                                    |
+| ------------------------------------ | ----------------------------------------- |
+| zookeeper.connect                    | XXX:12181/kafka-auth-test-1  使用新的zk值 |
+| listeners                            | SASL_PLAINTEXT://localhost:6667           |
+| sasl.enabled.mechanisms              | PLAIN                                     |
+| sasl.mechanism.inter.broker.protocol | PLAIN                                     |
+| security.inter.broker.protocol       | SASL_PLAINTEXT                            |
+| super.users                          | User:admin                                |
+
+- kafka_jaas.conf
+
+```bash
+#如果没有启用kerberos，只要这一段就行了
+KafkaServer { 
+org.apache.kafka.common.security.plain.PlainLoginModule required 
+username="admin" 
+password="admin-sec" 
+user_admin="admin-sec"
+user_producer="prod-sec" 
+user_consumer="cons-sec";
+};
+#如果启用了kerberos，必须包含下面两段，这个是使用kerberos连接zk用的
+Client {
+com.sun.security.auth.module.Krb5LoginModule required
+useKeyTab=true
+keyTab="{{kafka_keytab_path}}"
+storeKey=true
+useTicketCache=false
+serviceName="zookeeper"
+principal="{{kafka_jaas_principal}}";
+};
+ 
+com.sun.security.jgss.krb5.initiate {
+com.sun.security.auth.module.Krb5LoginModule required
+renewTGT=false
+doNotPrompt=true
+useKeyTab=true
+keyTab="{{kafka_keytab_path}}"
+storeKey=true
+useTicketCache=false
+serviceName="{{kafka_bare_jaas_principal}}"
+principal="{{kafka_jaas_principal}}";
+};
+```
+
+- kafka_client_jaas.conf  for producer
+
+```bash
+KafkaClient {
+org.apache.kafka.common.security.plain.PlainLoginModule required 
+username="producer"
+password="prod-sec" ;
+};
+```
+
+- kafka_client_jaas_conf for consumer
+
+```bash
+KafkaClient {
+org.apache.kafka.common.security.plain.PlainLoginModule required 
+username="consumer"
+password="cons-sec";
+};
+```
+
+- cat consumer.properties 
+
+```bash
+secutiry.protocol=SASL_PLAINTEXT
+sasl.mechanism=PLAIN
+group.id=zws-test-grp1
+```
+
+- 创建新的Topic测试
+
+```bash
+#创建Topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1  --topic zwstestnew2    --partitions 1 --replication-factor 1
+
+#查看创建的Topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --describe --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1   --topic zwstestnew2 
+
+#Topic授权，注意这里最好使用--producer，不要使用--operation Write
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --add --allow-principal User:producer --topic zwstestnew2  --producer
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --list  --topic zwstestnew2
+
+#修改好kafka_client_jaas_conf ，注意使用 --security-protocol，而不是网上的producer-property，那样不行
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic zwstestnew2 --security-protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
+
+#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties 
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic zwstestnew2 --security-protocol=SASL_PLAINTEXT --from-beginning --consumer.config ./consumer.properties --new-consumer 
+
+#想要读取，必须经过授权！
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1  --add --allow-principal User:consumer --topic zwstestnew2  --consumer --group zws-test-grp1
+```
+
+
+
+代码：
+
+jvm启动参数
+
+-Djava.security.auth.login.config=/usr/hdp/current/kafka-broker/conf/kafka_client_jaas.conf
+
+ props.put("security.protocol", "SASL_PLAINTEXT");
+        props.put("sasl.kerberos.service.name", "kafka");
+        props.put("sasl.mechanism", "PLAIN");
+
+
+
+#新增用户：
+
+
+
+| 用户名       | 密码             | 说明   |
+| ------------ | ---------------- | ------ |
+| huaweiYun    | C#huaTwei2Y4Gun  | 华为云 |
+| cache_access | TcacGhe2@acCcess | 自研   |
+| youpuYun     | GYunCTyou10@p#u  | 有谱   |
+| haohanYun    | GCTha12o#hyun    | 浩瀚   |
+| baishanYun   | CbaTishGan3@Y#un | 白山   |
+|              |                  |        |
+|              |                  |        |
+|              |                  |        |
+
+KafkaServer { 
+org.apache.kafka.common.security.plain.PlainLoginModule required 
+username="admin" 
+password="CtYiofnwk@269Mn" 
+user_admin="CtYiofnwk@269Mn"
+user_huaweiYun="C#huaTwei2Y4Gun"
+user_cache_access="TcacGhe2@acCcess"
+user_youpuYun="GYunCTyou10@p#u"
+user_haohanYun="GCTha12o#hyun"
+user_baishanYun="CbaTishGan3@Y#un";
+};
+
+```bash
+华为云：
+
+topicName=huaweiYun    
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1  --topic ${topicName}    --partitions 40 --replication-factor 3
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --add --allow-principal User:${topicName} --topic ${topicName}   --producer
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1  --add --allow-principal User:${topicName} --topic ${topicName}   --consumer --group grp-${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --list  --topic ${topicName}
+
+#自研
+topicName=cache_access
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1  --topic ${topicName}    --partitions 20 --replication-factor 3
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --add --allow-principal User:${topicName} --topic ${topicName}   --producer
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1  --add --allow-principal User:${topicName} --topic ${topicName}   --consumer --group grp-${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --list  --topic ${topicName}
+
+#友普
+topicName=youpuYun
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1  --topic ${topicName}    --partitions 10 --replication-factor 3
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --add --allow-principal User:${topicName} --topic ${topicName}   --producer
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1  --add --allow-principal User:${topicName} --topic ${topicName}   --consumer --group grp-${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --list  --topic ${topicName}
+#浩瀚云
+topicName=haohanYun
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1  --topic ${topicName}    --partitions 10 --replication-factor 3
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --add --allow-principal User:${topicName} --topic ${topicName}   --producer
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1  --add --allow-principal User:${topicName} --topic ${topicName}   --consumer --group grp-${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --list  --topic ${topicName}
+
+#白山云
+topicName=baishanYun
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1  --topic ${topicName}    --partitions 10 --replication-factor 3
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --add --allow-principal User:${topicName} --topic ${topicName}   --producer
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1  --add --allow-principal User:${topicName} --topic ${topicName}   --consumer --group grp-${topicName}
+
+#调试
+topicName=DebugTopic
+ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 1 --replication-factor 3
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${topicName} --topic ${topicName}   --producer
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${topicName} --topic ${topicName}   --consumer --group grp-${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list cdnlog003.ctyun.net:5044  --topic DebugTopic --producer-property security.protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
+
+#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties 
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044  --topic DebugTopic --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-DebugTopic 
+
+
+```
+
+
+
+
+
+
+
+# 16.KafkaManager
+
+1.下载
+
+https://github.com/yahoo/kafka-manager/releases
+
+2.解压
+
+cd  /c/Work/Source/kafka-manager-2.0.0.2
+
+./sbt
+
+生成配置包
+
+3.配置application.conf的zk
+
+kafka-manager.zkhosts="ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181/kafka-manager"
+
+zk上需要建立/kafka-manager目录
+
+4.启动
+
+```
+nohup /data2/kafka-manager-2.0.0.2/bin/kafka-manager -Dconfig.file=/data2/kafka-manager-2.0.0.2/conf/application.conf -Dhttp.port=19090  -Dapplication.home=/data2/kafka-manager/kafka-manager-2.0.0.2 &
+```
+
+5.新增配置；
+
+zookeeper hosts：
+
+cdnlog041.ctyun.net:12181,cdnlog042.ctyun.net:12181/cdnlog-first
+
+version: 2.0.0
+
+Security Protocol: SASL_PLAINTEXT
+
+SASL Mechanism :PLAIN
+
+SASL JAAS Config:org.apache.kafka.common.security.plain.PlainLoginModule required  username="admin" password="CtYiofnwk@269Mn" ; 
+
+# 17.Kafaka配置？
+
+broker端：
+
+| 参数名                          | 参数含义                                                     | 默认值 | 建议值               |
+| ------------------------------- | ------------------------------------------------------------ | ------ | -------------------- |
+| auto.create.topics.enable       | Enable auto creation of topic on the server                  | true   | false                |
+| background.threads              | The number of threads to use for various background processing tasks | 10     |                      |
+| delete.topic.enable             | Enables delete topic. Delete topic through the admin tool will have no effect if this config is turned off | true   | false                |
+| log.dirs                        | The directories in which the log data is kept. If not set, the value in log.dir is used |        |                      |
+| log.retention.hours             | The number of hours to keep a log file before deleting it (in hours), tertiary to log.retention.ms property | 168    |                      |
+| num.io.threads                  | The number of threads that the server uses for processing requests, which may include disk I/O | 8      |                      |
+| num.network.threads             | The number of threads that the server uses for receiving requests from the network and sending responses to the network | 3      |                      |
+| num.replica.fetchers            | Number  of fetcher threads used to replicate messages from a source broker.  Increasing this value can increase the degree of I/O parallelism in the  follower broker. | 1      |                      |
+| socket.receive.buffer.bytes     | The SO_RCVBUF buffer of the socket server sockets. If the value is -1, the OS default will be used. | 102400 |                      |
+| socket.send.buffer.bytes        | The SO_SNDBUF buffer of the socket server sockets. If the value is -1, the OS default will be used. | 102400 |                      |
+| zookeeper.connection.timeout.ms | The  max time that the client waits to establish a connection to zookeeper.  If not set, the value in zookeeper.session.timeout.ms is used |        |                      |
+| zookeeper.session.timeout.ms    | Zookeeper session timeout                                    | 6000   | 适当调大一些         |
+| zookeeper.connect               |                                                              |        | 配置单独的zk命名空间 |
+| listeners                       |                                                              |        | 配置SASL             |
+| Ambari Advanced kafka_jaas_conf |                                                              |        | 配置SASL             |
+| super.users                     |                                                              |        | 配置正确的admin用户  |
+
+
+
+
+
+18.生产手记：
+
+kafka: 5044  JMX：5090
+
+
+
+
+
+# 18.KDC主从
+
+
+
+todo：
+
+1.定期备份kdc数据库
+
+2.增加一台免密机器
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+create /kafka_auth_test ""
+addauth digest kafka:Kafka0701@2019
+setAcl /kafka_auth_test auth:kafka:Kafka0701@2019:rwadc
+getAcl /kafka_auth_test
+
+
+addauth digest kafka:Kafka0701@2019
+echo -n 'kafka:Kafka0701@2019' | openssl dgst -binary -sha1 | openssl base64
+Mzhi+zkz666H8mFYTEXjsyKT5uk=
+create /kafka-digest-test 'digest'
+setAcl /kafka-digest-test digest:kafka:Mzhi+zkz666H8mFYTEXjsyKT5uk=:rwdca
+getAcl /kafka-digest-test 
+addauth digest kafka:Kafka0701@2019
+
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper hbase36.ecloud.com:2181/kafka-no-auth2  --topic zwstest    --partitions 1 --replication-factor 1
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# **后面废弃**.仅做备留
+
+--------------------------------------
+
+7. 修改find-hive-dependency.sh
+
+37和42行增加: --outputformat=dsv
+
+
+
+```bash
+
+vi /usr/hdp/3.0.0.0-1634/hive/bin/hive.distro
+
+if [ "$TORUN" = "" ] ; then
+  echo "Service $SERVICE not found"
+  echo "Available Services: $SERVICE_LIST"
+  exit 7
+else
+  set -- "${SERVICE_ARGS[$@]}"
+  if [ $SERVICE == "beeline" -o $SERVICE == "cli" ]
+  then
+    $TORUN -p hive -n kylin "$@"
+  else
+    $TORUN "$@"
+  fi
+
+  $TORUN "$@"
+fi
+```
+
+
 
 
 
@@ -2126,214 +2837,6 @@ sudo -u yarn hdfs dfs -put /usr/hdp/current/hadoop-yarn-timelineserver/timelines
 </property>
 ```
 
-# 安装kerberos
-
-
-
-## HDP3.0 Ambari的几个坑:
-
-1.yarn dns默认端口 hadoop自己是5353,安装的时候变成了53,导致启动yarndns的机器在运行kadmin时出问题
-2.kerberos 一定要使用域名,不能使用IP
-3.kerberos一定要他管理krb5.conf,不能清除那个选项,使用自己的配置文件
-
-
-
-
-
-1.安装KDC Server
-
-```
-yum install krb5-server krb5-libs krb5-workstation krb5-devel -y
-
-rpm -qa|grep krb5
-krb5-workstation-1.15.1-37.el7_6.x86_64
-krb5-libs-1.15.1-37.el7_6.x86_64
-krb5-devel-1.15.1-37.el7_6.x86_64
-krb5-server-1.15.1-37.el7_6.x86_64
-
-这个 -37  -8  -18都可以的
-汪聘  15:41:06
-以前就遇到过-19 的不行
-
-```
-
-2.设置HOSTS
-
-```bash
-cat /etc/hosts
-
-192.168.1.73 cdnlog.kdc.server
-
-```
-
-3.修改配置文件:/etc/krb5.conf
-
-```bash
- cat /etc/krb5.conf
-# Configuration snippets may be placed in this directory as well
-includedir /etc/krb5.conf.d/
-
-[logging]
- default = FILE:/var/log/krb5libs.log
- kdc = FILE:/var/log/krb5kdc.log
- admin_server = FILE:/var/log/kadmind.log
-
-[libdefaults]
- dns_lookup_realm = false
- ticket_lifetime = 24h
- renew_lifetime = 7d
- forwardable = true
- rdns = false
- pkinit_anchors = /etc/pki/tls/certs/ca-bundle.crt
- default_realm = CDNLOG  #修改
- default_ccache_name = KEYRING:persistent:%{uid}
-
-[realms]
-CDNLOG = {  #修改
-  kdc = 192.168.1.73 #修改
-  admin_server = 192.168.1.73 #修改
- }
-
-[domain_realm]
-.ecloud.com=CDNLOG #修改
-ecloud.com=CDNLOG  #修改
-
-```
-4.修改文件：/var/kerberos/krb5kdc/kdc.conf 
-
-```bash
-------------------------------------
- cat /var/kerberos/krb5kdc/kdc.conf 
-[kdcdefaults]
- kdc_ports = 88
- kdc_tcp_ports = 88
-
-[realms]
- CDNLOG = {
-  #master_key_type = aes256-cts
-  acl_file = /var/kerberos/krb5kdc/kadm5.acl
-  dict_file = /usr/share/dict/words
-  admin_keytab = /var/kerberos/krb5kdc/kadm5.keytab
-  supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal arcfour-hmac:normal camellia256-cts:normal camellia128-cts:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
- }
-```
- 4.修改其它配置文件
- ```bash
- ---------------------------------------------------
- cat /var/kerberos/krb5kdc/kadm5.acl
-*/admin@CDNLOG  *
- ```
-
-
-5.创建KDC数据库
-```bash
-kdb5_util create  -s -r CDNLOG
-kdb5_util create  -s -r CTYUNCDN.NET
-密码:cdnlog@kdc!@#
-```
-
-6.启动KDC数据库并设置开机启动
-
-```bash
-systemctl restart krb5kdc
-systemctl restart kadmin
-systemctl enable krb5kdc.service
-systemctl enable kadmin.service
-```
-
-7.创建远程管理员
-
-```
-# kadmin.local -q "addprinc admin/admin@CDNLOG"
-kadmin.local -q "addprinc admin/admin@CTYUNCDN.NET"
-cdnlog@kdc!@#
-
-
-kadmin.local -q "addprinc kadmin/192.168.1.66@CDNLOG"
-
-Authenticating as principal root/admin@CDNLOG with password.
-WARNING: no policy specified for admin/admin@CDNLOG; defaulting to no policy
-Enter password for principal "admin/admin@CDNLOG": 
-Re-enter password for principal "admin/admin@CDNLOG": 
-Principal "admin/admin@CDNLOG" created.
-
-# kadmin.local -q "xst -norandkey admin/admin@CDNLOG"
-kadmin.local -q "xst -norandkey admin/admin@CTYUNCDN.NET"
-cdnlog@kdc!@#
-
-Authenticating as principal root/admin@CDNLOG with password.
-Entry for principal admin/admin@CDNLOG with kvno 1, encryption type aes256-cts-hmac-sha1-96 added to keytab FILE:/etc/krb5.keytab.
-Entry for principal admin/admin@CDNLOG with kvno 1, encryption type aes128-cts-hmac-sha1-96 added to keytab FILE:/etc/krb5.keytab.
-Entry for principal admin/admin@CDNLOG with kvno 1, encryption type des3-cbc-sha1 added to keytab FILE:/etc/krb5.keytab.
-Entry for principal admin/admin@CDNLOG with kvno 1, encryption type arcfour-hmac added to keytab FILE:/etc/krb5.keytab.
-Entry for principal admin/admin@CDNLOG with kvno 1, encryption type camellia256-cts-cmac added to keytab FILE:/etc/krb5.keytab.
-Entry for principal admin/admin@CDNLOG with kvno 1, encryption type camellia128-cts-cmac added to keytab FILE:/etc/krb5.keytab.
-Entry for principal admin/admin@CDNLOG with kvno 1, encryption type des-hmac-sha1 added to keytab FILE:/etc/krb5.keytab.
-Entry for principal admin/admin@CDNLOG with kvno 1, encryption type des-cbc-md5 added to keytab FILE:/etc/krb5.keytab.
-
-
-
-
-kadmin.local
-Authenticating as principal root/admin@CDNLOG with password.
-kadmin.local:  listprincs
-K/M@CDNLOG
-admin/admin@CDNLOG
-kadmin/admin@CDNLOG
-kadmin/changepw@CDNLOG
-kadmin/hbase73.ecloud.com@CDNLOG
-kiprop/hbase73.ecloud.com@CDNLOG
-krbtgt/CDNLOG@CDNLOG
-
-kadmin.local:  addprinc root/admin
-cdnlog@kdc!@#
-
-WARNING: no policy specified for root/admin@CDNLOG; defaulting to no policy
-Enter password for principal "root/admin@CDNLOG": 
-Re-enter password for principal "root/admin@CDNLOG": 
-Principal "root/admin@CDNLOG" created.
-kadmin.local:  
-```
-
-8.重启服务
-
-```bash
-systemctl restart kadmin.service
-systemctl restart krb5kdc.service
-```
-
-9.下载jce for jdk8
-
-http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html
-
-上传到/data1
-
-scp ./jce_policy-8.zip 192.168.1.105:/data1
-
-scp ./jce_policy-8.zip 192.168.1.135:/data1
-
-
-
-每台机器执行:
-
-unzip -o -j -q  /data1/jce_policy-8.zip -d $JAVA_HOME/jre/lib/security
-
-
-
-unzip -o -j -q  /data10/soft/jce_policy-8.zip  -d $JAVA_HOME/jre/lib/security
-
-
-
-krb5-config --version
-
-
-
-![1557912194106](/img/ambari-install-kerberos.png)
-
-
-
-
-
 
 
 # 设置队列
@@ -2575,8 +3078,6 @@ cp /usr/hdp/3.0.0.0-1634/hadoop/lib/jackson-core-2.9.5.jar
 ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson--2.6.7
  ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson--2.9.5
 
-ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7*jar
-
 mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar  /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar .BAK
 
 mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-annotations-2.6.7.jar.BAK
@@ -2589,41 +3090,317 @@ cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-core-2.9.5.jar /usr/hdp/3.0.0.0-1
 
 
 
-mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar  /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-databind-2.6.7.1.jar.BAK
-mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-core-2.6.7.jar.BAK
-mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-annotations-2.6.7.jar.BAK
-mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-jaxb-annotations-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-jaxb-annotations-2.6.7.jar.BAK
-mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-scala_2.11-2.6.7.1.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-scala_2.11-2.6.7.1.jar.BAK
-mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-dataformat-cbor-2.6.7.jar.BAK
 
 
-手工上传jackson-dataformat-cbor-2.9.5.jar
+#看这里==============================================
+ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-*-2.6.7*jar
+
+for ip in `echo 27 28 40 41 42 43 44 45`
+do
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar  /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-databind-2.6.7.1.jar.BAK
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-core-2.6.7.jar.BAK
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-annotations-2.6.7.jar.BAK
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-jaxb-annotations-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-jaxb-annotations-2.6.7.jar.BAK
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-scala_2.11-2.6.7.1.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-scala_2.11-2.6.7.1.jar.BAK
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.6.7.jar /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-dataformat-cbor-2.6.7.jar.BAK
+done
+
+
+手工上传jackson-dataformat-cbor-2.9.5.jar到目录/usr/hdp/3.0.0.0-1634/spark2/jars
 cd /usr/hdp/3.0.0.0-1634/spark2/jars
-scp /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar 192.168.1.66:/usr/hdp/3.0.0.0-1634/spark2/jars/
-scp /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar 192.168.1.66:/usr/hdp/3.0.0.0-1634/spark2/jars/
+for ip in `echo 27 28 41 42 43 44 45`
+do
+	scp /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar 192.168.2.${ip}:/usr/hdp/3.0.0.0-1634/spark2/jars/
+done
 
 
-cp /usr/hdp/3.0.0.0-1634/hbase/lib/jackson-module-scala_2.11-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
-cp /usr/hdp/3.0.0.0-1634/hadoop-yarn/lib/jackson-module-jaxb-annotations-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
-cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-databind-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
-cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-annotations-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
-cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-core-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+for ip in `echo 27 28 40 41 42 43 44 45`
+do
+ssh 192.168.2.${ip} cp /usr/hdp/3.0.0.0-1634/hbase/lib/jackson-module-scala_2.11-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+ssh 192.168.2.${ip} cp /usr/hdp/3.0.0.0-1634/hadoop-yarn/lib/jackson-module-jaxb-annotations-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+ssh 192.168.2.${ip} cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-databind-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+ssh 192.168.2.${ip} cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-annotations-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+ssh 192.168.2.${ip} cp /usr/hdp/3.0.0.0-1634/hadoop/client/jackson-core-2.9.5.jar /usr/hdp/3.0.0.0-1634/spark2/jars
+done
 
 
 ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-*-2.6.7*jar
 
 反过来:
-mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-databind-2.6.7.1.jar.BAK  /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar
-mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-core-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.6.7.jar
-mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-annotations-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7.jar
 
-rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.9.5.jar
-rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.9.5.jar
-rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.9.5.jar
+for ip in `echo 27 28 40 41 42 43 44 45`
+do
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-databind-2.6.7.1.jar.BAK  /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.6.7.1.jar
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-core-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.6.7.jar
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-annotations-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.6.7.jar
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-jaxb-annotations-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-jaxb-annotations-2.6.7.jar
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-scala_2.11-2.6.7.1.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-module-scala_2.11-2.6.7.1.jar
+ssh 192.168.2.${ip} mv /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.6.7.jar.BAK /usr/hdp/3.0.0.0-1634/spark2/jars/../jackson-dataformat-cbor-2.6.7.jar
 
+
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-databind-2.9.5.jar
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-2.9.5.jar
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.9.5.jar
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-jaxb-annotations-2.9.5.jar
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-scala_2.11-2.9.5.jar
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar 
+
+done
 ```
 
 
 
 
+
+# 系统安全
+
+echo 'net.ipv4.tcp_sack = 0' >> /etc/sysctl.conf;sysctl -p
+
+
+
+# 9.ES安装
+
+useradd es
+
+cd /data2
+
+tar zxvf elasticsearch-6.7.0.tar.gz
+
+su - es
+
+
+
+[1]: max file descriptors [32768] for elasticsearch process is too low, increase to at least [65535]
+[2]: max virtual memory areas vm.max_map_count [65530] is too low, increase to at least [262144]
+
+sysctl -w vm.max_map_count=262144
+
+ulimit -n 65535
+
+ vim /etc/pam.d/sshd
+session    required  /usr/lib64/security/pam_limits.so
+
+vim /etc/ssh/sshd_config
+
+
+
+
+
+# 8.主要问题
+
+启动ranger时，数据库使用了utf8，导致字段长度超长，减少字段长度
+
+Zeppelin缺少了/var/run/zeppelin需要手工创建
+
+hdfs的一个配置错误，由1改为0；
+
+
+
+OOZIE问题：
+
+https://stackoverflow.com/questions/49276756/ext-js-library-not-installed-correctly-in-oozie
+
+1. Stop Oozie service from Ambari
+2. Copy it to the path:  /usr/hdp/current/oozie-client/libext/ 
+3. /usr/hdp/current/oozie-server/bin/oozie-setup.sh prepare-war 
+4. Start Oozie again
+
+
+
+Atlas：
+
+[忘记密码了看这里](https://community.hortonworks.com/questions/144519/how-to-change-default-atlas-ui-admin-password.html)
+
+Configs-> Advanced -> Advanced atlas-env -> Admin password 
+
+导入示例数据：
+
+/usr/hdp/current/atlas-client/bin/quick_start.py 'http://t3s3.ecloud.com:21000'
+
+# 安装kerberos
+
+1.安装KDC Server
+
+```
+yum install krb5-server krb5-libs krb5-workstation krb5-devel -y
+
+rpm -qa|grep krb5
+krb5-workstation-1.15.1-37.el7_6.x86_64
+krb5-libs-1.15.1-37.el7_6.x86_64
+krb5-devel-1.15.1-37.el7_6.x86_64
+krb5-server-1.15.1-37.el7_6.x86_64
+
+这个 -37  -8  -18都可以的
+汪聘  15:41:06
+以前就遇到过-19 的不行
+
+```
+
+2.设置HOSTS
+
+```bash
+cat /etc/hosts
+
+192.168.1.73 cdnlog.kdc.server
+
+```
+
+3.修改配置文件:/etc/krb5.conf
+
+```bash
+ cat /etc/krb5.conf
+# Configuration snippets may be placed in this directory as well
+includedir /etc/krb5.conf.d/
+
+[logging]
+ default = FILE:/var/log/krb5libs.log
+ kdc = FILE:/var/log/krb5kdc.log
+ admin_server = FILE:/var/log/kadmind.log
+
+[libdefaults]
+ dns_lookup_realm = false
+ ticket_lifetime = 24h
+ renew_lifetime = 7d
+ forwardable = true
+ rdns = false
+ pkinit_anchors = /etc/pki/tls/certs/ca-bundle.crt
+ default_realm = CDNLOG  #修改
+ default_ccache_name = KEYRING:persistent:%{uid}
+
+[realms]
+CDNLOG = {  #修改
+  kdc = 192.168.1.73 #修改
+  admin_server = 192.168.1.73 #修改
+ }
+
+[domain_realm]
+.ecloud.com=CDNLOG #修改
+ecloud.com=CDNLOG  #修改
+
+```
+
+4.修改文件：/var/kerberos/krb5kdc/kdc.conf 
+
+```bash
+------------------------------------
+ cat /var/kerberos/krb5kdc/kdc.conf 
+[kdcdefaults]
+ kdc_ports = 88
+ kdc_tcp_ports = 88
+
+[realms]
+ CDNLOG = {
+  #master_key_type = aes256-cts
+  acl_file = /var/kerberos/krb5kdc/kadm5.acl
+  dict_file = /usr/share/dict/words
+  admin_keytab = /var/kerberos/krb5kdc/kadm5.keytab
+  supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal arcfour-hmac:normal camellia256-cts:normal camellia128-cts:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
+ }
+```
+
+ 4.修改其它配置文件
+
+```bash
+ ---------------------------------------------------
+ cat /var/kerberos/krb5kdc/kadm5.acl
+*/admin@CDNLOG  *
+```
+
+5.创建KDC数据库
+
+```bash
+kdb5_util create  -s -r CDNLOG
+kdb5_util create  -s -r CTYUNCDN.NET
+密码:cdnlog@kdc!@#
+```
+
+6.启动KDC数据库并设置开机启动
+
+```bash
+systemctl restart krb5kdc
+systemctl restart kadmin
+systemctl enable krb5kdc.service
+systemctl enable kadmin.service
+```
+
+7.创建远程管理员
+
+```
+# kadmin.local -q "addprinc admin/admin@CDNLOG"
+kadmin.local -q "addprinc admin/admin@CTYUNCDN.NET"
+cdnlog@kdc!@#
+
+
+kadmin.local -q "addprinc kadmin/192.168.1.66@CDNLOG"
+
+Authenticating as principal root/admin@CDNLOG with password.
+WARNING: no policy specified for admin/admin@CDNLOG; defaulting to no policy
+Enter password for principal "admin/admin@CDNLOG": 
+Re-enter password for principal "admin/admin@CDNLOG": 
+Principal "admin/admin@CDNLOG" created.
+
+# kadmin.local -q "xst -norandkey admin/admin@CDNLOG"
+kadmin.local -q "xst -norandkey admin/admin@CTYUNCDN.NET"
+cdnlog@kdc!@#
+
+Authenticating as principal root/admin@CDNLOG with password.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type aes256-cts-hmac-sha1-96 added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type aes128-cts-hmac-sha1-96 added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type des3-cbc-sha1 added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type arcfour-hmac added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type camellia256-cts-cmac added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type camellia128-cts-cmac added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type des-hmac-sha1 added to keytab FILE:/etc/krb5.keytab.
+Entry for principal admin/admin@CDNLOG with kvno 1, encryption type des-cbc-md5 added to keytab FILE:/etc/krb5.keytab.
+
+
+
+
+kadmin.local
+Authenticating as principal root/admin@CDNLOG with password.
+kadmin.local:  listprincs
+K/M@CDNLOG
+admin/admin@CDNLOG
+kadmin/admin@CDNLOG
+kadmin/changepw@CDNLOG
+kadmin/hbase73.ecloud.com@CDNLOG
+kiprop/hbase73.ecloud.com@CDNLOG
+krbtgt/CDNLOG@CDNLOG
+
+kadmin.local:  addprinc root/admin
+cdnlog@kdc!@#
+
+WARNING: no policy specified for root/admin@CDNLOG; defaulting to no policy
+Enter password for principal "root/admin@CDNLOG": 
+Re-enter password for principal "root/admin@CDNLOG": 
+Principal "root/admin@CDNLOG" created.
+kadmin.local:  
+```
+
+8.重启服务
+
+```bash
+systemctl restart kadmin.service
+systemctl restart krb5kdc.service
+```
+
+9.下载jce for jdk8
+
+http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html
+
+上传到/data1
+
+scp ./jce_policy-8.zip 192.168.1.105:/data1
+
+scp ./jce_policy-8.zip 192.168.1.135:/data1
+
+
+
+每台机器执行:
+
+unzip -o -j -q  /data1/jce_policy-8.zip -d $JAVA_HOME/jre/lib/security
+
+
+
+unzip -o -j -q  /data10/soft/jce_policy-8.zip  -d $JAVA_HOME/jre/lib/security
 
