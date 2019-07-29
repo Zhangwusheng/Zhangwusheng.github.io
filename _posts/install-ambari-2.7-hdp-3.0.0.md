@@ -78,11 +78,12 @@ http://public-repo-1.hortonworks.com/HDP-GPL/centos7/3.x/updates/3.1.0.0/HDP-GPL
 
 ```bash
 #jdk安装软件所在目录
-JAVA_SOFT=/data1
+JAVA_SOFT=/data1/HDP-3.1
 #HDP所在目录
-HDP_SOFT=/data1/HDP-3.0
+HDP_SOFT=/data1/HDP-3.1
 #所有机器IP列表,最后一位
 HOSTS="36 66 160"
+
 ```
 
 -   关闭防火墙
@@ -105,7 +106,7 @@ mkdir /data1;mount /dev/vdb /data1
 
 ```shell
 #每台机器执行
-tar zxvf /data1/jdk-8u161-linux-x64.tar.gz -C /usr/local/
+tar zxvf ${JAVA_SOFT}/jdk-8u161-linux-x64.tar.gz -C /usr/local/
 ln -fs /usr/local/jdk1.8.0_161 /usr/local/jdk
 ```
 
@@ -174,9 +175,9 @@ cat /etc/hostname
 grep -v ecloud  /etc/hosts  > /etc/hosts2 
 for ip in `echo ${HOSTS}`
 do	
-	echo "192.168.1.${ip}  hbase${ip}.ecloud.com" >> /etc/hosts2
+ echo "192.168.1.${ip}  hbase${ip}.ecloud.com" >> /etc/hosts2
 done
-mv /etc/hosts2 /etc/hosts
+mv -f /etc/hosts2 /etc/hosts
 cat /etc/hosts
 ```
 
@@ -203,11 +204,16 @@ restrict 192.168.0.193 mask 255.255.255.0
 restrict 192.168.0.110 mask 255.255.255.0
 restrict 192.168.0.201 mask 255.255.255.0
 
+server  127.127.1.0     # local clock
+fudge   127.127.1.0 stratum 2
+
 systemctl start ntpd.service 
 systemctl enable ntpd.service 
 
 #首先同步跳板机的时间
 ntpdate 0.centos.pool.ntp.org
+
+
 ```
 
 可以不设置。
@@ -242,7 +248,7 @@ SELINUX=enforcing 改为 SELINUX=disabled
 ```bash
 #这样幂等
 echo 1> /proc/sys/net/ipv6/conf/all/disable_ipv6 
-echo 1> proc/sys/net/ipv6/conf/default/disable_ipv6 
+echo 1> /proc/sys/net/ipv6/conf/default/disable_ipv6 
 #或者这样也行
 grep -v 'net.ipv6.conf.all.disable_ipv6=1' /etc/sysctl.conf > /etc/sysctl.conf2
 grep -v 'net.ipv6.conf.default.disable_ipv6=1' /etc/sysctl.conf2 > /etc/sysctl.conf3
@@ -306,6 +312,14 @@ tar zxvf ambari-2.7.0.0-centos7.tar.gz -C /var/www/html/ambari
 tar zxvf HDP-3.0.0.0-centos7-rpm.tar.gz  -C /var/www/html/ambari
 tar zxvf HDP-UTILS-1.1.0.22-centos7.tar.gz -C  /var/www/html/ambari
 tar zxvf HDP-GPL-3.0.0.0-centos7-gpl.tar.gz -C /var/www/html/ambari
+
+
+tar zxvf ambari-2.7.3.0-centos7.tar.gz -C /var/www/html/ambari
+tar zxvf HDP-3.1.0.0-centos7-rpm.tar.gz  -C /var/www/html/ambari
+tar zxvf HDP-UTILS-1.1.0.22-centos7.tar.gz -C  /var/www/html/ambari
+tar zxvf HDP-GPL-3.1.0.0-centos7-gpl.tar.gz -C /var/www/html/ambari
+
+
 ```
 
 
@@ -314,10 +328,18 @@ tar zxvf HDP-GPL-3.0.0.0-centos7-gpl.tar.gz -C /var/www/html/ambari
 
 ```bash
 #baseurl改成自己的ambariserver在的机器
-cat > /etc/yum.repos.d/ambari.repo<<<EOF 
+cat > /etc/yum.repos.d/ambari.repo<<EOF 
 [ambari-2.7.0.0]
 name=HDP Version - ambari-2.7.0.0
 baseurl=http://192.168.0.47/ambari/ambari/centos7/2.7.0.0-897/
+gpgcheck=0
+EOF
+
+
+cat > /etc/yum.repos.d/ambari.repo<<EOF 
+[ambari-2.7.3.0]
+name=HDP Version - ambari-2.7.3.0
+baseurl=http://192.168.1.36:18181/ambari/ambari/centos7/2.7.3.0-139/
 gpgcheck=0
 EOF
 
@@ -334,11 +356,11 @@ rm -rf /var/lib/rpm/__db*
 ```bash
 yum install -y ambari-server
 #修改ambari端口
-echo echo 'client.api.port=18080' >> /etc/ambari-server/conf/ambari.properties
+echo 'client.api.port=18080' >> /etc/ambari-server/conf/ambari.properties
 #或者
 grep -v 'client.api.port' /etc/ambari-server/conf/ambari.properties > /etc/ambari-server/conf/ambari.properties2
 echo 'client.api.port=18080' >> /etc/ambari-server/conf/ambari.properties2
-mv /etc/ambari-server/conf/ambari.properties2 /etc/ambari-server/conf/ambari.properties2
+mv -f /etc/ambari-server/conf/ambari.properties2 /etc/ambari-server/conf/ambari.properties
 ```
 
 
@@ -639,6 +661,26 @@ http://192.168.0.47/ambari/HDP-UTILS/centos7/1.1.0.22
 
 
 
+
+
+http://192.168.1.36:18181/ambari/HDP/centos7/3.1.0.0-78/
+
+http://192.168.1.36:18181/ambari/HDP-GPL/centos7/3.1.0.0-78/
+
+http://192.168.1.36:18181/ambari/HDP-UTILS/centos7/1.1.0.22/
+
+3.1安装有的时候有问题，这个文件生成的baseurl是空的，需要手工修改：
+
+1.尝试升级操作系统，不支持7.2以及以下！必须升级到7.4或者7.6
+
+2.修复bug
+
+https://community.hortonworks.com/articles/231020/ambari-273-ambari-writes-empty-baseurl-values-writ.html
+
+
+
+cat /etc/hosts|awk '{print $2;}'
+
 - 第二步：
 
 
@@ -803,10 +845,11 @@ unzip -o -j -q /data1/jce_policy-8.zip -d $JAVA_HOME/jre/lib/security/
   admin_keytab = /var/kerberos/krb5kdc/kadm5.keytab
   supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal arcfour-hmac:normal camellia256-cts:normal camellia128-cts:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
   
+  #这里要加上，否则不能renew
   max_renewable_life = 3650d 0h 0m 0s
  }
  
-#关键
+#关键；如果忘记了max_renewable_life，那么应该确保这个用户是存在的krbtgt
 kadmin.local -q "modprinc -maxrenewlife 7days krbtgt/CTYUN.NET"
 
 ssh -p 9000 192.168.254.12 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey kylin/cdnlog012.ctyun.net"'
@@ -814,6 +857,7 @@ ssh -p 9000 192.168.254.12 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q 
 
 ssh -p 9000 192.168.254.3 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog003.ctyun.net"'
 
+#这些命令可以使得用户可以renew
 modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog040.ctyun.net
 modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog031.ctyun.net
 modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog032.ctyun.net
@@ -1498,6 +1542,8 @@ TODO
 
 # 13.集群打安全补丁
 
+***ambari 2.7.3已经被需要打补丁了***。
+
 ```bash
 #系统安全
 
@@ -1891,31 +1937,114 @@ todo：
 
 
 
+# 19.卸载:
+
+如果只是重装，不要删除配置目录，只删除数据目录，然后ambari-server reset即可。
+
+1. 查看日志里面安装了哪些包
+
+   cat  /var/lib/ambari-agent/data/*|grep yum|grep install
+
+2. 删除并且清理ambari的仓库
+
+   cd /etc/yum.repos.d
+
+   rm -f ambari* hdp.*
+
+   yum makecache fast
+
+3. 列出所有的已安装的包
+
+   yum list installed|grep HDP|awk '{print "yum remove -y "$1;}'|sort -u
+
+   yum list installed |grep hadoop
+
+   yum list installed |grep HDP 
+
+   yum list installed |grep ambari
+
+   yum list installed |grep HDP|awk '{print "rpm -e "$1;}'|sort -u
+
+4. 删除数据目录！
+
+   rm -rf 
 
 
 
+# 20.windows安装kerberos
 
 
 
+## 1.下载并安装软件
 
+wget -c 'http://web.mit.edu/kerberos/dist/kfw/4.1/kfw-4.1-amd64.msi'
 
+## 2.环境变量
 
+C:\Program Files\MIT\Kerberos\bin
 
+备注：
 
+1.PATH的设置里面，kerberos的位置一定要移动到很靠前的位置，一定要比JDK的位置靠前，因为jdk也带了kinit，一定要放到system32前面，系统自带的也有kinit。
 
+2.如果PATH不设置顺序，必须写命令的全路径
 
+## 3.修改配置
 
+#从生产集群/etc/krb5.conf copy出来，保存到C:\ProgramData\MIT\Kerberos5\krb5.ini
 
+#C:\ProgramData\MIT\Kerberos5\krb5.ini
 
+[libdefaults]
+  renew_lifetime = 7d
+  forwardable = true
+  default_realm = CTYUN.NET
+  ticket_lifetime = 24h
+  dns_lookup_realm = false
+  dns_lookup_kdc = false
+  default_ccache_name = /tmp/krb5cc_%{uid}
+  #default_tgs_enctypes = aes des3-cbc-sha1 rc4 des-cbc-md5
+  #default_tkt_enctypes = aes des3-cbc-sha1 rc4 des-cbc-md5
 
+[domain_realm]
+  .ctyun.net = CTYUN.NET
+  ctyun.net = CTYUN.NET
 
+[logging]
+  default = FILE:///C:/ProgramData/MIT/Kerberos5/krb5kdc.log
+  admin_server = FILE:///C:/ProgramData/MIT/Kerberos5/kadmind.log
+  kdc = FILE:///C:/ProgramData/MIT/Kerberos5/krb5kdc.log
 
+[realms]
+  CTYUN.NET = {
+    admin_server = cdnlog040.ctyun.net
+    kdc = cdnlog040.ctyun.net
+  }
 
+## 4.修改hosts
 
+150.223.254.40  cdnlog040.ctyun.net
 
+## 5.下载keytab并且运行kinit
 
+下载spnego.service.keytab放到C:\ProgramData\MIT\Kerberos5
 
+```
+cd C:\ProgramData\MIT\Kerberos5
 
+"C:\Program Files\MIT\Kerberos\bin\klist.exe" -k "C:\ProgramData\MIT\Kerberos5\spnego.service.keytab"
+
+"C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt  "C:\ProgramData\MIT\Kerberos5\spnego.service.keytab" HTTP/cdnlog040.ctyun.net 
+"C:\Program Files\MIT\Kerberos\bin\klist.exe"
+```
+
+## 6.修改火狐配置：
+
+1. 地址栏输入： about:config
+
+2.  network.negotiate-auth.trusted-uris设置为 cdnlog040.ctyun.net（多个主机以,分割）
+
+   network.auth.use-sspi设置为false
 
 
 
@@ -2709,23 +2838,43 @@ ANALYST/ANALYST@1234@#&
 
 # 卸载:
 
+如果只是重装，不要删除配置目录，只删除数据目录，然后ambari-server reset即可。
+
+1. 查看日志里面安装了哪些包
+
+   cat  /var/lib/ambari-agent/data/*|grep yum|grep install
+
+2. 删除并且清理ambari的仓库
+
+   cd /etc/yum.repos.d
+
+   rm -f ambari* hdp.*
+
+   yum makecache fast
+
+3. 列出所有的已安装的包
+
+   yum list installed|grep HDP|awk '{print "yum remove -y "$1;}'|sort -u
+
+   yum list installed |grep hadoop
+
+   yum list installed |grep HDP 
+
+   yum list installed |grep ambari
+
+   yum list installed |grep HDP|awk '{print "rpm -e "$1;}'|sort -u
+
+4. 删除数据目录！
+
+   rm -rf 
+
+   
+
+5. 
 
 
-cd /etc/yum.repos.d
-
-rm -f ambari* hdp.*
-
-yum makecache fast
 
 
-
-yum list installed|grep HDP|awk '{print "yum remove -y "$1;}'|sort -u
-
-
-
-
-
-yum list installed |grep hadoop
 
 
 
@@ -2762,6 +2911,8 @@ ambari-agent restart
 
 NameNodeHA
 
+namenode主机
+
 sudo su hdfs -l -c 'hdfs dfsadmin -safemode enter'
 
 sudo su hdfs -l -c 'hdfs dfsadmin -saveNamespace'
@@ -2769,6 +2920,32 @@ sudo su hdfs -l -c 'hdfs dfsadmin -saveNamespace'
 sudo su hdfs -l -c 'hdfs namenode -initializeSharedEdits'
 
 sudo su hdfs -l -c 'hdfs zkfc -formatZK'
+
+
+
+新的主机
+
+sudo su hdfs -l -c 'hdfs namenode -bootstrapStandby'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
