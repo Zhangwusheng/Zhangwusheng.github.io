@@ -28,38 +28,45 @@ https://www.cnblogs.com/zhang-ke/p/8944240.html
 
 # 1.下载离线安装包
 
-ambari2.7.0.0下载页面:
-https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/ambari_repositories.html 
-hdp-3.0.0下载页面:
-https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/hdp_30_repositories.html
+- [ ] 下载页面：
 
-ambari-2.7.0.0
+- ambari2.7.0.0下载页面:
+  https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/ambari_repositories.html 
 
-wget -c 'http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.7.0.0/ambari-2.7.0.0-centos7.tar.gz'
+- hdp-3.0.0下载页面:
+  https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/hdp_30_repositories.html
 
-wget -c 'http://public-repo-1.hortonworks.com/HDP/centos7/3.x/updates/3.0.0.0/HDP-3.0.0.0-centos7-rpm.tar.gz'
-wget -c 'http://public-repo-1.hortonworks.com/HDP-UTILS-1.1.0.22/repos/centos7/HDP-UTILS-1.1.0.22-centos7.tar.gz'
-wget -c 'http://public-repo-1.hortonworks.com/HDP-GPL/centos7/3.x/updates/3.0.0.0/HDP-GPL-3.0.0.0-centos7-gpl.tar.gz'
+- hdp-3.1.0下载页面:
 
-wget http://www.boutell.com/rinetd/http/rinetd.tar.gz
+  https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.3.0/bk_ambari-installation/content/hdp_31_repositories.html
 
+- [ ] ambari-2.7.0.0
 
 
-ambari-2.7.3.0
+- wget -c 'http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.7.0.0/ambari-2.7.0.0-centos7.tar.gz'
 
-https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.3.0/bk_ambari-installation/content/hdp_31_repositories.html
+- wget -c 'http://public-repo-1.hortonworks.com/HDP/centos7/3.x/updates/3.0.0.0/HDP-3.0.0.0-centos7-rpm.tar.gz'
+- wget -c 'http://public-repo-1.hortonworks.com/HDP-UTILS-1.1.0.22/repos/centos7/HDP-UTILS-1.1.0.22-centos7.tar.gz'
+- wget -c 'http://public-repo-1.hortonworks.com/HDP-GPL/centos7/3.x/updates/3.0.0.0/HDP-GPL-3.0.0.0-centos7-gpl.tar.gz'
 
-
-
-http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.7.3.0/ambari-2.7.3.0-centos7.tar.gz
-
-http://public-repo-1.hortonworks.com/HDP/centos7/3.x/updates/3.1.0.0/HDP-3.1.0.0-centos7-rpm.tar.gz
-
-http://public-repo-1.hortonworks.com/HDP-UTILS-1.1.0.22/repos/centos7/HDP-UTILS-1.1.0.22-centos7.tar.gz
-
-http://public-repo-1.hortonworks.com/HDP-GPL/centos7/3.x/updates/3.1.0.0/HDP-GPL-3.1.0.0-centos7-gpl.tar.gz
+- [ ] ambari-2.7.3.0
 
 
+- http://public-repo-1.hortonworks.com/ambari/centos7/2.x/updates/2.7.3.0/ambari-2.7.3.0-centos7.tar.gz
+
+
+- http://public-repo-1.hortonworks.com/HDP/centos7/3.x/updates/3.1.0.0/HDP-3.1.0.0-centos7-rpm.tar.gz
+
+
+- http://public-repo-1.hortonworks.com/HDP-UTILS-1.1.0.22/repos/centos7/HDP-UTILS-1.1.0.22-centos7.tar.gz
+
+
+- http://public-repo-1.hortonworks.com/HDP-GPL/centos7/3.x/updates/3.1.0.0/HDP-GPL-3.1.0.0-centos7-gpl.tar.gz
+
+
+- [ ] rinetd下载（如果需要网络转发的话）
+
+- wget http://www.boutell.com/rinetd/http/rinetd.tar.gz
 
 # 2.环境准备
 
@@ -96,23 +103,54 @@ systemctl stop firewalld
 
 -   挂载磁盘
 
-```
-#每台机器执行
+```bash
+#每台机器执行，可以手动执行
 mkfs.ext4 /dev/vdb 
-mkdir /data1;mount /dev/vdb /data1
+mkdir /data1;
+mount /dev/vdb /data1
+
+#开机自动挂载fstab
+#!/bin/bash
+
+cat > /home/zhangwusheng/disk.awk<<EOF
+{
+if(\$2 ~ /sdb/){printf("UUID=%s  /data1  ext4 defaults  0 0\\n",\$1);}
+else if(\$2 ~ /sdc/){printf("UUID=%s  /data2  ext4 defaults  0 0\\n",\$1);}
+else if(\$2 ~ /sdd/){printf("UUID=%s  /data3  ext4 defaults  0 0\\n",\$1);}
+else if(\$2 ~ /sde/){printf("UUID=%s  /data4  ext4 defaults  0 0\\n",\$1);}
+else if(\$2 ~ /sdf/){printf("UUID=%s  /data5  ext4 defaults  0 0\\n",\$1);}
+else if(\$2 ~ /sdg/){printf("UUID=%s  /data6  ext4 defaults  0 0\\n",\$1);}
+else if(\$2 ~ /sdh/){printf("UUID=%s  /data7  ext4 defaults  0 0\\n",\$1);}
+else if(\$2 ~ /sdi/){printf("UUID=%s  /data8  ext4 defaults  0 0\\n",\$1);}
+else if(\$2 ~ /sdj/){printf("UUID=%s  /data9  ext4 defaults  0 0\\n",\$1);}
+else if(\$2 ~ /sdk/){printf("UUID=%s  /data10  ext4 defaults  0 0\\n",\$1);}
+else if(\$2 ~ /sdl/){printf("UUID=%s  /ssd1  ext4 defaults  0 0\\n",\$1);}
+else if(\$2 ~ /sdm/){printf("UUID=%s  /ssd2  ext4 defaults  0 0\\n",\$1);}
+}
+EOF
+
+
+ls -lart /dev/disk/by-uuid/|grep -e 'sd[bcdefghijklm]'|awk '{print $9" "$11;}'|awk -f /home/zhangwusheng/disk.awk > /home/zhangwusheng/etc_fstab.3
+
+cat /etc/fstab|grep -v '/data'|grep -v '/ssd' > /home/zhangwusheng/etc_fstab.2
+cat /home/zhangwusheng/etc_fstab.3 >> /home/zhangwusheng/etc_fstab.2
+mv /etc/fstab /etc/fstab.`date +%s`
+mv /home/zhangwusheng/etc_fstab.2 /etc/fstab
+
 ```
 
 - 安装JDK
 
-```shell
+```bash
 #每台机器执行
 tar zxvf ${JAVA_SOFT}/jdk-8u161-linux-x64.tar.gz -C /usr/local/
+rm -f /usr/local/jdk
 ln -fs /usr/local/jdk1.8.0_161 /usr/local/jdk
 ```
 
 - 设置JDK环境变量：
 
-```
+```bash
 #每台机器执行
 cat /etc/profile.d/java.sh 
 echo 'export JAVA_HOME=/usr/local/jdk' > /etc/profile.d/java.sh
@@ -122,20 +160,26 @@ source /etc/profile.d/java.sh
 
 - 设置ulimit：
 
-```
+```bash
 #每台机器执行
-cat /etc/security/limits.conf
-# End of file
-* soft nofile 65536
-* hard nofile 65536
-* soft nproc 131072
-* hard nproc 131072
-
 echo '* soft nofile 65536' >> /etc/security/limits.conf
 echo '* hard nofile 65536' >> /etc/security/limits.conf
 echo '* soft nproc 131072' >> /etc/security/limits.conf
 echo '* hard nproc 131072' >> /etc/security/limits.conf
 echo '* soft core unlimited' >> /etc/security/limits.conf
+cat /etc/security/limits.conf
+
+#或者自动执行
+cat /etc/security/limits.conf|grep -v nofile|grep -v nproc|grep -v 'soft core' > /home/zhangwusheng/limits.conf2
+echo '* soft nofile 65536' >> /home/zhangwusheng/limits.conf2
+echo '* hard nofile 65536' >> /home/zhangwusheng/limits.conf2
+echo '* soft nproc 131072' >> /home/zhangwusheng/limits.conf2
+echo '* hard nproc 131072' >> /home/zhangwusheng/limits.conf2
+echo '* soft core unlimited' >> /home/zhangwusheng/limits.conf2
+
+mv /etc/security/limits.conf /etc/security/limits.conf.`date +%s`
+mv -f /home/zhangwusheng/limits.conf2 /etc/security/limits.conf
+
 ```
 - 设置core文件：
 ```bash
@@ -159,11 +203,11 @@ echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
 
 ```bash
 #每台机器执行，每台机器hostname都不一样，这里根据IP设置HostName
-
 HOST_PREFIX=hbase
-hostip=`ifconfig|grep 192|awk '{print $2;}'|awk -vhost=${HOST_PREFIX} -F'.' '{print $4;}'`
-echo "hostname ${HOST_PREFIX}${hostip}.ecloud.com"|bash
-echo "${HOST_PREFIX}${hostip}.ecloud.com" > /etc/hostname
+HOST_POSTFIX="ecloud.com"
+hostip=`ifconfig|grep 192|awk '{print $2;}'|awk -vhost=${HOST_PREFIX} -vdomain="${HOST_POSTFIX}" -F'.' '{print $4;}'`
+echo "hostname ${HOST_PREFIX}${hostip}.${HOST_POSTFIX}"|bash
+echo "${HOST_PREFIX}${hostip}.${HOST_POSTFIX}" > /etc/hostname
 cat /etc/hostname
 ```
 
@@ -172,10 +216,12 @@ cat /etc/hostname
 
 ```bash
 #每台机器执行
+HOST_PREFIX=hbase
+HOST_POSTFIX="ecloud.com"
 grep -v ecloud  /etc/hosts  > /etc/hosts2 
 for ip in `echo ${HOSTS}`
 do	
- echo "192.168.1.${ip}  hbase${ip}.ecloud.com" >> /etc/hosts2
+ echo "192.168.1.${ip}  ${HOST_PREFIX}${ip}.${HOST_POSTFIX}" >> /etc/hosts2
 done
 mv -f /etc/hosts2 /etc/hosts
 cat /etc/hosts
@@ -198,22 +244,20 @@ ssh-copy-id hbase160.ecloud.com
 #跳板机做ntpserver
 yum -y install ntp
 
+#如果能连接外网首先同步跳板机的时间
+ntpdate 0.centos.pool.ntp.org
+
 #其实这里不改也行
 vi /etc/ntp.conf
 restrict 192.168.0.193 mask 255.255.255.0
 restrict 192.168.0.110 mask 255.255.255.0
 restrict 192.168.0.201 mask 255.255.255.0
-
+#不能连接外网时使用本机墙上时钟
 server  127.127.1.0     # local clock
 fudge   127.127.1.0 stratum 2
 
 systemctl start ntpd.service 
 systemctl enable ntpd.service 
-
-#首先同步跳板机的时间
-ntpdate 0.centos.pool.ntp.org
-
-
 ```
 
 可以不设置。
@@ -322,8 +366,6 @@ tar zxvf HDP-GPL-3.1.0.0-centos7-gpl.tar.gz -C /var/www/html/ambari
 
 ```
 
-
-
 - 配置离线源
 
 ```bash
@@ -363,11 +405,7 @@ echo 'client.api.port=18080' >> /etc/ambari-server/conf/ambari.properties2
 mv -f /etc/ambari-server/conf/ambari.properties2 /etc/ambari-server/conf/ambari.properties
 ```
 
-
-
 # 4.安装mysql（跳过）
-
-
 
 ```bash
 5.6版本：
@@ -485,9 +523,6 @@ FLUSH PRIVILEGES;
 
 select Host,User,Password from user where user='rangerkms';  
 
-
-
-
 CREATE DATABASE druid;  
 use druid;  
 CREATE USER 'druid'@'%' IDENTIFIED BY 'druid';  
@@ -601,46 +636,44 @@ Ambari Server 'start' completed successfully.
 
 # 6.配置Hive使用Postgresql
 
-vi /var/lib/pgsql/data/pg_hba.conf
+- 修改配置
 
-host    all   hive   10.142.235.1/24         md5
+  vi /var/lib/pgsql/data/pg_hba.conf
 
-systemctl restart postgresql
+  host    all   hive   10.142.235.1/24         md5
 
-su postgres
+- 重启服务
 
-psql
+  systemctl restart postgresql
 
-create user hive with password 'hive';
+- 增加权限
 
-create database hive owner hive;
-grant all privileges on database hive to hive;
+  su postgres
 
+  psql
 
+  ​	create user hive with password 'hive';
 
-create user root with password 'hive';
+  ​	create database hive owner hive;
+  ​	grant all privileges on database hive to hive;
 
-grant all privileges on database hive to root;
+  ​	create user root with password 'hive';
 
-create user kylin with password 'hive';
+  ​	grant all privileges on database hive to root;
 
-grant all privileges on database hive to kylin ;
+  ​	create user kylin with password 'hive';
 
-\q
+  ​	grant all privileges on database hive to kylin ;
 
-ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/lib/ambari-server/postgresql-42.2.2.jar
+  ​	\q
 
-jdbc:postgresql://hbase177.ecloud.com:5432/hive
+- 设置postgresql jar包路径
 
-org.postgresql.Driver
+  ​	ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/lib/ambari-server/postgresql-42.2.2.jar
 
-
-
-ambari-server setup --jdbc-db=postgres --jdbc-driver=/usr/lib/ambari-server/postgresql-42.2.2.jar
-
-
-
-
+  > 备注：jdbc:postgresql://hbase177.ecloud.com:5432/hive
+  >
+  > ​	org.postgresql.Driver
 
 # 7.安装配置部署HDP集群
 
@@ -661,21 +694,65 @@ http://192.168.0.47/ambari/HDP-UTILS/centos7/1.1.0.22
 
 
 
-
-
 http://192.168.1.36:18181/ambari/HDP/centos7/3.1.0.0-78/
 
 http://192.168.1.36:18181/ambari/HDP-GPL/centos7/3.1.0.0-78/
 
 http://192.168.1.36:18181/ambari/HDP-UTILS/centos7/1.1.0.22/
 
-3.1安装有的时候有问题，这个文件生成的baseurl是空的，需要手工修改：
+> 说明：
+>
+> 3.1安装有的时候有问题，这个文件生成的baseurl是空的，需要手工修改：
+>
+> https://community.hortonworks.com/articles/231020/ambari-273-ambari-writes-empty-baseurl-values-writ.html
+>
+> cd /usr/lib/ambari-server/web/javascripts
+>
+> cp app.js app.js_backup
+>
+> vi app.js
+>
+>   onNetworkIssuesExist: function () {
+>     if (this.get('networkIssuesExist')) {
+>       this.get('content.stacks').forEach(function (stack) {
+>           stack.setProperties({
+>             usePublicRepo: false,
+>             useLocalRepo: true
+>           });
+>           stack.cleanReposBaseUrls();
+>       });
+>     }
+>   }.observes('networkIssuesExist'),
+>
+> 修改为：
+>
+>   onNetworkIssuesExist: function () {
+>     if (this.get('networkIssuesExist')) {
+>       this.get('content.stacks').forEach(function (stack) {
+>         if(stack.get('useLocalRepo') != true){
+>           stack.setProperties({
+>             usePublicRepo: false,
+>             useLocalRepo: true
+>           });
+>           stack.cleanReposBaseUrls();
+>         } 
+>       });
+>     }
+>   }.observes('networkIssuesExist'),
+>
+> 修改完毕后，
+>
+> ambari-server  stop
+>
+> ambari-server  reset
+>
+> ambari-server  start
+>
+> 如果不能reset，则需要手工修改数据库数据，参见上面链接
 
-1.尝试升级操作系统，不支持7.2以及以下！必须升级到7.4或者7.6
 
-2.修复bug
 
-https://community.hortonworks.com/articles/231020/ambari-273-ambari-writes-empty-baseurl-values-writ.html
+
 
 
 
@@ -795,11 +872,11 @@ https://community.hortonworks.com/articles/43164/rack-awareness-series-2.html
 
 
 
-9.Ambari密码：
+# 9.修改Ambari密码
 
 改成复杂一点的
 
-# 8.Kerberos安装
+# 10.Kerberos安装
 
 > ## HDP3.0 Ambari的几个坑:
 >
@@ -846,9 +923,12 @@ unzip -o -j -q /data1/jce_policy-8.zip -d $JAVA_HOME/jre/lib/security/
   supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal arcfour-hmac:normal camellia256-cts:normal camellia128-cts:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
   
   #这里要加上，否则不能renew
+  max_life = 25h 0m 0s
   max_renewable_life = 3650d 0h 0m 0s
  }
  
+ -------------------------------------------------------------------------------
+ 问题处理：
 #关键；如果忘记了max_renewable_life，那么应该确保这个用户是存在的krbtgt
 kadmin.local -q "modprinc -maxrenewlife 7days krbtgt/CTYUN.NET"
 
@@ -868,7 +948,7 @@ modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ct
  see https://www.jianshu.com/p/54cd2a659698
 ```
 
-## 3.修改其它配置文件
+## 3.修改kadm5.acl配置文件
 
 ```bash
 #修改自己的域的管理员
@@ -877,14 +957,59 @@ modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ct
 */admin@CTYUN.NET     *
 ```
 
-## 4.创建KDC数据库
+## 4.修改/etc/krb5.conf文件
+
+> 备注：如果不修改这个文件，启动kdc服务时，会报如下错误：
+>
+> krb5kdc: Configuration file does not specify default realm - while attempting to retrieve default realm
+>
+> 疑问：我的理解是这个文件是客户端用的，怎么kdcserver也会用到这个文件呢？仅仅是为了获取默认域？
+>
+> 这个默认域确实客户端和server端都需要用到
+
+```bash
+includedir /etc/krb5.conf.d/
+
+[logging]
+ default = FILE:/var/log/krb5libs.log
+ kdc = FILE:/var/log/krb5kdc.log
+ admin_server = FILE:/var/log/kadmind.log
+
+[libdefaults]
+ dns_lookup_realm = false
+ ticket_lifetime = 24h
+ renew_lifetime = 7d
+ forwardable = true
+ rdns = false
+ pkinit_anchors = /etc/pki/tls/certs/ca-bundle.crt
+ #这里需要修改
+ default_realm = ECLOUD.COM
+ default_ccache_name = KEYRING:persistent:%{uid}
+
+[realms]
+#这里需要修改
+ ECLOUD.COM = {
+  kdc = hbase36.ecloud.com
+  admin_server = hbase36.ecloud.com
+ }
+
+[domain_realm]
+#这里需要修改
+ .ecloud.com = ECLOUD.COM
+ cloud.com = ECLOUD.COM
+
+```
+
+
+
+## 5.创建KDC数据库
 
 ```bash
 kdb5_util create  -s -r CTYUN.NET
 密码:cdnlog@kdc!@#
 ```
 
-## 5.启动KDC
+## 6.启动KDC
 
 ```bash
 systemctl restart krb5kdc
@@ -893,11 +1018,15 @@ systemctl enable krb5kdc.service
 systemctl enable kadmin.service
 ```
 
-## 6.创建远程管理员
+## 7.创建远程管理员
 
 ```bash
 kadmin.local:  addprinc root/admin
 密码：cdnlog@kdc!@#
+
+#或者一个命令行
+/usr/sbin/kadmin.local -q "addprinc root/admin"
+#备注 admin/admin不用添加，直接使用kadmin.local即可
 ```
 
 > https://www.jianshu.com/p/4200c260c152?utm_campaign=maleskine&utm_content=note&utm_medium=seo_notes&utm_source=recommendation
@@ -908,18 +1037,80 @@ kadmin.local:  addprinc root/admin
 >
 > 其中admin/admin为kdc服务上kadmin.local的管理帐号，同时还需要创建一个root/admin的各个客户端的管理帐号(密码都设置为clife.data)
 
-## 7.重启服务
+## 8.重启服务
 
 ```bash
 systemctl restart kadmin.service
 systemctl restart krb5kdc.service
+
+#备注：添加了root账号之后，一定要重启两个服务，否则下面的验证不能通过，会报第三个错误
+验证一下:
+kadmin
+如果能连通，就说明配置正确，连不通，说明配置有问题，可能存在的两个问题
+1.Yarn的DNS配置了53端口，这个要改掉、
+2./etc/resolv.conf检查一下，云主机把114和115去掉
+3.报错：kadmin: Communication failure with server while initializing kadmin interface
+重启kadmind
 ```
 
-## 8.Ambari安装Kerberos
+## 9.Ambari安装Kerberos
 
-## 9.Kerberos启动主从
+## 10.Kerberos启动主从
 
-## 10.KDC保活
+
+
+主KDC上：
+
+
+
+#addprinc  -randkey  host/hbase36.ecloud.com
+
+#ktadd host/hbase36.ecloud.com
+
+首先在40master上添加如下两个账号;
+
+addprinc kadmin/cdnlog036.ctyun.net
+
+addprinc kadmin/cdnlog039.ctyun.net
+
+addprinc kiprop/cdnlog036.ctyun.net
+
+addprinc kiprop/cdnlog039.ctyun.net
+
+cdnlog@kdc!@#
+
+master上：
+
+```bash
+datestr=`date +%Y%m%d`
+rm -f /var/kerberos/krb5kdc/backup.dump.${datestr} 
+kdb5_util dump /var/kerberos/krb5kdc/backup.dump.${datestr} 
+rm -f /var/kerberos/krb5kdc.${datestr}.tar.gz 
+tar zcvf /var/kerberos/krb5kdc.${datestr}.tar.gz /var/kerberos/krb5kdc/*
+
+for ip in `seq 45 50`
+do
+ echo "------------${ip}"
+ scp -P 9000 /var/kerberos/krb5kdc.${datestr}.tar.gz 192.168.254.${ip}:/var/kerberos
+done 
+
+for ip in `echo 36 39 35 41 42` `seq 30 32` `seq 25 27` `seq 21 22` `seq 15 18` `seq 12 12` `seq 5 9`
+do
+ echo "------------${ip}"
+ scp -P 9000 /var/kerberos/krb5kdc.${datestr}.tar.gz 192.168.254.${ip}:/var/kerberos
+done 
+
+```
+
+slave上：
+
+做到第五步之后（创建了数据库之后）：
+
+kdb5_util load /var/kerberos/krb5kdc/backup.dump.20190805 
+
+
+
+## 11.KDC保活
 
 vi /usr/lib/systemd/system/krb5kdc.service 
 
@@ -1288,7 +1479,9 @@ The global –f is made obsolete with the –sf argument for specifying a non-de
 
 
 
-# 9.启用Hadoop和Spark Basic认证
+# 11.启用Hadoop和Spark Basic认证
+
+废弃，参见Windows下Kerberos小节
 
 yarn/hdfs/spark在启用了kerberos后，webui访问比较麻烦，需要windows下安装kerberos客户端，所以改成basic访问，用户输入用户名和密码。
 
@@ -1311,7 +1504,7 @@ yarn:3a033cd5793abaa4fe8975f19cc93096
 
 
 
-# 10.Kylin安装
+# 12.Kylin安装
 
 ## 1.增加kylin用户
 
@@ -1532,17 +1725,17 @@ firewall-cmd --list-all
 
 
 
-# 11.集群参数优化
+# 13.集群参数优化
 
 TODO，参照现有集群
 
-# 12.设置集群队列
+# 14.设置集群队列
 
 TODO
 
-# 13.集群打安全补丁
+# 15.集群打安全补丁
 
-***ambari 2.7.3已经被需要打补丁了***。
+***ambari 2.7.3已经不需要打补丁了***。
 
 ```bash
 #系统安全
@@ -1609,7 +1802,7 @@ done
 
 
 
-# 14.用户运行说明
+# 16.用户运行说明
 
 kylin运行在kylin用户下
 
@@ -1617,7 +1810,7 @@ kylin运行在kylin用户下
 
 
 
-# 15.kafka权限
+# 17.kafka权限
 
 ***备注：Ambari对于kafka的支持就是一坨屎，很多配置必须手工确认！***
 
@@ -1848,7 +2041,7 @@ ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 
 
 
-# 16.KafkaManager
+# 18.KafkaManager
 
 1.下载
 
@@ -1888,7 +2081,7 @@ SASL Mechanism :PLAIN
 
 SASL JAAS Config:org.apache.kafka.common.security.plain.PlainLoginModule required  username="admin" password="CtYiofnwk@269Mn" ; 
 
-# 17.Kafaka配置？
+# 19.Kafaka配置？
 
 broker端：
 
@@ -1913,19 +2106,154 @@ broker端：
 
 
 
+- KafkaRack相关以及同时配置内外网：
+
+advertised.listeners=SASL_PLAINTEXT://cdnlog013.ctyun.net:5044
+
+listeners=SASL_PLAINTEXT://0.0.0.0:5044
+
+
+
+vi kafka-run-class.sh 
+
+最后面开始执行程序时增加：
+
+#zws added
+bash $base_dir/bin/ctg-kafka-rack.sh
+
+cp /etc/hadoop/3.1.0.0-78/0/topology_script.py  /usr/hdp/current/kafka-broker/conf/kafka-topology_script.py
+
+cp /etc/hadoop/3.1.0.0-78/0/topology_mappings.data  /usr/hdp/current/kafka-broker/conf/kafka_topology_mappings.data
+
+编辑topology_mappings.data为自己想要的内容
+
+```bash
+[network_topology]
+cdnlog042.ctyun.net=/rack-e15
+192.168.254.42=/rack-e15
+cdnlog041.ctyun.net=/rack-e15
+192.168.254.41=/rack-e15
+cdnlog005.ctyun.net=/rack-d01
+192.168.254.5=/rack-d01
+cdnlog003.ctyun.net=/rack-d01
+192.168.254.3=/rack-d01
+cdnlog004.ctyun.net=/rack-d01
+192.168.254.4=/rack-d01
+cdnlog009.ctyun.net=/rack-d01
+192.168.254.9=/rack-d01
+cdnlog007.ctyun.net=/rack-d01
+192.168.254.7=/rack-d01
+cdnlog008.ctyun.net=/rack-d01
+192.168.254.8=/rack-d01
+cdnlog006.ctyun.net=/rack-d01
+192.168.254.6=/rack-d01
+cdnlog017.ctyun.net=/rack-d02
+192.168.254.17=/rack-d02
+cdnlog015.ctyun.net=/rack-d02
+192.168.254.15=/rack-d02
+cdnlog013.ctyun.net=/rack-d02
+192.168.254.13=/rack-d02
+cdnlog016.ctyun.net=/rack-d02
+192.168.254.16=/rack-d02
+cdnlog012.ctyun.net=/rack-d02
+192.168.254.12=/rack-d02
+cdnlog018.ctyun.net=/rack-d02
+192.168.254.18=/rack-d02
+cdnlog014.ctyun.net=/rack-d02
+192.168.254.14=/rack-d02
+cdnlog026.ctyun.net=/rack-d20
+192.168.254.26=/rack-d20
+cdnlog021.ctyun.net=/rack-d20
+192.168.254.21=/rack-d20
+cdnlog023.ctyun.net=/rack-d20
+192.168.254.23=/rack-d20
+cdnlog024.ctyun.net=/rack-d20
+192.168.254.24=/rack-d20
+cdnlog025.ctyun.net=/rack-d20
+192.168.254.25=/rack-d20
+cdnlog022.ctyun.net=/rack-d20
+192.168.254.22=/rack-d20
+cdnlog027.ctyun.net=/rack-d20
+192.168.254.27=/rack-d20
+cdnlog034.ctyun.net=/rack-d21
+192.168.254.34=/rack-d21
+cdnlog031.ctyun.net=/rack-d21
+192.168.254.31=/rack-d21
+cdnlog030.ctyun.net=/rack-d21
+192.168.254.30=/rack-d21
+cdnlog032.ctyun.net=/rack-d21
+192.168.254.32=/rack-d21
+cdnlog035.ctyun.net=/rack-d21
+192.168.254.35=/rack-d21
+cdnlog033.ctyun.net=/rack-d21
+192.168.254.33=/rack-d21
+cdnlog046.ctyun.net=/rack-e16
+192.168.254.46=/rack-e16
+cdnlog045.ctyun.net=/rack-e15
+192.168.254.45=/rack-e15
+cdnlog047.ctyun.net=/rack-e16
+192.168.254.47=/rack-e16
+cdnlog049.ctyun.net=/rack-e16
+192.168.254.49=/rack-e16
+cdnlog050.ctyun.net=/rack-e16
+192.168.254.50=/rack-e16
+cdnlog048.ctyun.net=/rack-e16
+192.168.254.48=/rack-e16
+cdnlog043.ctyun.net=/rack-e15
+192.168.254.43=/rack-e15
+cdnlog044.ctyun.net=/rack-e15
+```
+
+
+
+ctg-kafka-rack.sh的内容为：
+
+```bash
+#!/bin/bash
+
+CTG_KAFKA_HOST=`/bin/hostname`
+MYDIR=`dirname $0`
+CTG_KAFKA_RACK=`/bin/python ${MYDIR}/../config/kafka-topology_script.py ${CTG_KAFKA_HOST} 2>/dev/null |awk -F'/' '{print $2;}'`
+
+if [ -z "${CTG_KAFKA_RACK}" ]
+then
+    CTG_KAFKA_RACK="CTG-DEFAULT"
+fi
+export KAFKA_RACK=${CTG_KAFKA_RACK}
+
+DIRBASE=`dirname $0`
+#MYDIR=$(cd $DIRBASE && pwd -P)
+echo "MYDIR=${MYDIR}"
+if [ -f ${MYDIR}/../config/server.properties ]
+then
+      grep 'broker.rack'  ${MYDIR}/../config/server.properties
+      if [ $? == 0 ]
+      then
+             /bin/sed -i "s#broker\.rack=.*\$#broker\.rack=$KAFKA_RACK#g"     ${MYDIR}/../config/server.properties
+      else
+            echo "broker.rack=${KAFKA_RACK}" >>${MYDIR}/../config/server.properties
+      fi
+
+          grep 'advertised.listeners'  ${MYDIR}/../config/server.properties
+          if [ $? == 0 ]
+      then
+                        #advertised.listeners=SASL_PLAINTEXT://0.0.0.0:5044
+             /bin/sed -i "s#advertised\.listeners=\(.*\)://\(.*\):\(.*\)#advertised\.listeners=\\1://${CTG_KAFKA_HOST}:\\3#g"     ${MYDIR}/../config/server.properties
+      else
+            myport=`grep "listeners" ${MYDIR}/../config/server.properties |/bin/awk -F':' '{print $3;}'|sort -u`
+            muprot=`grep listeners ${MYDIR}/../config/server.properties |/bin/awk -F'=' '{print $2;}'|/bin/awk -F':' '{print $1;}'|sort -u`
+            echo "advertised.listeners=${muprot}://${CTG_KAFKA_HOST}:${myport}" >>${MYDIR}/../config/server.properties
+      fi
+fi
+```
+
 
 
 18.生产手记：
 
 kafka: 5044  JMX：5090
 
-
-
-
-
-# 18.KDC主从
-
-
+# 20.KDC主从
 
 todo：
 
@@ -1935,9 +2263,9 @@ todo：
 
 
 
+参见10.10小节
 
-
-# 19.卸载:
+# 21.卸载:
 
 如果只是重装，不要删除配置目录，只删除数据目录，然后ambari-server reset即可。
 
@@ -1967,13 +2295,11 @@ todo：
 
 4. 删除数据目录！
 
-   rm -rf 
+   rm -rf  XXXX 
 
 
 
-# 20.windows安装kerberos
-
-
+# 22.windows安装kerberos
 
 ## 1.下载并安装软件
 
@@ -2027,7 +2353,7 @@ C:\Program Files\MIT\Kerberos\bin
 
 ## 5.下载keytab并且运行kinit
 
-下载spnego.service.keytab放到C:\ProgramData\MIT\Kerberos5
+下载/etc/security/keytabs/spnego.service.keytab放到C:\ProgramData\MIT\Kerberos5
 
 ```
 cd C:\ProgramData\MIT\Kerberos5
@@ -2141,7 +2467,57 @@ addauth digest kafka:Kafka0701@2019
 
 
 
+部署flink：
 
+```bash
+#config.sh最后面增加两行
+
+export HADOOP_CLASSPATH=`hadoop classpath`
+export HADOOP_CONF_DIR=/etc/hadoop/conf
+
+/usr/hdp/current/zookeeper-client/bin/zkCli.sh  -server 36.111.140.27:12181 create /flink ""
+/usr/hdp/current/zookeeper-client/bin/zkCli.sh  -server 36.111.140.27:12181 create /flink/cdnlog ""
+
+#console1
+nc -l -p 9000
+#console2
+bin/flink run examples/streaming/SocketWindowWordCount.jar   --hostname 192.168.2.40 --port 9000
+#console3
+tail -f flink-root-taskexecutor-0-ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net.out
+```
+
+
+
+编译kafka：
+
+build.gradle
+
+```java
+
+buildscript {
+  repositories {
+    mavenCentral()
+    jcenter()
+    
+    #增加如下仓库
+    maven {
+      url  "http://repo.hortonworks.com/content/groups/public/"
+    }
+    maven {
+      url  "http://repo.hortonworks.com/content/repositories/releases"
+    }
+  }
+```
+
+gradle.properties
+
+```java
+#repoUrl=http://nexus-private.hortonworks.com/nexus/content/groups/public
+repoUrl=http://repo.hortonworks.com/content/groups/public/
+#mavenUrl=http://nexus-private.hortonworks.com:8081/nexus/content/repositories/IN-QA
+#mavenUsername=
+#mavenPassword=
+```
 
 
 
