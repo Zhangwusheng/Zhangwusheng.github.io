@@ -1723,7 +1723,116 @@ firewall-cmd --list-all
 
 
 
+## 10.使用经验
 
+1.建立聚合组
+
+2.搭建集群版kylin
+
+kylin.server.mode=all
+
+kylin.server.cluster-servers=cdnlog041.ctyun.net:7070,cdnlog042.ctyun.net:7070,cdnlog031.ctyun.net:7070,cdnlog032.ctyun.net:7070
+
+kylin.job.scheduler.default=2
+kylin.job.lock=org.apache.kylin.storage.hbase.util.ZookeeperJobLock
+
+3.定期清理存储
+
+41 1 * * *  /bin/kinit -kt /etc/security/keytabs/kylin.keytab kylin/cdnlog041.ctyun.net
+41 13 * * *  /bin/kinit -kt /etc/security/keytabs/kylin.keytab kylin/cdnlog041.ctyun.net
+0 1 * * * /data2/apache-kylin-2.6.1-bin-hadoop3/storageClean.sh >> /data2/apache-kylin-2.6.1-bin-hadoop3/storageClean.log
+55 12 * * * /bin/python /data2/apache-kylin-2.6.1-bin-hadoop3/bin/KylinExpireJob.py
+
+4.定期清理metadata
+
+```bash
+#定时
+57 2 */3 * * /bin/bash  /data2/apache-kylin-2.6.1-bin-hadoop3/bin/ctg-clean-kylinmeta.sh  >> /data2/apache-kylin-2.6.1-bin-hadoop3/clean-kylinmeta.log
+
+#删除数据脚本
+cat /data2/apache-kylin-2.6.1-bin-hadoop3/bin/ctg-clean-kylinmeta.sh 
+
+cd /data2/apache-kylin-2.6.1-bin-hadoop3
+./bin/metastore.sh backup
+./bin/metastore.sh clean --delete true --jobThreshold 30
+
+last_date=`date -d'65 days ago' +meta_%Y_%m`
+cd /data2/apache-kylin-2.6.1-bin-hadoop3/meta_backups
+rm -rf /data2/apache-kylin-2.6.1-bin-hadoop3/meta_backups/${last_date}*
+```
+
+
+
+## 11.最终配置
+
+```java
+
+kylin.metadata.url=kylin:kylin_cdnlog@hbase
+kylin.server.mode=all
+kylin.server.cluster-servers=cdnlog041.ctyun.net:7070,cdnlog042.ctyun.net:7070,cdnlog031.ctyun.net:7070,cdnlog032.ctyun.net:7070
+kylin.web.timezone=GMT+8
+kylin.source.hive.database-for-flat-table=kylin
+kylin.storage.hbase.table-name-prefix=CDNLOG_
+kylin.storage.hbase.namespace=cdnlog_kylin
+kylin.storage.hbase.compression-codec=snappy
+
+
+kylin.engine.spark-conf.spark.master=yarn
+kylin.engine.spark-conf.spark.eventLog.enabled=true
+kylin.engine.spark-conf.spark.eventLog.dir=hdfs\:///spark2-history
+kylin.engine.spark-conf.spark.history.fs.logDirectory=hdfs\:///spark2-history
+
+
+kylin.job.scheduler.default=2
+kylin.job.lock=org.apache.kylin.storage.hbase.util.ZookeeperJobLock
+
+
+
+
+```
+
+
+
+## 12.配置CUBE
+
+第一步：
+
+![1567480558119](/img/1567480558119.png)
+
+第二步：
+
+![1567480609411](/img/1567480609411.png)
+
+第三步：
+
+![1567480632513](/img/1567480632513.png)
+
+第四步：
+
+![1567480656216](/img/1567480656216.png)
+
+
+
+第五步：
+
+
+
+![1567480689716](/img/1567480689716.png)
+
+![1567480719631](/img/1567480719631.png)
+
+
+
+![1567480735267](/img/1567480735267.png)
+
+![1567480749449](/img/1567480749449.png)
+
+第六步：
+
+
+
+
+![1567480528560](/img/1567480528560.png)
 
 # 13.集群参数优化
 
@@ -2488,7 +2597,7 @@ tail -f flink-root-taskexecutor-0-ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net.out
 
 
 
-编译kafka：
+编译kafka HDP自带的2.0：
 
 build.gradle
 
@@ -2521,9 +2630,9 @@ repoUrl=http://repo.hortonworks.com/content/groups/public/
 
 
 
+编译HDP的phoneix
 
-
-
+mvn versions:set -DnewVersion=5.1.0-HBase-2.0-CTG
 
 
 
