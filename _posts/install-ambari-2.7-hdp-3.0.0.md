@@ -946,6 +946,16 @@ modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog042.cty
 modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
 
  see https://www.jianshu.com/p/54cd2a659698
+ 
+ #批量修改renew
+ /usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "listprincs" > ker.all.txt
+ #请认真检查！！
+ #去除kadmin,krbtgt,kchangpw，kiprop重要账号！！
+ cat ker.all.txt |awk '{print "modprinc -maxlife 25h -maxrenewlife 3650days +allow_renewable "$1;}' > ker.mod.txt 
+ 
+ getprinc HTTP/cdnlog006.ctyun.net@CTYUN.NET
+ # maxrenewlife经测试，取min(取值，7)
+ 
 ```
 
 ## 3.修改kadm5.acl配置文件
@@ -1723,7 +1733,7 @@ firewall-cmd --list-all
 
 
 
-## 10.使用经验
+## 10.数据清理以及注意点
 
 1.建立聚合组
 
@@ -2374,7 +2384,7 @@ todo：
 
 参见10.10小节
 
-# 21.卸载:
+# 21.卸载
 
 如果只是重装，不要删除配置目录，只删除数据目录，然后ambari-server reset即可。
 
@@ -2483,6 +2493,256 @@ cd C:\ProgramData\MIT\Kerberos5
 
 
 
+# 23.安装ELK
+
+### 1.压测工具安装
+
+- 添加用户
+
+```bash
+useradd elasticsearch -g cdnlog
+usermod -G hadoop elasticsearch
+```
+
+
+
+- 配置阿里云镜像
+
+```bash
+cd  /etc/yum.repos.d/
+wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo
+yum clean all
+yum makecache
+yum update
+```
+
+- 安装新版本git
+
+```bash
+yum -y  install curl-devel expat-devel gettext-devel openssl-devel zlib-devel
+mkdir /data2/gitsource
+cd /data2/gitsource
+git clone https://github.com/git/git.git
+cd /data2/gitsource/git
+git tag
+git checkout v2.9.5
+git checkout v2.23.0
+make configure
+
+./configure
+make && make install
+```
+
+- 安装python36
+
+配置epel源，这个源有python36，esrally要求必须版本>=3.5
+
+```bash
+cat /etc/yum.repo.d/epel.repo
+
+[epel]
+name=Extra Packages for Enterprise Linux 7 - $basearch
+#baseurl=http://download.fedoraproject.org/pub/epel/7/$basearch
+metalink=https://mirrors.fedoraproject.org/metalink?repo=epel-7&arch=$basearch
+failovermethod=priority
+enabled=1
+gpgcheck=1
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+
+[epel-debuginfo]
+name=Extra Packages for Enterprise Linux 7 - $basearch - Debug
+#baseurl=http://download.fedoraproject.org/pub/epel/7/$basearch/debug
+metalink=https://mirrors.fedoraproject.org/metalink?repo=epel-debug-7&arch=$basearch
+failovermethod=priority
+enabled=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+gpgcheck=1
+
+[epel-source]
+name=Extra Packages for Enterprise Linux 7 - $basearch - Source
+#baseurl=http://download.fedoraproject.org/pub/epel/7/SRPMS
+metalink=https://mirrors.fedoraproject.org/metalink?repo=epel-source-7&arch=$basearch
+failovermethod=priority
+enabled=0
+gpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-EPEL-7
+gpgcheck=1
+
+yum repo list
+yum -y install python36
+yum -y install python36-pip
+yum -y install python36-devel
+pip3 install esrally
+
+#非必需
+pip3 install --upgrade  pip
+
+```
+
+压测工具安装：
+
+```
+useradd elasticsearch -g cdnlog
+usermod -G hadoop elasticsearch
+echo 'elasticsearch   ALL=(ALL)       NOPASSWD: ALL' >> /etc/sudoers
+su - elasticsearch
+
+esrally --distribution-version=7.3.1
+```
+
+JDK12安装
+
+```bash
+#不能是jdk11，压测一定要jdk12
+```
+
+
+
+
+
+### 2.安装ES
+
+
+
+#拷贝软件
+
+#40 
+
+cd /data3
+
+for ip in `echo 41 42 43 44 45 27 28`
+do
+scp -r ./elk root@192.168.2.${ip}:/data3
+done
+
+#解压软件，建立软链
+
+cd /data3/elk
+
+tar zxvf ./binary/7.3.1/elasticsearch-7.3.1-linux-x86_64.tar.gz -C /data3/elk/
+
+ tar zxvf ./binary/7.3.1/logstash-7.3.1.tar.gz -C  /data3/elk/
+
+tar zxvf ./binary/7.3.1/kibana-7.3.1-linux-x86_64.tar.gz -C /data3/elk
+
+ ln -fs elasticsearch-7.3.1 elasticsearch
+ ln -fs filebeat-7.3.1-linux-x86_64 filebeat
+ ln -fs kibana-7.3.1-linux-x86_64 kibana
+ ln -fs logstash-7.3.1 logstash
+
+
+
+chown -R elasticsearch:cdnlog /data3/elk
+
+#建立数据目录
+```bash
+for i in `seq 1 10`
+do
+mkdir -p /data${i}/elk-data/elasticsearch
+mkdir -p /data${i}/elk-data/filebeat
+mkdir -p /data${i}/elk-data/kibana
+mkdir -p /data${i}/elk-data/logstash
+chown -R elasticsearch:cdnlog /data${i}/elk-data
+done
+```
+
+
+
+#修改配置
+
+node.name: node-40
+
+path.data: /data1/elk-data/elasticsearch,/data2/elk-data/elasticsearch,/data3/elk-data/elasticsearch,/data4/elk-data/elasticsearch,/data5/elk-data/elasticsearch,/data6/elk-data/elasticsearch,/data7/elk-data/elasticsearch,/data8/elk-data/elasticsearch,/data9/elk-data/elasticsearch,/data10/elk-data/elasticsearch
+
+path.logs: /data3/elk/elasticsearch/logs
+
+network.host: 0.0.0.0
+
+cluster.initial_master_nodes: ["node-40"]
+
+
+
+jvm.options：
+
+-Xms4g
+-Xmx4g
+
+使用G1，注释掉UseConcMarkSweepGC，开始10-:
+
+
+
+测试：
+
+curl "http://36.111.140.:9200/_xpack"
+
+### 3.性能测试
+
+首先配置使用自己的集群
+
+esrally configure --advanced-config
+
+esrally --pipeline=benchmark-only
+
+esrally list tracks
+
+esrally list cars
+
+esrally list races
+
+esrally list pipeline
+
+**使用本地es****集群测试**
+
+--pipeline=benchmark-only
+
+**去****es****官网下载**
+
+--pipeline=from-distribution
+
+**测试数据集，默认是****geonames**
+
+--track=geonames
+
+**使用离线的数据集**
+
+--offline
+
+**常用命令组合**
+
+//第一次压测需要从远端下载数据集
+
+esrally --pipeline=benchmark-only --target-hosts=host:9200 --distribution-version=5.2.2（本人用的5.2.2）
+
+//之后数据集不变的话，直接使用本地数据集
+
+esrally --pipeline=benchmark-only --target-hosts=host:9200 --distribution-version=5.2.2 --offline
+
+**注意**
+
+es集群必须处理green状态，否则会被禁止race
+
+因为我们自己有集群，所以这样用：
+
+esrally --pipeline=benchmark-only --target-hosts=host:9200 
+
+这时候会下载数据，下载完毕后可以这样用：
+
+esrally --pipeline=benchmark-only --target-hosts=host:9200 --offline
+
+esrally race --track=logging --challenge=append-no-conflicts --car="4gheap"
+
+默认的压测数据的压测配置在 **~/.rally/benchmarks/tracks/default/geonames/track.json**
+
+默认压测的内容比较多，可以自定义压测内容，比如数据导入，数据搜索，统计搜索等，都是些es支持的命令
+
+
+
+
+
+有用的文档链接;
+
+https://esrally.readthedocs.io/en/latest/race.html
+
+https://esrally.readthedocs.io/en/latest/track.html
 
 
 
@@ -2494,6 +2754,28 @@ cd C:\ProgramData\MIT\Kerberos5
 
 
 
+logstash
+
+```bash
+cat /data3/elk/logstash/config/ctg-nginx2es.conf 
+input {
+     file {
+         type => "flow"
+         path => "/data3/elk/logstash/data/*.log"
+         discover_interval => 5
+         start_position => "beginning"
+     }
+}
+ 
+output {
+    if [type] == "flow" {
+        elasticsearch {
+             index => "flow-%{+YYYY.MM.dd}"
+             hosts => ["192.168.2.40:9200"]
+        }
+    }
+}
+```
 
 
 
@@ -2501,18 +2783,7 @@ cd C:\ProgramData\MIT\Kerberos5
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
+/data3/elk/logstash/bin/logstash -f /data3/elk/logstash/config/ctg-nginx2es.conf 
 
 
 
