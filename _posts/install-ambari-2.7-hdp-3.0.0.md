@@ -2736,6 +2736,23 @@ esrally race --track=logging --challenge=append-no-conflicts --car="4gheap"
 
 
 
+我的测试：
+
+```bash
+#数据集geonames
+
+esrally --pipeline=benchmark-only --target-hosts=ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:9200  --track=geonames --offline --user-tag="node:one-node-on-40"
+
+
+#数据集http_logs
+esrally --pipeline=benchmark-only --target-hosts=ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:9200  --track=http_logs --user-tag="http_logs:one-node-on-40"
+
+```
+
+
+
+
+
 
 
 有用的文档链接;
@@ -2744,37 +2761,81 @@ https://esrally.readthedocs.io/en/latest/race.html
 
 https://esrally.readthedocs.io/en/latest/track.html
 
-
-
-
-
-
-
-
-
-
-
-logstash
+### 4.安装elasticsearch-head
 
 ```bash
-cat /data3/elk/logstash/config/ctg-nginx2es.conf 
+git clone git://github.com/mobz/elasticsearch-head.git
+yum -y install npm
+cd elasticsearch-head
+npm install
+
+
+修改es的配置：（https://www.jianshu.com/p/1869823e72a4）
+
+http.cors.enabled: true
+http.cors.allow-origin: "*"
+http.cors.allow-methods: OPTIONS, HEAD, GET, POST, PUT, DELETE
+http.cors.allow-headers: "X-Requested-With, Content-Type, Content-Length, X-User"
+```
+
+访问：
+
+http://36.111.140.40:9100/
+
+### 5.安装配置logstash和filebeat
+
+参见 https://www.cnblogs.com/cjsblog/p/9459781.html
+
+```bash
+tar zxvf filebeat-7.3.1-linux-x86_64.tar.gz
+ln -fs filebeat-7.3.1-linux-x86_64 filebeat
+
+#修改filebeat配置
+# vi filebeat.yml
+- type: log
+
+  # Change to true to enable this input configuration.
+  # 这里要改成true
+  enabled: true
+
+  # Paths that should be crawled and fetched. Glob based paths.
+  paths:
+    #- /var/log/*.log
+    #这里修改成自己的目录，支持通配符
+    - /data3/elk/filebeat/data/logstash-tutorial*.log
+    
+   ......
+#----------------------------- Logstash output --------------------------------
+output.logstash:
+  # The Logstash hosts
+  hosts: ["localhost:5044"]
+  
+  
+#cat /data3/elk/logstash/config/ctg-nginx2es.conf 
 input {
-     file {
-         type => "flow"
-         path => "/data3/elk/logstash/data/*.log"
-         discover_interval => 5
-         start_position => "beginning"
+     beats {
+        port => "5044"
      }
 }
  
 output {
-    if [type] == "flow" {
-        elasticsearch {
-             index => "flow-%{+YYYY.MM.dd}"
-             hosts => ["192.168.2.40:9200"]
-        }
-    }
-}
+     stdout { 
+        codec => rubydebug
+     }
+}  
+  
+#测试配置：
+logstash -f /data3/elk/logstash/config/ctg-nginx2es.conf --config.test_and_exit
+#启动logstash
+logstash -f /data3/elk/logstash/config/ctg-nginx2es.conf --config.reload.automatic
+#启动filebeat
+./filebeat -e -c filebeat.yml -d "publish"
+#生成测试文件
+for i in `seq 1 1000000`
+do
+	datestr=`date`
+	echo "${i}.${i}.${i}.${i} - - [${datestr}] \"GET /style2.css HTTP/1.1\" 200 4877 \"http://www.semicomplete.com/projects/xdotool/${i}\" \"Mozilla/5.0 (X11; Linux x86_64; rv:24.0) Gecko/20140205 Firefox/24.0 Iceweasel/24.3.0\"" >> /data3/elk/filebeat/data/logstash-tutorial-zws-3.log
+done
 ```
 
 

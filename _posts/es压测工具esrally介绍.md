@@ -19,7 +19,7 @@ https://segmentfault.com/a/1190000011174694)
 
 由于 Elasticsearch（后文简称es） 的简单易用及其在大数据处理方面的良好性能，越来越多的公司选用 es  作为自己的业务解决方案。然而在引入新的解决方案前，不免要做一番调研和测试，本文便是介绍官方的一个 es 压测工具  esrally，希望能为大家带来帮助。
 
-## 为什么要压测？
+## 1.为什么要压测？
 
 关于压测，我们先来看下百度百科上的一个定义。
 
@@ -32,7 +32,7 @@ https://segmentfault.com/a/1190000011174694)
 3. 对比 es 新版本和旧版本的性能差异。众所周知，es 的版本升级非常快，用着 2.x 的同学们还没来得及升级 5.x ，眼看 6.x  都要发布了。此时，你到底要不要升级呢？答案虽然是肯定的，但是你怎么说服你的 leader  呢？很简单：压测新版本，和旧版本做对比，用表格、图表指明新版本在写性能、读性能方面的改善等等，搞定。
 4. 对 es 集群做容量规划。俗话说“人无远虑，必有近忧”，容量规划就是“远虑”。简单讲就是你线上的 es  集群一共需要多少节点？每个节点的配置如何？这个集群的写性能极限是多少？读性能呢？如果你回答不了这些问题，那就说明你没有做过容量规划，只是两眼一抹黑，说干就干，上了再说，好在有惊无险，没有碰到性能问题。至于什么时候会遇到问题，你也说不准，感觉是个概率和人品问题……对面的老板已经黑脸了……  对于这个问题我们在最后再来详细讨论。
 
-## 如何进行压测？
+## 2.如何进行压测？
 
 现在我们知道压测的目的了，接下来该如何进行压测呢？一般有以下几个方案：
 
@@ -42,9 +42,9 @@ https://segmentfault.com/a/1190000011174694)
 
 各个压测方案各有优劣，大家可以根据自己的需求和工具熟悉度来选择自己的压测工具。接下来我们就来具体了解下 esrally。
 
-## 入门
+## 3.入门
 
-### 简介
+### 3.1 简介
 
 esrally 是 elastic 官方开源的一款基于 python3 实现的针对 es 的压测工具，源码地址为https://github.com/elastic/rally，相关博客介绍在[这里](https://www.elastic.co/blog/announcing-rally-benchmarking-for-elasticsearch)。esrally主要功能如下：
 
@@ -69,7 +69,7 @@ elastic 官方也是基于 esrally 进行 es 的性能测试，并将结果实�
 
 ![其他系统指标](/img/21242-fd684330b3882829.png)
 
-### 快速入门
+### 3.2 快速入门
 
 esrally 的文档在[这里](http://esrally.readthedocs.io/en/latest/quickstart.html)，这里简单说下安装与运行。
 esrally 对于软件环境的要求如下：
@@ -103,11 +103,11 @@ esrally 对于软件环境的要求如下：
 > 由于 esrally 的测试数据存储在国外 aws  上，导致下载很慢甚至会超时失败，从而导致整个压测无法进行。后面我会把这些测试数据的压缩包放到国内，大家可以下载后直接放到 esrally  的数据文件夹下面，保证压测的正常进行。另外由于数据量过大，压测的时间一般会很久，可能在1个小时左右，所以大家要有耐心哦~
 > 如果你只是想体验下，可以加上 --test-mode 的参数，此时只会下载1000条文档进行测试。
 
-### 相关术语
+### 3.3 相关术语
 
 rally 是汽车拉力赛的意思，也就是说 esrally 是将压测比作了汽车拉力赛，因此其中的很多术语都是从汽车拉力赛中借鉴来的。
 
-#### track
+#### 3.3.1 track
 
 track 是赛道的意思，在这里是指压测用的数据和测试策略，详细文档在[这里](http://esrally.readthedocs.io/en/latest/track.html)。esrally 自带的track都在 github 上，地址在这里 https://github.com/elastic/rally-tracks。在该 repository 中，有很多测试数据，比如 geonames geopoint logging nested 等，每个数据文件夹中的 README.md 中有详细的数据介绍，而 track.json 便是压测策略的定义文件。
 我们来看下 loggins/track.json 文件
@@ -257,7 +257,7 @@ challenges/default.json 中的一个定义如下：
 
 esrally 的 track 数据位于 rally 目录(mac默认是 `~/.rally`)中 `benchmarks/tracks/` 下面。
 
-#### car
+#### 3.3.2 car
 
 car 是赛车的意思，这里是指不同配置的 es 实例。通过下面的命令可以查看 esrally 当前可用的 car。
 
@@ -278,7 +278,7 @@ verbose_iw
 
 cars 的配置位于 rally 目录(mac默认是 `~/.rally`)中 `benchmarks/teams/default/cars/` 下面。具体配置可以参见 [cars 的文档](http://esrally.readthedocs.io/en/latest/car.html)，除了 heap 的配置，所有的 es 配置都可以修改。
 
-#### race
+#### 3.3.3 race
 
 race 是一次比赛的意思，这里是指某一次压测。要比赛，就要有赛道和赛车，如果不指定赛车，就用 default 配置，如果不指定赛道，则默认使用 geonames track。通过下面的命令来执行一次 race。
 
@@ -286,7 +286,7 @@ race 是一次比赛的意思，这里是指某一次压测。要比赛，就要
 
 上面的命令便是执行一次压测，并指定使用 logging 的track，运行该 track 中的 append-no-conflicts 的 challenge，指定的 car 为 4gheap 的 es 实例。详情可以查看 [race 相关文档](http://esrally.readthedocs.io/en/latest/race.html)。
 
-#### Tournament
+#### 3.3.4 Tournament
 
 tournament 是锦标赛的意思，是由多个 race 组成的。通过下面的命令可以查看所有的 race。
 
@@ -310,7 +310,7 @@ Race Timestamp    Track    Challenge            Car       User Tag
 
 详细信息可以参见 [tournament 的文档](http://esrally.readthedocs.io/en/latest/tournament.html)。
 
-#### Pipeline
+#### 3.3.5 Pipeline
 
 Pipeline 在这里是指压测的一个流程，通过下面的命令可以查看已有的pipeline。
 
@@ -332,7 +332,7 @@ benchmark-only           Assumes an already running Elasticsearch instance, runs
 
 详细信息请参见 [pipeline 的文档](http://esrally.readthedocs.io/en/latest/pipelines.html)。
 
-### 压测流程
+### 3.4 压测流程
 
 esrally 的压测流程主要分为以下三个步骤：
 
@@ -340,7 +340,7 @@ esrally 的压测流程主要分为以下三个步骤：
 2. 根据指定 track 去下载数据，然后按照指定的 challenge 进行操作。
 3. 记录并输出压测结果数据。
 
-### 压测结果分析
+### 3.5 压测结果分析
 
 压测结束后，esrally 会将结果输出到终端和结果文件（位于 esrally 目录`logs` 和 `benchmarks/races`）中，如下图所示：
 
@@ -418,11 +418,11 @@ esrally 会将数据存储在如下 3 个index中，下面 * 代指月份，即�
 
 除了es相关指标数据外，esrally 还会同时记录测试的一些环境信息，比如操作系统、JVM等等，你可以方便的查看本次测试的软硬件环境。
 
-## 实战
+## 4.实战
 
 终于到了开赛的时候，下面我们采用问答的形式来进行，希望大家看到问题后先自己思考下再看答案。
 
-### 问题一
+### 4.1 问题一
 
 提问：如何对比 5.5.0 相比 2.4.6 的性能改进？
 
@@ -453,7 +453,7 @@ esrally 会将数据存储在如下 3 个index中，下面 * 代指月份，即�
 > --user-tag 用于为 race 打标签，方便后续查找
 > 如果只是试一下，可以加上 --test-mode ，用测试数据来跑，很快。
 
-### 问题二
+### 4.2 问题二
 
 提问：如何测试 _all 关闭后对于写性能的影响？
 
@@ -487,7 +487,7 @@ esrally 会将数据存储在如下 3 个index中，下面 * 代指月份，即�
 > Tips:
 > --include-tasks 用于只运行 challenge 中的部分 task
 
-### 问题三
+### 4.3 问题三
 
 提问：如何测试已有集群的性能？
 
@@ -509,9 +509,9 @@ esrally 会将数据存储在如下 3 个index中，下面 * 代指月份，即�
 
 希望这三个问答可以帮助到大家快速掌握 esrally 的用法。
 
-## 进阶
+## 5.进阶
 
-### 自定义 car
+### 5.1 自定义 car
 
 前面讲解 car 的时候，我们提到 esrally 已经自带了一些可用的 es 配置，但是如果这些还不能满足你的时候，可以通过下面两个方案解决。
 
@@ -520,7 +520,7 @@ esrally 会将数据存储在如下 3 个index中，下面 * 代指月份，即�
 2. 自己搭建集群
    最简单的方式是脱离 esrally 的管理，自行搭建集群，这样想怎么配置就怎么配置了。
 
-### 自定义 track
+### 5.2 自定义 track
 
 虽然 esrally 自带了很多 track，而且这些数据本身也不小，简单列在下面：
 
@@ -545,11 +545,11 @@ esrally 会将数据存储在如下 3 个index中，下面 * 代指月份，即�
 4. 新增自定义的track。可以直接复制 geoname 目录，然后修改相关的配置文件，将测试数据与 track 绑定。
 5. 添加完后，通过 `esrally list rack` 就可以看到自定义的 track。
 
-### 分布式压测
+### 5.3 分布式压测
 
 esrally 还支持分布式压测，即如果一个节点的 esrally 无法达到要求的并发数、请求数，那么可以将 esrally 分布到多台机器上去同时执行。分布式压测文档在[这里](http://esrally.readthedocs.io/en/latest/recipes.html#recipe-distributed-load-driver)，此处用到了 esrally dameon，对应命令是 `esrallyd` 。简单讲就是 esrally 通过 esrallyd 将多台机器组合成一个集群，然后 esrally 在执行测试任务的时候通过制定 `--load-driver-hosts` 便可以将测试任务分发到对应的机器上执行。这里便不赘述了，感兴趣的去看前面提到的文档。
 
-## 最后一个问题
+## 6.最后一个问题
 
 让我们回到开头提到的容量规划的问题吧！
 
@@ -620,13 +620,13 @@ shard数过大也不一定好，因为 es 的每次查询是要分发给所有�
 > esrally 默认在每次压测是会删除已有的索引后再重新创建索引，如果你不想这样，可以在每个 index 的配置中设置 `auto-managed` 为 false，具体文档在[这里](http://esrally.readthedocs.io/en/latest/track.html#indices)。
 > 通过这个参数，你就可以单独压测查询性能了，而不用每次都要先经过漫长的导入数据的过程。
 
-## 总结
+## 7.总结
 
 esrally 针对 es  的压测设计了一套完备的基于配置文件的测试流程，极大地简化了操作难度，并且提供了可重复验证的方式。对国内用户来讲，我认为最大的难处还是在于  esrally 自带的 track 文件太大，从 国外 aws 下载很慢。好在可以自定义 track，不必完全依赖自带的 track。
 
 其他没啥好说的，esrally 棒棒哒，大家赶紧去试试吧，如果有问题欢迎来讨论！
 
-## 参考资料
+## 8.参考资料
 
 1. [esrally 官方文档](http://esrally.readthedocs.io/en/latest/index.html)
 2. [Using Rally to benchmark Elasticsearch queries](http://blog.scottlogic.com/2016/11/22/using-rally-to-benchmark-elasticsearch.html)
