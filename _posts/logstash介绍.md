@@ -289,8 +289,6 @@ curl -X GET 'localhost:9200/logstash-2018.08.11/_search?pretty&q=response=200'
 
 （画外音：由于输出太长了，这里截取部分）
 
-[![复制代码](https://common.cnblogs.com/images/copycode.gif)](javascript:void(0);)
-
 ```
 {
     "_index" : "logstash-2018.08.11",

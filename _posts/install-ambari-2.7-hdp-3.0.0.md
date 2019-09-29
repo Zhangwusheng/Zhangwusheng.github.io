@@ -327,7 +327,26 @@ chmod 644 /root/.ssh/authorized_keys
 
 ```
 
+- 设置host的查找顺序（确保）
 
+  ```bash
+  cat /etc/host.conf
+  order hosts,bind
+  multi on
+  ```
+
+  
+
+- 修改中文
+
+```bash
+echo 'LANG=en_US.UTF-8' > /etc/locale.conf
+
+```
+
+
+
+- 
 
 # 3.配置YUM离线源
 
@@ -1037,6 +1056,7 @@ kadmin.local:  addprinc root/admin
 #或者一个命令行
 /usr/sbin/kadmin.local -q "addprinc root/admin"
 #备注 admin/admin不用添加，直接使用kadmin.local即可
+
 ```
 
 > https://www.jianshu.com/p/4200c260c152?utm_campaign=maleskine&utm_content=note&utm_medium=seo_notes&utm_source=recommendation
@@ -1126,6 +1146,17 @@ vi /usr/lib/systemd/system/krb5kdc.service
 
 [Service]
 Restart=on-abnormal
+
+
+
+## 12.安装/移除组件
+
+使用如下用户名和密码：
+
+root/admin
+cdnlog@kdc!@#
+
+
 
 ```bash
 
@@ -1243,28 +1274,8 @@ scp /etc/krb5.conf 192.168.1.48:/etc
 
 
 
-
-
-
- 
- 
- 
 [root@hbase106 ~]#  systemctl enadble kadmin.service
 ```
-
-下载jce
-
-
-
-jdk8
-
-
-
-
-
-
-
-
 
 krb5-config --version
 
@@ -1844,9 +1855,19 @@ kylin.job.lock=org.apache.kylin.storage.hbase.util.ZookeeperJobLock
 
 ![1567480528560](/img/1567480528560.png)
 
+## 13.Kylin集群版搭建
+
+
+
 # 13.集群参数优化
 
-TODO，参照现有集群
+1.参照现有集群
+
+2.spark增加：
+
+spark.driver.extraJavaOptions   -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/data2/core_files/spark-driver-%p.hprof
+
+spark.executor.extraJavaOptions  -XX:+UseNUMA  -XX:OnOutOfMemoryError="rm -f /data2/core_files/spark-%p.hprof ;/usr/local/jdk/bin/jmap -dump:live,format=b,file=/data2/core_files/spark-%p.hprof;kill -9 %p "
 
 # 14.设置集群队列
 
@@ -2154,7 +2175,44 @@ ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 
 ```
 
+- Kafka重新分配分区（测试中）:
 
+
+```bash
+
+/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh  --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --topics-to-move-json-file ./topics-to-move.json --broker-list 1001,1002,1003 --generate  
+
+#--bootstrap-server ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667 
+```
+
+- Kafka网络日志配置（测试中）CLOSE_WAIT过高：
+
+```bash
+#added zws,log reomte ip address
+log4j.appender.networkAcceptAppender=org.apache.log4j.DailyRollingFileAppender
+log4j.appender.networkAcceptAppender.DatePattern='.'yyyy-MM-dd-HH
+log4j.appender.networkAcceptAppender.File=${kafka.logs.dir}/network-accept.log
+log4j.appender.networkAcceptAppender.layout=org.apache.log4j.PatternLayout
+log4j.appender.networkAcceptAppender.layout.ConversionPattern=[%d{ISO8601}][%L] %p %m (%c)%n
+
+log4j.logger.kafka.network.Acceptor=DEBUG,networkAcceptAppender
+log4j.logger.kafka.network.AbstractServerThread=DEBUG,networkAcceptAppender
+log4j.additivity.kafka.network.Acceptor=false
+log4j.additivity.kafka.network.AbstractServerThread=false
+
+
+#查看网络连接
+for ip in `echo 3 4 13 14 23 24 33 34 43 44`; do echo "192.168.254.${ip}"; ssh -p 9000 192.168.254.${ip}  grep -v 192.168 /var/log/kafka/network-accept.log |awk '{print $7;}'|awk -F':' '{arrr[$1]++;}END{for (ip in arrr){print ip"->"arrr[ip]};}'|grep /49 ; done
+
+
+#todo：
+0:只使用ipv4，已经修改过了
+1.修改操作系统参数
+https://blog.csdn.net/hellozhxy/article/details/90030332
+2.修改/etc/resolv.conf
+3.已经修改了num.network.threads，从24改到了100
+
+```
 
 
 
@@ -2170,7 +2228,7 @@ https://github.com/yahoo/kafka-manager/releases
 
 cd  /c/Work/Source/kafka-manager-2.0.0.2
 
-./sbt
+./sbt dist
 
 生成配置包
 
@@ -2200,7 +2258,7 @@ SASL Mechanism :PLAIN
 
 SASL JAAS Config:org.apache.kafka.common.security.plain.PlainLoginModule required  username="admin" password="CtYiofnwk@269Mn" ; 
 
-# 19.Kafaka配置？
+# 19.Kafaka配置
 
 broker端：
 
@@ -2747,6 +2805,9 @@ esrally --pipeline=benchmark-only --target-hosts=ctl-nm-hhht-yxxya6-ceph-007.cty
 #数据集http_logs
 esrally --pipeline=benchmark-only --target-hosts=ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:9200  --track=http_logs --user-tag="http_logs:one-node-on-40"
 
+#数据集
+esrally --pipeline=benchmark-only --target-hosts=ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:9200  --track=nyc_taxis --user-tag="nyc_taxis:one-node-on-40"
+
 ```
 
 
@@ -2764,11 +2825,14 @@ https://esrally.readthedocs.io/en/latest/track.html
 ### 4.安装elasticsearch-head
 
 ```bash
+cd /data3/elk/elasticsearch-head
 git clone git://github.com/mobz/elasticsearch-head.git
 yum -y install npm
 cd elasticsearch-head
 npm install
 
+cd /data3/elk/elasticsearch-head
+npm run start
 
 修改es的配置：（https://www.jianshu.com/p/1869823e72a4）
 
@@ -2781,6 +2845,8 @@ http.cors.allow-headers: "X-Requested-With, Content-Type, Content-Length, X-User
 访问：
 
 http://36.111.140.40:9100/
+
+连接 http://36.111.140.40:9200/
 
 ### 5.安装配置logstash和filebeat
 
@@ -2848,41 +2914,91 @@ done
 
 
 
+### 6.源码编译filebeat
+
+下载go
+
+```bash
+export GOROOT=/root/go
+mkdir -p /root/elk/source/
+export GOPATH=/root/elk/source/
+mkdir -p ${GOPATH}/src/github.com/elastic
+git clone https://github.com/elastic/beats ${GOPATH}/src/github.com/elastic/beats
+
+cd ${GOPATH}/src/github.com/elastic/beats
+git checkout v7.3.1
+
+#40
+export GOROOT=/data3/elk/source
+```
+
+
+
+# 24.配置Ambari服务
+
+参考文章：https://github.com/BalaBalaYi/Ambari-Elastic-Service
+
+```python
+#python获取本机IP
+
+import socket
+print(socket.gethostbyname(socket.getfqdn(socket.gethostname())))
+
+ip4=(int)(str.split(".")[3])
+str=format("%03d" % (ip4))
+```
+
+- 上传zip包
+
+文件位置：C:\Work\Source\ambari-service\KAFAKMANAGER.zip
+
+server:  /var/lib/ambari-server/resources/stacks/HDP/3.0/services
+
+agent:  /var/lib/ambari-agent/cache/stacks/HDP/3.0/services
+
+
+
+- 解压
+
+```bash
+unzip KAFAKMANAGER.zip
+mv KAFAKMANAGER KAFKAMANAGER
+```
+
+- 安装
+
+```
+修改端口： 29090
+zk： ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181/kafka-manager
+
+kafkamanager Download Url
+http://36.111.140.40:17080/ambari/kafka-manager-2.0.0.2.tar.gz
+root/admin  cdnlog@kdc!@#
+```
 
 
 
 
 
+25.HUE
+
+https://demo.gethue.com
+
+demo/demo
 
 
 
+26.spark executor配置：
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/data2/core_files/spark-%p.hprof 
+-XX:OnOutOfMemoryError="rm -f /data2/core_files/spark-%p.hprof ;/usr/local/jdk/bin/jmap -dump:live,format=b,file=/data2/core_files/spark-%p.hprof;kill -9 %p "
 
 
 
 
 ```
-
 create /kafka_auth_test ""
 addauth digest kafka:Kafka0701@2019
 setAcl /kafka_auth_test auth:kafka:Kafka0701@2019:rwadc
@@ -2992,34 +3108,7 @@ mvn versions:set -DnewVersion=5.1.0-HBase-2.0-CTG
 
 # **后面废弃**.仅做备留
 
---------------------------------------
 
-7. 修改find-hive-dependency.sh
-
-37和42行增加: --outputformat=dsv
-
-
-
-```bash
-
-vi /usr/hdp/3.0.0.0-1634/hive/bin/hive.distro
-
-if [ "$TORUN" = "" ] ; then
-  echo "Service $SERVICE not found"
-  echo "Available Services: $SERVICE_LIST"
-  exit 7
-else
-  set -- "${SERVICE_ARGS[$@]}"
-  if [ $SERVICE == "beeline" -o $SERVICE == "cli" ]
-  then
-    $TORUN -p hive -n kylin "$@"
-  else
-    $TORUN "$@"
-  fi
-
-  $TORUN "$@"
-fi
-```
 
 
 
@@ -3031,38 +3120,9 @@ https://blog.csdn.net/qq_42606051/article/details/82713476
 
 
 
-$KYLIN_HOME/bin/check-env.sh
-
-
-
-$KYLIN_HOME/bin/kylin.sh start
-
 
 
 <http://140.246.128.62:7070/kylin/models>
-
-
-
-修改hive脚本
-
-
-
-```bash
-
-
-vi  /usr/hdp/current/hive-client/bin/hive.distro 
-
-$TORUN -p hive -n root "$@"
-
-export spark_home=/usr/hdp/3.0.0.0-1634/spark2
-
- find -L $spark_home/jars -name '*.jar' ! -name '*slf4j*' ! -name '*calcite*' ! -name '*doc*' ! -name '*test*' ! -name '*sources*' ''-printf '%p:' | sed 's/:​$//'|awk -F':' '{for(i=1;i<=NF;i++){print $i;}}'
-
-
-
-````
-
-
 
 
 

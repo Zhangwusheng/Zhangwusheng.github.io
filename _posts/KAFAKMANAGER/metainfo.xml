@@ -1,0 +1,85 @@
+<?xml version="1.0"?>
+<metainfo>
+    <schemaVersion>2.0</schemaVersion>
+    <services>
+        <service>
+            <name>KAFKAMANAGER</name>
+            <displayName>KafkaManager</displayName>
+            <comment>A tool for managing Apache Kafka</comment>
+            <version>2.0.0.2</version>
+            <components>
+                <component>
+                    <name>KAFKAMANAGER_MASTER</name>
+                    <displayName>KafkaManager</displayName>
+                    <category>MASTER</category>
+                    <cardinality>1+</cardinality>
+                    <versionAdvertised>true</versionAdvertised>
+                    <commandScript>
+                        <script>scripts/kafkamanager_master.py</script>
+                        <scriptType>PYTHON</scriptType>
+                        <timeout>1200</timeout>
+                    </commandScript>
+                    <logs>
+                        <log>
+                            <logId>kafkamanager_master</logId>
+                            <primary>true</primary>
+                        </log>
+                    </logs>
+                </component>
+                <component>
+                    <name>KAFKAMANAGER_SLAVE</name>
+                    <displayName>KafkaManager Slave</displayName>
+                    <category>SLAVE</category>
+                    <cardinality>0+</cardinality>
+                    <versionAdvertised>true</versionAdvertised>
+                    <commandScript>
+                        <script>scripts/kafkamanager_master.py</script>
+                        <scriptType>PYTHON</scriptType>
+                        <timeout>1200</timeout>
+                    </commandScript>
+                    <logs>
+                        <log>
+                            <logId>kafkamanager_slave</logId>
+                            <primary>true</primary>
+                        </log>
+                    </logs>
+                </component>
+            </components>
+            <osSpecifics>
+                <osSpecific>
+                    <osFamily>any</osFamily>
+                    <packages>
+                        <package>
+                            <name>kafkamanager-2.0.0.2</name>  <!-- Not using. Please make sure the os already contains all the dependencies. -->
+                        </package>
+                    </packages>
+                </osSpecific>
+            </osSpecifics>
+
+<!--            see https://cwiki.apache.org/confluence/display/AMBARI/Quick+Links-->
+<!--            <quickLinksConfigurations-dir>quicklinks</quickLinksConfigurations-dir>-->
+
+            <commandScript>
+                <script>scripts/kafkamanager-service-check.py</script>
+                <scriptType>PYTHON</scriptType>
+                <timeout>300</timeout>
+            </commandScript>
+
+            <configuration-dependencies>
+                <config-type>kafkamanager-config</config-type>
+                <config-type>kafkamanager-env</config-type>
+                <!-- <config-type>kafkamanager-logback</config-type> -->
+            </configuration-dependencies>
+
+            <restartRequiredAfterChange>true</restartRequiredAfterChange>
+
+            <quickLinksConfigurations>
+                <quickLinksConfiguration>
+                    <fileName>quicklinks.json</fileName>
+                    <default>true</default>
+                </quickLinksConfiguration>
+            </quickLinksConfigurations>
+
+        </service>
+    </services>
+</metainfo>
