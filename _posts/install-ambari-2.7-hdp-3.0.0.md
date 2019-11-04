@@ -1523,6 +1523,12 @@ yarn:3a033cd5793abaa4fe8975f19cc93096
 | spark.com.ctg.security.spark.SparkBasicAuthFilter.param.username | spark                                                        |
 | spark.com.ctg.security.spark.SparkBasicAuthFilter.param.password | spark123456                                                  |
 
+备注：Hadoop自己提供了这个类：
+
+org.apache.hadoop.security.authentication.server.MultiSchemeAuthenticationHandler
+
+
+
 
 
 # 12.Kylin安装
@@ -1857,7 +1863,36 @@ kylin.job.lock=org.apache.kylin.storage.hbase.util.ZookeeperJobLock
 
 ## 13.Kylin集群版搭建
 
+## 14.修改用户名和密码：
 
+加密密码：BCrypt   KYLIN@123!
+
+```
+org.apache.kylin.rest.security.PasswordPlaceholderConfigurer
+工程：kylin-server-base
+```
+
+vi  /data1/apache-kylin-2.6.1-bin-hadoop3/tomcat/webapps/kylin/WEB-INF/classes/kylinSecurity.xml 
+
+
+
+CDNADMIN/KYLIN@123!
+
+CDNMODELER/MODELER!@123#$%
+
+CDNANALYST/ANALYST@1234@#&
+
+ADMIN/KYLIN@123!
+
+MODELER/MODELER!@123#$%
+
+ANALYST/ANALYST@1234@#&
+
+## 15.麒麟优化建议
+
+- 将必要维度放在开头
+- 然后是在过滤 ( where 条件)中起到很大作用的维度
+- 如果多个列都会被用于过滤，将高基数的维度（如 user_id）放在低基数的维度（如 age）的前面，这也是基于过滤作用的考虑
 
 # 13.集群参数优化
 
@@ -1868,6 +1903,15 @@ kylin.job.lock=org.apache.kylin.storage.hbase.util.ZookeeperJobLock
 spark.driver.extraJavaOptions   -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/data2/core_files/spark-driver-%p.hprof
 
 spark.executor.extraJavaOptions  -XX:+UseNUMA  -XX:OnOutOfMemoryError="rm -f /data2/core_files/spark-%p.hprof ;/usr/local/jdk/bin/jmap -dump:live,format=b,file=/data2/core_files/spark-%p.hprof;kill -9 %p "
+
+
+
+3.Hbase优化
+
+
+
+ hbase.client.scanner.timeout.period 增加到2分钟
+hbase.client.scanner.caching  改成了1000条
 
 # 14.设置集群队列
 
@@ -2041,6 +2085,9 @@ group.id=zws-test-grp1
 - 创建新的Topic测试
 
 ```bash
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1 
+
+
 #创建Topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1  --topic zwstestnew2    --partitions 1 --replication-factor 1
 
@@ -2157,6 +2204,9 @@ topicName=baishanYun
 #调试
 topicName=DebugTopic
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 1 --replication-factor 3
 #授权
@@ -2170,8 +2220,23 @@ ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 /usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list cdnlog003.ctyun.net:5044  --topic DebugTopic --producer-property security.protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
 
 #修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties 
-/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044  --topic DebugTopic --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-DebugTopic 
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044  --topic DebugTopic --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-DebugTopic  --consumer.config ./consumer.properties
 
+
+------------------------------------------------------------------
+
+topicName=KAFKA_SERVER_LOG
+ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${topicName} 
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${topicName} --topic ${topicName}   --consumer --group grp-${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:DebugTopic --topic ${topicName}   --consumer --group grp-${topicName}
 
 ```
 
@@ -2291,16 +2356,13 @@ listeners=SASL_PLAINTEXT://0.0.0.0:5044
 
 
 
-vi kafka-run-class.sh 
-
-最后面开始执行程序时增加：
-
-#zws added
-bash $base_dir/bin/ctg-kafka-rack.sh
+- 首先生成rack脚本
 
 cp /etc/hadoop/3.1.0.0-78/0/topology_script.py  /usr/hdp/current/kafka-broker/conf/kafka-topology_script.py
 
 cp /etc/hadoop/3.1.0.0-78/0/topology_mappings.data  /usr/hdp/current/kafka-broker/conf/kafka_topology_mappings.data
+
+- 其次，生成rack数据
 
 编辑topology_mappings.data为自己想要的内容
 
@@ -2381,6 +2443,7 @@ cdnlog043.ctyun.net=/rack-e15
 cdnlog044.ctyun.net=/rack-e15
 ```
 
+- 第三，生成脚本,并且scp过去
 
 
 ctg-kafka-rack.sh的内容为：
@@ -2424,7 +2487,18 @@ then
 fi
 ```
 
+- 最后，修改脚本kafka-run-class.sh 
 
+vi kafka-run-class.sh 
+
+最后面开始执行程序时增加（在Launch mode这一行）：
+
+```
+#zws added
+bash $base_dir/bin/ctg-kafka-rack.sh
+
+# Launch mode
+```
 
 18.生产手记：
 
@@ -2442,7 +2516,7 @@ todo：
 
 参见10.10小节
 
-# 21.卸载
+# 21.卸载HDP
 
 如果只是重装，不要删除配置目录，只删除数据目录，然后ambari-server reset即可。
 
@@ -2539,6 +2613,31 @@ cd C:\ProgramData\MIT\Kerberos5
 
 "C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt  "C:\ProgramData\MIT\Kerberos5\spnego.service.keytab" HTTP/cdnlog040.ctyun.net 
 "C:\Program Files\MIT\Kerberos\bin\klist.exe"
+
+
+
+"C:\Program Files\MIT\Kerberos\bin\klist.exe" -k "C:\ProgramData\MIT\Kerberos5\zeppelin.service.keytab"
+
+
+"C:\Program Files\MIT\Kerberos\bin\klist.exe" -k "C:\ProgramData\MIT\Kerberos5\yarn.service.keytab"
+
+"C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt  "C:\ProgramData\MIT\Kerberos5\yarn.service.keytab"yarn/ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net
+
+"C:\Program Files\MIT\Kerberos\bin\klist.exe"
+
+
+-----生产spark
+"C:\Program Files\MIT\Kerberos\bin\klist.exe" -k "C:\ProgramData\MIT\Kerberos5\spark.headless.keytab"
+"C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt "C:\ProgramData\MIT\Kerberos5\spark.headless.keytab"  spark-cdnlog@CTYUN.NET
+"C:\Program Files\MIT\Kerberos\bin\klist.exe"
+
+
+"C:\Program Files\MIT\Kerberos\bin\klist.exe" -k "C:\ProgramData\MIT\Kerberos5\keytabs-prod\kylin.keytab"
+
+"C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt "C:\ProgramData\MIT\Kerberos5\keytabs-prod\kylin.keytab"  kylin/cdnlog040.ctyun.net@CTYUN.NET
+
+"C:\Program Files\MIT\Kerberos\bin\klist.exe" 
+
 ```
 
 ## 6.修改火狐配置：
@@ -2958,6 +3057,11 @@ agent:  /var/lib/ambari-agent/cache/stacks/HDP/3.0/services
 
 
 
+root/admin
+cdnlog@kdc!@#
+
+
+
 - 解压
 
 ```bash
@@ -2974,13 +3078,23 @@ zk： ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009
 kafkamanager Download Url
 http://36.111.140.40:17080/ambari/kafka-manager-2.0.0.2.tar.gz
 root/admin  cdnlog@kdc!@#
+
+
+scp -r ./KAFKAMANAGER/* 192.168.2.41:/var/lib/ambari-agent/cache/stacks/HDP/3.0/services/KAFKAMANAGER
+scp -r ./KAFKAMANAGER/* 192.168.2.43:/var/lib/ambari-agent/cache/stacks/HDP/3.0/services/KAFKAMANAGER
+scp -r ./KAFKAMANAGER/* 192.168.2.42:/var/lib/ambari-agent/cache/stacks/HDP/3.0/services/KAFKAMANAGER
+
+
+
+
+scp -r /var/lib/ambari-server/resources/stacks/HDP/3.0/services/ElasticSearch-7.1/* 192.168.254.3:/var/lib/ambari-agent/cache/stacks/HDP/3.0/services/ElasticSearch-7.1
 ```
 
 
 
 
 
-25.HUE
+# 25.HUE
 
 https://demo.gethue.com
 
@@ -2988,12 +3102,80 @@ demo/demo
 
 
 
-26.spark executor配置：
+# 26.spark executor配置：
 
 
 
 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/data2/core_files/spark-%p.hprof 
 -XX:OnOutOfMemoryError="rm -f /data2/core_files/spark-%p.hprof ;/usr/local/jdk/bin/jmap -dump:live,format=b,file=/data2/core_files/spark-%p.hprof;kill -9 %p "
+
+
+
+# 27.编译Mysql8:
+
+```bash
+yum -y install cmake3-3.14.6-2.el7.x86_64
+yum install bison -y
+
+yum -y install centos-release-scl
+yum install devtoolset-8
+scl enable devtoolset-8 -- bash
+source /opt/rh/devtoolset-8/enable 
+
+
+cd /data2
+tar zxvf mysql-boost-8.0.17.tar.gz 
+cd mysql-8.0.17
+mkdir objs
+cd objs
+cmake3 -DWITH_BOOST=/data2/mysql-8.0.17/boost/boost_1_69_0/ ..
+```
+
+# 28.防火墙
+
+https://wangchujiang.com/linux-command/c/firewall-cmd.html
+
+```bash
+systemctl status firewalld 
+systemctl is-enabled firewalld.service
+systemctl enable firewalld
+systemctl start firewalld 
+
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.30/24 accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=192.168.2.30/24 accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=58.62.0.226 accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.26 accept'
+sudo firewall-cmd --reload
+sudo firewall-cmd --list-all
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="36.111.140.26" port port="19200" protocol="tcp" accept'
+
+
+
+firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.30/24 port port=3306 protocol=tcp accept'
+sudo firewall-cmd --permanent --remove-rich-rule 'rule family="ipv4" source address="42.123.92.11" port port="8000" protocol="tcp" accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.26 port port=8181 protocol=tcp accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=150.223.254.39 accept'
+sudo firewall-cmd --reload
+
+rule family="ipv4" source address="150.223.254.0/25" accept
+```
+
+# 29.Spark-Shell
+
+```scala
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+val parquetFile = sqlContext.parquetFile("/apps/cdn/log/2019-10-10/2019-10-10-13/minute=2019-10-10-13-50")
+
+parquetFile.toDF().registerTempTable("test")
+val hiveContext = new org.apache.spark.sql.hive.HiveContext(sc)
+val aa=hiveContext.sql("select * from test limit 10")
+aa.show()
+```
+
+
 
 
 
@@ -3019,6 +3201,73 @@ addauth digest kafka:Kafka0701@2019
 
 
 ```
+
+
+
+# 30.Zeppellin
+
+默认driver从org.postgresql.Driver改为
+
+org.apache.hive.jdbc.HiveDriver
+
+url:
+
+jdbc:postgresql://localhost:5432/   ->  jdbc:hive2://ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-028.ctyuncdn.net:12181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2
+
+user:
+
+gpadmin > hive
+
+
+
+# 31.查看磁盘信息
+
+yum install smartmontools
+
+ smartctl -a /dev/sdb
+
+# 32.Hbase问题排查
+
+![1571019650938](/img/1571019650938.png)
+
+
+```bash
+41主机：
+
+klist -k /etc/security/keytabs/hbase.service.keytab 
+kinit -kt /etc/security/keytabs/hbase.service.keytab hbase/ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net
+
+hbase shell
+
+scan 'hbase:meta',{ROWPREFIXFILTER => 'KYLIN_ETCK33KSCM'}
+
+
+
+
+klist -k /etc/security/keytabs/zk.service.keytab 
+kinit -kt /etc/security/keytabs/zk.service.keytab zookeeper/ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net
+
+/usr/hdp/current/zookeeper-client/bin/zkCli.sh -server ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181
+
+/usr/hdp/current/zookeeper-client/bin/zkCli.sh -server ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181 ls /hbase-secure/table | grep KYLIN_TJFUCO5QZ0
+
+
+echo 'scan "hbase:meta"'|hbase shell -n |grep a55f86bc482c366d84c6296e8dec6f98
+
+```
+
+租约问题：
+
+设置了他为 hbase.regionserver.lease.period 2分钟，但是hbase.rpc.timeout为3分钟，要求hbase.rpc.timeout> hbase.regionserver.lease.period
+
+警告是hbase.regionserver.lease.period已经修改为hbase.client.scanner.timeout.period 
+
+但是这个设置为了3分钟，所以实际上是 hbase.rpc.timeout要大于hbase.client.scanner.timeout.period
+
+
+
+
+
 
 
 
@@ -3114,23 +3363,7 @@ mvn versions:set -DnewVersion=5.1.0-HBase-2.0-CTG
 
 
 
-https://blog.csdn.net/qq_42606051/article/details/82713476
 
-
-
-
-
-
-
-<http://140.246.128.62:7070/kylin/models>
-
-
-
-hive3问题:
-
-spark问题
-
-mr问题:
 
 mapreduce.task.io.sort.mb
 
@@ -3548,123 +3781,6 @@ mapreduce.job.acl-view-job = *
         <value>3221225472</value>
         <description>enable map-side join</description>
     </property>
-
-
-
-
-## 1.修改hive脚本
-
-```bash
-vi  /usr/hdp/current/hive-client/bin/hive.distro 
-
-if [ $SERVICE == "beeline" -o $SERVICE == "cli" ]
-then
-    $TORUN -p hive -n root "$@"
-else
-    $TORUN "$@"
-fi
-  
-############ /data2/apache-kylin-2.6.1-bin-hadoop3/bin/find-hive-dependency.sh
-############  第四十行:
-  
-if [ "${client_mode}" == "beeline" ]
-then
-    beeline_shell=`$KYLIN_HOME/bin/get-properties.sh kylin.source.hive.beeline-shell`
-    beeline_params=`bash ${KYLIN_HOME}/bin/get-properties.sh kylin.source.hive.beeline-params`
-    hive_env=`${beeline_shell} ${hive_conf_properties} ${beeline_params} --outputformat=dsv -e "set;" 2>&1 | grep --text 'env:CLASSPATH' `
-else
-    source ${dir}/check-hive-usability.sh
-    hive_env=`hive ${hive_conf_properties} --outputformat=dsv -e set 2>&1 | grep 'env:CLASSPATH'`
-fi
-```
-
-## 2.修改Kylin配置
-
-
-
-#这里会影响清理Hbase的时间
-
-kylin.storage.hbase.min-region-count=40
-
-kylin.engine.spark.min-partition=200
-
-kylin.engine.spark-conf.spark.master=yarn
-kylin.engine.spark-conf.spark.eventLog.enabled=true
-kylin.engine.spark-conf.spark.eventLog.dir=hdfs\:///spark2-history
-kylin.engine.spark-conf.spark.history.fs.logDirectory=hdfs\:///spark2-history
-kylin.engine.spark-conf.spark.executor.cores=2
-kylin.engine.spark-conf.spark.executor.memory=18G
-kylin.engine.spark-conf.spark.executor.instances=40
-
-kylin.engine.spark-conf.spark.network.timeout=10000000 
-
-
-
-
-
-## 3.修复Tomcat
-
-copy spark的common configuration 1.6 jar包
-
-并且修改 监听ipv4端口
-
-<Connector port="80" maxHttpHeaderSize="8192" address="0.0.0.0"
-               maxThreads="150" minSpareThreads="25" maxSpareThreads="75"
-               enableLookups="false" redirectPort="8443" acceptCount="100"
-               connectionTimeout="20000" disableUploadTimeout="true" />
---------------------- 
-
-
-## 4.调整Hadoop参数
-
-<1792,注意不要ArrayOutofIndex
-
-5.
-
-
-
-设置环境变量
-
-cat /etc/profile.d//spark.sh 
-#export SPARK_HOME=/data2/spark-2.3.2-bin-hadoop2.7
-export SPARK_HOME=/usr/hdp/3.0.0.0-1634/spark2
-export PATH=$SPARK_HOME/bin:$PATH
-
-
-
-sudo -u hdfs hdfs dfs -mkdir /kylin
-
-sudo -u hdfs hdfs dfs -chown -R root:root /kylin
-
-
-
-
-
-调整分区个数:
-
-kylin.engine.spark.min-partition=200
-
-减少删除hbase的时间
-
-
-
-## 
-
-表删除测试;
-
-
-
-hbase org.apache.hadoop.hbase.PerformanceEvaluation --nomapred
---rows=1000000 --presplit=10
-sequentialWrite 1 
-
-
-
-
-
-```
-dfs.namenode.servicerpc-address.mycluster.nn1
-```
 
 
 
