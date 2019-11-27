@@ -68,6 +68,23 @@ https://www.cnblogs.com/zhang-ke/p/8944240.html
 
 - wget http://www.boutell.com/rinetd/http/rinetd.tar.gz
 
+
+
+- [ ] UBUNTU:
+
+wget -c 'http://public-repo-1.hortonworks.com/HDP/ubuntu18/3.x/updates/3.1.0.0/HDP-3.1.0.0-ubuntu18-deb.tar.gz'
+
+
+wget -c 'http://public-repo-1.hortonworks.com/ambari/ubuntu18/2.x/updates/2.7.3.0/ambari-2.7.3.0-ubuntu18.tar.gz'
+
+
+wget -c 'http://public-repo-1.hortonworks.com/HDP-UTILS-1.1.0.22/repos/ubuntu18/HDP-UTILS-1.1.0.22-ubuntu18.tar.gz'
+
+
+wget -c 'http://public-repo-1.hortonworks.com/HDP-GPL/ubuntu18/3.x/updates/3.1.0.0/HDP-GPL-3.1.0.0-ubuntu18-gpl.tar.gz'
+
+- [ ] ​
+
 # 2.环境准备
 
 **注意一定要上来先停掉防火墙，否则很容易出现莫名其妙的问题！！**
@@ -335,7 +352,6 @@ chmod 644 /root/.ssh/authorized_keys
   multi on
   ```
 
-  
 
 - 修改中文
 
@@ -346,7 +362,7 @@ echo 'LANG=en_US.UTF-8' > /etc/locale.conf
 
 
 
-- 
+- ​
 
 # 3.配置YUM离线源
 
@@ -382,7 +398,10 @@ tar zxvf HDP-3.1.0.0-centos7-rpm.tar.gz  -C /var/www/html/ambari
 tar zxvf HDP-UTILS-1.1.0.22-centos7.tar.gz -C  /var/www/html/ambari
 tar zxvf HDP-GPL-3.1.0.0-centos7-gpl.tar.gz -C /var/www/html/ambari
 
-
+sudo tar zxvf ambari-2.7.3.0-ubuntu18.tar.gz -C /var/www/html/ambari
+sudo  tar zxvf HDP-3.1.0.0-ubuntu18-deb.tar.gz -C /var/www/html/ambari
+sudo  tar zxvf HDP-UTILS-1.1.0.22-ubuntu18.tar.gz -C /var/www/html/ambari
+sudo  tar zxvf HDP-GPL-3.1.0.0-ubuntu18-gpl.tar.gz -C /var/www/html/ambari
 ```
 
 - 配置离线源
@@ -423,6 +442,31 @@ grep -v 'client.api.port' /etc/ambari-server/conf/ambari.properties > /etc/ambar
 echo 'client.api.port=18080' >> /etc/ambari-server/conf/ambari.properties2
 mv -f /etc/ambari-server/conf/ambari.properties2 /etc/ambari-server/conf/ambari.properties
 ```
+
+
+
+- Ubuntu
+
+```bash
+cd /etc/apt/sources.list.d
+
+deb   http://127.0.0.1:8181/ambari/ambari/ubuntu18/2.7.3.0-139/ Ambari main
+deb   http://127.0.0.1:8181/ambari/HDP/ubuntu18/3.1.0.0-78/ HDP main
+deb   http://127.0.0.1:8181/ambari/HDP-GPL/ubuntu18/3.1.0.0-78/ HDP-GPL main
+deb   http://127.0.0.1:8181/ambari/HDP-UTILS/ubuntu18/1.1.0.22/ HDP-UTILS main
+
+
+sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv B9733A7A07513CAD
+apt-cache showpkg ambari-server
+apt-cache showpkg ambari-agent
+apt-cache showpkg ambari-metrics-assembly
+
+#daquan
+https://blog.csdn.net/mwz1tn/article/details/87446216
+
+```
+
+
 
 # 4.安装mysql（跳过）
 
@@ -658,6 +702,8 @@ Ambari Server 'start' completed successfully.
 - 修改配置
 
   vi /var/lib/pgsql/data/pg_hba.conf
+
+  /etc/postgresql/10/main/pg_hba.conf
 
   host    all   hive   10.142.235.1/24         md5
 
@@ -4102,7 +4148,7 @@ mapreduce.job.acl-view-job = *
 
 
     Map Join:
-    
+
     <property>
         <name>hive.auto.convert.join.noconditionaltask.size</name>
         <value>3221225472</value>
@@ -4188,7 +4234,6 @@ ANALYST/ANALYST@1234@#&
 
    rm -rf 
 
-   
 
 5. 
 
