@@ -2636,7 +2636,24 @@ cd C:\ProgramData\MIT\Kerberos5
 
 "C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt "C:\ProgramData\MIT\Kerberos5\keytabs-prod\kylin.keytab"  kylin/cdnlog040.ctyun.net@CTYUN.NET
 
+
+"C:\Program Files\MIT\Kerberos\bin\klist.exe" -k "C:\ProgramData\MIT\Kerberos5\keytabs-prod\hdfs.headless.keytab"
+
+"C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt  "C:\ProgramData\MIT\Kerberos5\keytabs-prod\hdfs.headless.keytab" hdfs-cdnlog@CTYUN.NET
+
+
+"C:\Program Files\MIT\Kerberos\bin\klist.exe" -k "C:\ProgramData\MIT\Kerberos5\keytabs-prod\yarn.service.keytab"
+
+
+"C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt "C:\ProgramData\MIT\Kerberos5\keytabs-prod\yarn.service.keytab"  yarn/cdnlog040.ctyun.net@CTYUN.NET
+
 "C:\Program Files\MIT\Kerberos\bin\klist.exe" 
+
+
+"C:\Program Files\MIT\Kerberos\bin\klist.exe" -k "C:\ProgramData\MIT\Kerberos5\keytabs-prod\rm.service.keytab"
+
+"C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt "C:\ProgramData\MIT\Kerberos5\keytabs-prod\rm.service.keytab"   rm/cdnlog036.ctyun.net@CTYUN.NET
+
 
 ```
 
@@ -3151,12 +3168,15 @@ sudo firewall-cmd --list-all
 
 sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="36.111.140.26" port port="19200" protocol="tcp" accept'
 
-
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="36.111.140.26" port port="15601" protocol="tcp" accept'
 
 firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.30/24 port port=3306 protocol=tcp accept'
 sudo firewall-cmd --permanent --remove-rich-rule 'rule family="ipv4" source address="42.123.92.11" port port="8000" protocol="tcp" accept'
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.26 port port=8181 protocol=tcp accept'
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=150.223.254.39 accept'
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="36.111.140.26" port port="19200" protocol="tcp" accept'
+
 sudo firewall-cmd --reload
 
 rule family="ipv4" source address="150.223.254.0/25" accept
@@ -3256,7 +3276,7 @@ echo 'scan "hbase:meta"'|hbase shell -n |grep a55f86bc482c366d84c6296e8dec6f98
 
 ```
 
-租约问题：
+1.租约问题（开发集群）
 
 设置了他为 hbase.regionserver.lease.period 2分钟，但是hbase.rpc.timeout为3分钟，要求hbase.rpc.timeout> hbase.regionserver.lease.period
 
@@ -3264,6 +3284,200 @@ echo 'scan "hbase:meta"'|hbase shell -n |grep a55f86bc482c366d84c6296e8dec6f98
 
 但是这个设置为了3分钟，所以实际上是 hbase.rpc.timeout要大于hbase.client.scanner.timeout.period
 
+2.物联网
+
+Scanner超时，增加了timeout参数和scan的
+
+ hbase.client.scanner.timeout.period
+hbase.client.scanner.caching 
+
+
+
+# 33.多环境
+
+1.增加cdnlog-dev和cdnlog-test组
+
+```bash
+for ip in `seq 40 45 ` `seq 27 28`
+do
+	ssh 192.168.2.${ip} groupadd cdnlog-dev;
+done
+
+for ip in `seq 40 45 ` `seq 27 28`
+do
+	ssh 192.168.2.${ip} groupadd cdnlog-test;
+done
+
+for ip in `seq 40 45 ` `seq 27 28`
+do
+	ssh 192.168.2.${ip} useradd cdnlog-dev -g cdnlog-dev
+done
+
+for ip in `seq 40 45 ` `seq 27 28`
+do
+	echo  192.168.2.${ip} useradd cdnlog-test -g cdnlog-test
+	ssh 192.168.2.${ip} useradd cdnlog-test -g cdnlog-test
+done
+
+for ip in `seq 40 45 `
+do
+	echo  192.168.2.${ip} 
+	ssh 192.168.2.${ip} mkdir /data8/apps-dev
+	ssh 192.168.2.${ip} mkdir /data9/apps-test
+done
+
+
+
+sed -i '/APP_BASE=/d' /home/cdnlog-dev/.bash_profile
+echo 'export APP_BASE=/data8/apps-dev' >> /home/cdnlog-dev/.bash_profile
+sed -i '/APP_BASE=/d' /home/cdnlog-test/.bash_profile
+echo 'export APP_BASE=/data9/apps-test' >> /home/cdnlog-test/.bash_profile
+
+
+sed -i '/APP_PROFILE=/d' /home/cdnlog-dev/.bash_profile
+echo 'export APP_PROFILE=dev' >> /home/cdnlog-dev/.bash_profile
+sed -i '/APP_PROFILE=/d' /home/cdnlog-test/.bash_profile
+echo 'export APP_PROFILE=test' >> /home/cdnlog-test/.bash_profile
+
+sed -i '/APP_PORT_PREFIX=/d' /home/cdnlog-dev/.bash_profile
+echo 'export APP_PORT_PREFIX=10' >> /home/cdnlog-dev/.bash_profile
+sed -i '/APP_PORT_PREFIX=/d' /home/cdnlog-test/.bash_profile
+echo 'export APP_PORT_PREFIX=20' >> /home/cdnlog-test/.bash_profile
+
+mkdir /data8/apps-dev/cdn-log
+mkdir /data8/apps-dev/object-log
+mkdir /data8/apps-dev/oss-transcode
+
+mkdir /data9/apps-test/cdn-log
+mkdir /data9/apps-test/object-log
+mkdir /data9/apps-test/oss-transcode
+
+chown -R cdnlog-dev:cdnlog-dev  /data8/apps-dev
+chown -R cdnlog-test:cdnlog-test  /data9/apps-test
+
+```
+
+
+
+2.kerberos添加账号
+
+```bash
+
+#------------------cdnlog-dec
+ssh 192.168.2.40 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net"'
+
+ssh 192.168.2.40 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-dev.keytab cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net"'
+
+ssh 192.168.2.41 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net"'
+
+ssh 192.168.2.41 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-dev.keytab cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net"'
+
+
+ssh 192.168.2.42 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net"'
+
+ssh 192.168.2.42 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-dev.keytab cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net"'
+
+
+ssh 192.168.2.43 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net"'
+
+ssh  192.168.2.43 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-dev.keytab cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net"'
+
+
+ssh 192.168.2.44 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-011.ctyuncdn.net"'
+
+ssh 192.168.2.44 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-dev.keytab cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-011.ctyuncdn.net"'
+
+ssh 192.168.2.45 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-012.ctyuncdn.net"'
+
+ssh 192.168.2.45 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-dev.keytab cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-012.ctyuncdn.net"'
+
+ssh 192.168.2.27 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net"'
+
+ssh 192.168.2.27 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-dev.keytab cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net"'
+
+
+ssh 192.168.2.28 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-028.ctyuncdn.net"'
+
+ssh 192.168.2.28 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-dev.keytab cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-028.ctyuncdn.net"'
+
+##----------------------------
+ssh 192.168.2.40 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-test/ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net"'
+
+ssh 192.168.2.40 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-test.keytab cdnlog-test/ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net"'
+
+ssh 192.168.2.41 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-test/ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net"'
+
+ssh 192.168.2.41 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-test.keytab cdnlog-test/ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net"'
+
+
+ssh 192.168.2.42 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-test/ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net"'
+
+ssh 192.168.2.42 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-test.keytab cdnlog-test/ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net"'
+
+
+ssh 192.168.2.43 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-test/ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net"'
+
+ssh  192.168.2.43 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-test.keytab cdnlog-test/ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net"'
+
+
+ssh 192.168.2.44 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-test/ctl-nm-hhht-yxxya6-ceph-011.ctyuncdn.net"'
+
+ssh 192.168.2.44 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-test.keytab cdnlog-test/ctl-nm-hhht-yxxya6-ceph-011.ctyuncdn.net"'
+
+ssh 192.168.2.45 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-test/ctl-nm-hhht-yxxya6-ceph-012.ctyuncdn.net"'
+
+ssh 192.168.2.45 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-test.keytab cdnlog-test/ctl-nm-hhht-yxxya6-ceph-012.ctyuncdn.net"'
+
+ssh 192.168.2.27 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-test/ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net"'
+
+ssh 192.168.2.27 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-test.keytab cdnlog-test/ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net"'
+
+
+ssh 192.168.2.28 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-test/ctl-nm-hhht-yxxya6-ceph-028.ctyuncdn.net"'
+
+ssh 192.168.2.28 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-test.keytab cdnlog-test/ctl-nm-hhht-yxxya6-ceph-028.ctyuncdn.net"'
+```
+
+3.HBASE建立命名空间
+
+```bash
+hbase shell:
+create_namespace "cdnlog_dev"
+grant 'cdnlog-dev','RWXCA','@cdnlog_dev'
+
+create_namespace "cdnlog_test"
+grant 'cdnlog-test','RWXCA','@cdnlog_test'
+
+quit
+```
+
+4.HDFS目录
+
+```bash
+ kinit -kt /etc/security/keytabs/hdfs.headless.keytab  hdfs-cdnlog@CTYUNCDN.NET
+ 
+ hdfs dfs -mkdir /apps-dev
+ hdfs dfs -mkdir /apps-test
+ 
+ hdfs dfs -chown -R cdnlog-dev:cdnlog-dev /apps-dev
+ hdfs dfs -chown -R cdnlog-test:cdnlog-test /apps-test
+ 
+ 
+```
+
+5.Hive
+
+```bash
+使用各自的HDFS目录建立外表
+```
+
+6.队列
+
+```bash
+已增加测试环境队列：
+kylin-test
+etl-test
+```
 
 
 
@@ -3271,6 +3485,119 @@ echo 'scan "hbase:meta"'|hbase shell -n |grep a55f86bc482c366d84c6296e8dec6f98
 
 
 
+
+
+# 34.CDN新需求：
+
+```bash
+1.网络安全（优先级高）
+2.实时计算（高）
+3.客户日志定制化需求
+4.动态路由优化（高）
+5.海量日志的查询（延迟越小越好，用于定位问题）
+6.请求链路跟踪和查询
+7.希望能够深入CDN业务
+8.目前30个节点，年底扩到120-200个节点
+
+
+```
+
+上线部署：2019-11-08
+
+
+
+# 35.Ambari新增用户
+
+cdnlog/cdnlog@26VLvZ3F6Esa
+
+cdnlogview: cdnlog@26VLvZ3F6Esa
+
+- Kafka建Topic
+
+
+
+# 36.运维客户端
+
+https://42.123.69.96:2653/
+
+zhangwusheng/K**2@cdn
+
+
+
+# 37.直播建Topic
+
+```bash
+#调试
+topicName=media_oss_nginx
+ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+OSS_USER="ossNginx"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 5 --replication-factor 3
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${OSS_USER} --topic ${topicName}   --producer
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${OSS_USER} --topic ${topicName}   --consumer --group grp-${OSS_USER}
+
+
+#验证数据
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${OSS_USER} 
+```
+
+
+
+
+
+
+
+
+
+
+
+35.Ubuntu:
+
+root不能登录
+
+```
+sudo vi /etc/pam.d/gdm-autologin
+
+注释行 "auth requied pam_succeed_if.so user != root quiet success"
+
+sudo vi /etc/pam.d/gdm-password
+
+注释行 "auth requied pam_succeed_if.so user != root quiet success"
+
+```
+
+
+
+35.Ubuntu
+
+```bash
+wget -c 'http://public-repo-1.hortonworks.com/HDP/ubuntu18/3.x/updates/3.1.0.0/HDP-3.1.0.0-ubuntu18-deb.tar.gz'
+
+
+wget -c 'http://public-repo-1.hortonworks.com/ambari/ubuntu18/2.x/updates/2.7.3.0/ambari-2.7.3.0-ubuntu18.tar.gz'
+
+
+wget -c 'http://public-repo-1.hortonworks.com/HDP-UTILS-1.1.0.22/repos/ubuntu18/HDP-UTILS-1.1.0.22-ubuntu18.tar.gz'
+
+
+wget -c 'http://public-repo-1.hortonworks.com/HDP-GPL/ubuntu18/3.x/updates/3.1.0.0/HDP-GPL-3.1.0.0-ubuntu18-gpl.tar.gz'
+
+https://packages.gitlab.com/gitlab/gitlab-ce/packages/ubuntu/bionic/gitlab-ce_12.4.2-ce.0_amd64.deb
+
+curl -s https://packages.gitlab.com/install/repositories/gitlab/gitlab-ce/script.deb.sh | sudo bash
+
+sudo apt-get install gitlab-ce=12.4.2-ce.0
+
+wget --content-disposition https://packages.gitlab.com/gitlab/gitlab-ce/packages/ubuntu/bionic/gitlab-ce_12.4.2-ce.0_amd64.deb/download.deb
+```
 
 
 部署flink：
