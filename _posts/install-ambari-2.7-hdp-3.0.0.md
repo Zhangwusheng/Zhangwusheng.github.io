@@ -83,7 +83,7 @@ wget -c 'http://public-repo-1.hortonworks.com/HDP-UTILS-1.1.0.22/repos/ubuntu18/
 
 wget -c 'http://public-repo-1.hortonworks.com/HDP-GPL/ubuntu18/3.x/updates/3.1.0.0/HDP-GPL-3.1.0.0-ubuntu18-gpl.tar.gz'
 
-- [ ] ​
+- [ ] 
 
 # 2.环境准备
 
@@ -122,9 +122,35 @@ systemctl stop firewalld
 
 ```bash
 #每台机器执行，可以手动执行
-mkfs.ext4 /dev/vdb 
-mkdir /data1;
-mount /dev/vdb /data1
+mkfs.ext4 /dev/sdb
+mkfs.ext4 /dev/sdc 
+mkfs.ext4 /dev/sdd 
+mkfs.ext4 /dev/sde 
+mkfs.ext4 /dev/sdf 
+mkfs.ext4 /dev/sdg 
+mkfs.ext4 /dev/sdh 
+mkfs.ext4 /dev/sdi 
+mkfs.ext4 /dev/sdj 
+mkfs.ext4 /dev/sdk
+mkfs.ext4 /dev/sdl 
+mkfs.ext4 /dev/sdm
+
+
+mkdir /data1 /data2 /data3 /data4 /data5 /data6 /data7 /data8 /data9 /data10 /ssd1 /ssd2;
+mount /dev/sdb /data1
+mount /dev/sdc /data2
+mount /dev/sdd /data3
+mount /dev/sde /data4
+mount /dev/sdf /data5
+mount /dev/sdg /data6
+mount /dev/sdh /data7
+mount /dev/sdi /data8
+mount /dev/sdj /data9
+mount /dev/sdk /data10
+mount /dev/sdl /ssd1
+mount /dev/sdm /ssd2
+df -h
+
 
 #开机自动挂载fstab
 #!/bin/bash
@@ -153,6 +179,8 @@ cat /etc/fstab|grep -v '/data'|grep -v '/ssd' > /home/zhangwusheng/etc_fstab.2
 cat /home/zhangwusheng/etc_fstab.3 >> /home/zhangwusheng/etc_fstab.2
 mv /etc/fstab /etc/fstab.`date +%s`
 mv /home/zhangwusheng/etc_fstab.2 /etc/fstab
+
+cat /etc/fstab
 
 ```
 
@@ -360,9 +388,21 @@ echo 'LANG=en_US.UTF-8' > /etc/locale.conf
 
 ```
 
+- 设置swapiness
+
+```bash
+for ip in `cat ./cdn_hosts_all.txt`; do echo "$ip"; ssh -p 9000 ${ip} grep swappiness /etc/sysctl.conf; done
+
+for ip in `echo 192.168.254.12`; do echo "$ip"; ssh -p 9000 ${ip} "sed -i 's/vm.swappiness=10/vm.swappiness=1/g' /etc/sysctl.conf" ; done
+
+for ip in `cat cdn_hosts_hdfs.txt`; do echo "$ip"; ssh -p 9000 ${ip} "echo '1' > /proc/sys/vm/swappiness" ; done
+
+for ip in `cat cdn_hosts_all.txt`; do echo "$ip"; ssh -p 9000 ${ip} "cat  /proc/sys/vm/swappiness" ; done
+
+for ip in `cat cdn_hosts_all.txt`; do echo "$ip"; ssh -p 9000 ${ip} "grep swappiness  /etc/sysctl.conf" ; done
+```
 
 
-- ​
 
 # 3.配置YUM离线源
 
@@ -740,6 +780,110 @@ Ambari Server 'start' completed successfully.
   >
   > ​	org.postgresql.Driver
 
+- 修改最大连接数
+
+/var/lib/pgsql/data/postgresql.conf修改最大连接数：
+
+max_connections = 200
+
+- 处理组件重复安装问题：
+
+
+select * from hostcomponentdesiredstate  where component_name like '%LOGSTASH%';
+
+delete from hostcomponentdesiredstate where id=8451
+
+- PG主从复制
+
+```bash
+#安装软件
+rpm -qa|grep postgre
+rpm -ql postgresql-server-9.2.24-1.el7_5.x86_64
+
+yum -y install postgresql-server
+/usr/bin/postgresql-setup initdb
+
+su - postgres
+psql
+#查看数据库
+\l 
+#use db
+\c hive
+#查看表
+select * from pg_tables where tablename='zws_test';
+
+master主机：
+
+
+su - postgres
+psql
+create user cdnrepl with login replication password 'cdnrepl';
+
+#修改配置文件，允许从机连接pg
+
+vi /var/lib/pgsql/data/pg_hba.conf
+host    replication     cdnrepl         192.168.2.41/25         md5
+host    replication     cdnrepl         36.111.140.41/25         md5
+host    all     postgres         192.168.2.41/25         trust
+host    all     postgres         36.111.140.41/25         trust
+
+vi /var/lib/pgsql/data/postgresql.conf
+max_wal_senders =4
+wal_level = hot_standby #different version :lower:hot_standby,upper version:replica
+wal_receiver_status_interval = 2s
+hot_standby_feedback = on
+wal_keep_segments = 32          # in logfile segments, 16MB each; 0 disables
+replication_timeout = 60s       # in milliseconds; 0 disables
+log_connections = on
+
+#注意，这里是*监听所有的IP
+listen_addresses="*"
+
+systemctl restart postgresql
+
+#连接数据库
+psql -h 192.168.2.43 -U hive -W -d hive
+
+#主库上生成测试数据
+create table zws_test(id int);
+insert into zws_test select 1;
+insert into zws_test select 2;
+insert into zws_test select 3;
+insert into zws_test select 4;
+
+#主库上备份数据
+pg_basebackup -D /home/zhangwusheng/pg-data-backup -Fp -Xs -v -P -h 192.168.2.43 -U cdnrepl -p 5432 -R
+
+mv /var/lib/pgsql/data /var/lib/pgsql/data-zws
+mkdir /var/lib/pgsql/data
+pg_basebackup -D /var/lib/pgsql/data  -Fp -Xs -v -P -h 192.168.2.43 -U cdnrepl -p 5432
+chown -R postgres:postgres /var/lib/pgsql/data
+chmod -R 700 /var/lib/pgsql/data
+cd /home/zhangwusheng
+tar zcvf pg-data-backup.tar.gz pg-data-backup/*
+#将数据copy到备机上
+
+https://blog.csdn.net/ywd1992/article/details/81698556
+
+
+#从库：
+1.vi /var/lib/pgsql/data/postgresql.conf
+和主库的配置要一样！
+max_wal_senders =4
+wal_level = hot_standby #different version :lower:hot_standby,upper version:replica
+wal_receiver_status_interval = 2s
+hot_standby_feedback = on
+wal_keep_segments = 32          # in logfile segments, 16MB each; 0 disables
+replication_timeout = 60s       # in milliseconds; 0 disables
+log_connections = on
+
+
+```
+
+
+
+
+
 # 7.安装配置部署HDP集群
 
 - 第一步：
@@ -959,6 +1103,8 @@ yum -y install krb5-server krb5-devel krb5-workstation
 #检查版本
 rpm -qa|grep krb5
 krb5-config --version
+
+
 ```
 > kerberos有版本要求 -37  -8  -18都可以，但是以前就遇到过-19 的不行（汪聘）
 
@@ -3226,6 +3372,12 @@ sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address
 sudo firewall-cmd --reload
 
 rule family="ipv4" source address="150.223.254.0/25" accept
+
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="36.111.140.26" port port="19995" protocol="tcp" accept'
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="150.223.254.40" accept'
+
 ```
 
 # 29.Spark-Shell
@@ -3418,6 +3570,8 @@ ssh 192.168.2.41 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -rand
 
 ssh 192.168.2.41 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/cdnlog-dev.keytab cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net"'
 
+ank -randkey hive/cdnlog036.ctyun.net@CTYUN.NET
+xst -k /etc/security/keytabs/hive.service.keytab hive/cdnlog036.ctyun.net@CTYUN.NET
 
 ssh 192.168.2.42 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "ank -randkey cdnlog-dev/ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net"'
 
@@ -3527,12 +3681,6 @@ etl-test
 
 
 
-
-
-
-
-
-
 # 34.CDN新需求：
 
 ```bash
@@ -3573,41 +3721,175 @@ zhangwusheng/K**2@cdn
 # 37.直播建Topic
 
 ```bash
-#调试
-topicName=media_oss_nginx
+#白山云直播
+topicName=baishanYun_live
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
-OSS_USER="ossNginx"
+KAFKA_USER="baishanYun"
 
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 5 --replication-factor 3
 #授权
-/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${OSS_USER} --topic ${topicName}   --producer
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
 
 #验证权限
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
 
-/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${OSS_USER} --topic ${topicName}   --consumer --group grp-${OSS_USER}
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --consumer --group grp-${KAFKA_USER}
 
 
 #验证数据
-/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${OSS_USER} 
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
+
+#==================================================================================
+#白山云直播-海外
+topicName=baishanYun_live_haiwai
+ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+KAFKA_USER="baishanYun"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 3 --replication-factor 3
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --consumer --group grp-${KAFKA_USER}
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+#===============================================
+#浩瀚云直播
+topicName=haohanYun_live
+ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+KAFKA_USER="haohanYun"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 5 --replication-factor 3
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --consumer --group grp-${KAFKA_USER}
+
+
+#验证数据
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
+
+#==================================================================================
+#浩瀚云直播-海外
+topicName=haohanYun_live_haiwai
+ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+KAFKA_USER="haohanYun"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 3 --replication-factor 3
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --consumer --group grp-${KAFKA_USER}
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+
+#===============================================
+#有谱云直播
+topicName=youpuYun_live
+ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+KAFKA_USER="youpuYun"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 5 --replication-factor 3
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --consumer --group grp-${KAFKA_USER}
+
+
+#验证数据
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
+
+#==================================================================================
+#浩瀚云直播-海外
+topicName=youpuYun_live_haiwai
+ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+KAFKA_USER="youpuYun"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 3 --replication-factor 3
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --consumer --group grp-${KAFKA_USER}
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+
+
+#===============================================
+#有谱云直播
+topicName=huaweiYun_live
+ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+KAFKA_USER="huaweiYun"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 20 --replication-factor 3
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --consumer --group grp-${KAFKA_USER}
+
+
+#验证数据
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
+
+#==================================================================================
+#浩瀚云直播-海外
+topicName=youpuYun_live_haiwai
+ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+KAFKA_USER="youpuYun"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 12 --replication-factor 3
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --consumer --group grp-${KAFKA_USER}
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
 ```
 
 
 
+# 38.Ubuntu:
 
+- root不能登录:
 
-
-
-
-
-
-
-35.Ubuntu:
-
-root不能登录
 
 ```
 sudo vi /etc/pam.d/gdm-autologin
@@ -3620,19 +3902,15 @@ sudo vi /etc/pam.d/gdm-password
 
 ```
 
+- ambari:
 
-
-35.Ubuntu
 
 ```bash
 wget -c 'http://public-repo-1.hortonworks.com/HDP/ubuntu18/3.x/updates/3.1.0.0/HDP-3.1.0.0-ubuntu18-deb.tar.gz'
 
-
 wget -c 'http://public-repo-1.hortonworks.com/ambari/ubuntu18/2.x/updates/2.7.3.0/ambari-2.7.3.0-ubuntu18.tar.gz'
 
-
 wget -c 'http://public-repo-1.hortonworks.com/HDP-UTILS-1.1.0.22/repos/ubuntu18/HDP-UTILS-1.1.0.22-ubuntu18.tar.gz'
-
 
 wget -c 'http://public-repo-1.hortonworks.com/HDP-GPL/ubuntu18/3.x/updates/3.1.0.0/HDP-GPL-3.1.0.0-ubuntu18-gpl.tar.gz'
 
@@ -3644,6 +3922,166 @@ sudo apt-get install gitlab-ce=12.4.2-ce.0
 
 wget --content-disposition https://packages.gitlab.com/gitlab/gitlab-ce/packages/ubuntu/bionic/gitlab-ce_12.4.2-ce.0_amd64.deb/download.deb
 ```
+
+- 无安全的两个问题：
+
+1. Kafka的timeline配置，false，61888，http
+2. zeppelin需要自己创建pid目录
+
+
+
+# 39.AXE创建Topic
+
+```bash
+axe-SubTaskCallback
+axe-TemplateExecuteTask
+axe-BareMetalSearchTask
+axe-BareMetalPowerTask
+axe-BareMetalCreateTask
+axe-BareMetalInstallTask
+axe-ServerCompareTask
+axe-JobAgentLog
+
+topicName=axe-SubTaskCallback
+ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+OSS_USER="axetask"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 1 --replication-factor 3
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${OSS_USER} --topic ${topicName}   --producer
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${OSS_USER} --topic ${topicName}   --consumer --group grp-${OSS_USER}
+
+
+#验证数据
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${OSS_USER} 
+
+```
+
+
+
+
+
+# 40.GC设置
+
+```bash
+function GetGcOpts()
+{
+   local log_dir=$1
+   local component_name=$2
+   local use_g1=$3
+   local timestamp_str=`date +'%Y%m%d%H%M'`
+   gc_log_filename="${log_dir}/${component_name}.gc.log"
+   local gc_log_enable_opts="-verbose:gc -Xloggc:${gc_log_filename}"
+   local gc_log_rotation_opts="-XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10M"
+   local gc_log_format_opts="-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps"
+   local gc_g1_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB " 
+   local gc_error_opt="-XX:ErrorFile=${log_dir}/hs_err_${component_name}_pid%p.log"
+   #######################################################
+   ##NOTE: In hbase.distro
+   #exec "$JAVA" -Dproc_$COMMAND -XX:OnOutOfMemoryError="kill -9 %p"
+   #NOTE: in hdfs.distro
+   #-XX:OnOutOfMemoryError=\"/usr/hdp/current/hadoop-hdfs-namenode/bin/kill-name-node\" 
+   #######################################################
+   local gc_oom_opt="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${log_dir}/heapdump-${component_name}-${timestamp_str}.hprof"
+   local gc_cmd_flags=" -XX:+PrintCommandLineFlags -XX:+PrintFlagsFinal"
+   
+   if [ "X${use_g1}" = "Xuse_g1" ]
+   then
+       echo "${gc_g1_opts} ${gc_log_enable_opts} ${gc_log_rotation_opts} ${gc_log_format_opts}  ${gc_error_opt} ${gc_oom_opt} ${gc_cmd_flags}"
+   else
+       echo "${gc_log_enable_opts} ${gc_log_rotation_opts} ${gc_log_format_opts}  ${gc_error_opt} ${gc_oom_opt} ${gc_cmd_flags}"
+   fi	   
+}
+
+
+
+```
+
+kafka的特殊，需要整理ambari服务，或者手工修改：
+
+```bash
+#修改kafka-run-class.sh
+#1. 增加函数定义 GetGcOpts()
+#2. 增加如下参数
+kafka_gc_opts=`GetGcOpts “${LOG_DIR}” "kafka" "notuse_g1"`
+#3. 修改变量
+KAFKA_GC_LOG_OPTS="-Xloggc:$LOG_DIR/$GC_LOG_FILE_NAME -verbose:gc -XX:+PrintGCDetails -XX:+PrintGCDateStamps -XX:+PrintGCTimeStamps -XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=100M"
+	KAFKA_GC_LOG_OPTS=${kafka_gc_opts}
+
+#scp到每一台机器
+
+#另外，kafka的内存是在kafka-server-start.sh里面设置的
+if [ "x$KAFKA_HEAP_OPTS" = "x" ]; then
+    export KAFKA_HEAP_OPTS="-Xmx10g -Xms10g -XX:MetaspaceSize=96m -XX:+UseG1GC -XX:MaxGCPauseMillis=20 -XX:InitiatingHeapOccupancyPercent=35 -XX:G1HeapRegionSize=16M -XX:MinMetaspaceFreeRatio=50 -XX:MaxMetaspaceFreeRatio=80"
+fi
+
+
+#发布脚本
+
+
+for ip in `cat cdn_hosts_kafka.txt `
+do
+echo ${ip}
+ssh ${ip} -p 9000 "cp  /usr/hdp/current/kafka-broker/bin/kafka-run-class.sh /usr/hdp/current/kafka-broker/bin/kafka-run-class.sh.20191211" 
+done
+
+
+scp -P 9000 /home/zhangwusheng/kafka-run-class.sh 192.168.254.3:/usr/hdp/current/kafka-broker/bin/
+
+
+for ip in `cat cdn_hosts_all.txt `
+do
+  echo ${ip}
+  ssh -p 9000 ${ip} "mkdir -p /data1/var/log/spark2/object-log;mkdir -p /data1/var/log/spark2/cdnlog;"
+  ssh -p 9000 ${ip} "chmod -R a+rwx /data1/var/log/spark2;"
+done  
+```
+
+
+
+# 41.Spark-Shell
+
+```scala
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+val parquetFile = sqlContext.parquetFile("/apps/cdn/log/2019-12-09/2019-12-09-14")
+
+parquetFile.printSchema()
+
+parquetFile.registerTempTable("test_tmp")
+
+ import spark.sql
+
+sql("select count(distinct uri) from test_tmp  limit 2").show
+
+sql("select uri,count(1) as total from test_tmp group by uri order by total desc ").show
+```
+
+
+
+# 42.pgsql维护
+
+遇到了连接太多的问题，修改
+
+/var/lib/pgsql/data/postgresql.conf
+
+max_connections 从100改到200
+
+hadoop.proxyuser.hive.hosts 改成*
+
+hadoop.proxyuser.yarn.hosts 改成*
+
+
+
+## 42.1 pgsql主备：
+
 
 
 部署flink：
@@ -3706,7 +4144,7 @@ mvn versions:set -DnewVersion=5.1.0-HBase-2.0-CTG
 
 
 
-
+# 43.安装MetricBeat
 
 
 
@@ -4148,7 +4586,7 @@ mapreduce.job.acl-view-job = *
 
 
     Map Join:
-
+    
     <property>
         <name>hive.auto.convert.join.noconditionaltask.size</name>
         <value>3221225472</value>
