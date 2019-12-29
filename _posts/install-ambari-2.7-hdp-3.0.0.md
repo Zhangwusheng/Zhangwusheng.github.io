@@ -796,6 +796,7 @@ delete from hostcomponentdesiredstate where id=8451
 - PG主从复制
 
 ```bash
+#################################################
 #安装软件
 rpm -qa|grep postgre
 rpm -ql postgresql-server-9.2.24-1.el7_5.x86_64
@@ -812,13 +813,16 @@ psql
 #查看表
 select * from pg_tables where tablename='zws_test';
 
-master主机：
-
+#################################################
+#master主机：
 
 su - postgres
 psql
 create user cdnrepl with login replication password 'cdnrepl';
 
+create role cdnrepl with login replication password 'cdnrepl';
+
+mkdir /var/lib/pgsql/archieve/
 #修改配置文件，允许从机连接pg
 
 vi /var/lib/pgsql/data/pg_hba.conf
@@ -835,14 +839,15 @@ hot_standby_feedback = on
 wal_keep_segments = 32          # in logfile segments, 16MB each; 0 disables
 replication_timeout = 60s       # in milliseconds; 0 disables
 log_connections = on
+archive_mode = on #允许归档
+archive_command = 'cp %p /var/lib/pgsql/archieve/%f' 
 
 #注意，这里是*监听所有的IP
 listen_addresses="*"
 
+#重启数据库
 systemctl restart postgresql
 
-#连接数据库
-psql -h 192.168.2.43 -U hive -W -d hive
 
 #主库上生成测试数据
 create table zws_test(id int);
@@ -851,33 +856,31 @@ insert into zws_test select 2;
 insert into zws_test select 3;
 insert into zws_test select 4;
 
-#主库上备份数据
-pg_basebackup -D /home/zhangwusheng/pg-data-backup -Fp -Xs -v -P -h 192.168.2.43 -U cdnrepl -p 5432 -R
+#########################################
+#从库上备份数据
 
-mv /var/lib/pgsql/data /var/lib/pgsql/data-zws
+#测试连接主数据库
+psql -h 192.168.2.43 -U hive -W -d hive
+su - postgres
 mkdir /var/lib/pgsql/data
+chmod 700 /var/lib/pgsql/data
+
+#备份数据
 pg_basebackup -D /var/lib/pgsql/data  -Fp -Xs -v -P -h 192.168.2.43 -U cdnrepl -p 5432
-chown -R postgres:postgres /var/lib/pgsql/data
-chmod -R 700 /var/lib/pgsql/data
-cd /home/zhangwusheng
-tar zcvf pg-data-backup.tar.gz pg-data-backup/*
-#将数据copy到备机上
 
-https://blog.csdn.net/ywd1992/article/details/81698556
+cp /usr/share/pgsql/recovery.conf.sample /var/lib/pgsql/data/recovery.conf
+#修改内容
+standby_mode = on
+primary_conninfo = 'host=192.168.2.43 port=5432 user=cdnrepl password=cdnrepl'
+trigger_file = '/var/lib/pgsql/data/trigger.kenyon'
+recovery_target_timeline = 'latest'
 
-
-#从库：
+#修改：
 1.vi /var/lib/pgsql/data/postgresql.conf
-和主库的配置要一样！
-max_wal_senders =4
-wal_level = hot_standby #different version :lower:hot_standby,upper version:replica
-wal_receiver_status_interval = 2s
-hot_standby_feedback = on
-wal_keep_segments = 32          # in logfile segments, 16MB each; 0 disables
-replication_timeout = 60s       # in milliseconds; 0 disables
-log_connections = on
+hot_standby = on 
 
-
+#重启数据库
+systemctl restart postgresql
 ```
 
 
