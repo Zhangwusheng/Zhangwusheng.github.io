@@ -201,12 +201,40 @@ cat /etc/profile.d/java.sh
 echo 'export JAVA_HOME=/usr/local/jdk' > /etc/profile.d/java.sh
 echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile.d/java.sh
 source /etc/profile.d/java.sh
+
+
+for ip in `echo 2 10 28 29 37 38`
+do
+scp -P 9000 /home/zhangwusheng/soft/jdk-8u211-linux-x64.tar.gz root@192.168.254.${ip}:/home/zhangwusheng
+done
+
+for ip in `echo 2 10 28 29 37 38 `
+do
+ssh -p 9000 192.168.254.${ip} tar zxvf /home/zhangwusheng/jdk-8u211-linux-x64.tar.gz -C /usr/local
+done
+
+for ip in `echo 2 10 28 29 37 38 `
+do
+ssh -p 9000 192.168.254.${ip} ln -fs /usr/local/jdk1.8.0_211 /usr/local/jdk
+done
+
+for ip in `echo 2 10 28 29 37 38 `
+do
+ssh -p 9000 192.168.254.${ip} 
+echo 'export SPARK_HOME=/usr/hdp/3.1.0.0-78/spark2' > /etc/profile.d/spark.sh
+echo 'export PATH=$PATH:$SPARK_HOME/bin' >> /etc/profile.d/spark.sh
+echo 'export JAVA_HOME=/usr/local/jdk' > /etc/profile.d/java.sh
+echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile.d/java.sh
+done
+
+
 ```
 
 - 设置ulimit：
 
 ```bash
 #每台机器执行
+cat /etc/security/limits.conf
 echo '* soft nofile 65536' >> /etc/security/limits.conf
 echo '* hard nofile 65536' >> /etc/security/limits.conf
 echo '* soft nproc 131072' >> /etc/security/limits.conf
@@ -343,6 +371,14 @@ grep -v 'net.ipv6.conf.all.disable_ipv6=1' /etc/sysctl.conf > /etc/sysctl.conf2
 grep -v 'net.ipv6.conf.default.disable_ipv6=1' /etc/sysctl.conf2 > /etc/sysctl.conf3
 mv /etc/sysctl.conf3 /etc/sysctl.conf
 sysctl  -p
+
+
+sed -i '/disable_ipv6/d' /etc/sysctl.conf
+sed -i '/vm.swappiness/d' /etc/sysctl.conf
+echo 'net.ipv6.conf.all.disable_ipv6=1' >> /etc/sysctl.conf 
+echo 'vm.swappiness=1' >> /etc/sysctl.conf 
+cat /etc/sysctl.conf
+sysctl  -p
 ```
 
 - ssh设置
@@ -370,6 +406,10 @@ vi /root/.ssh/authorized_keys
 #一定要修改权限
 chmod 644 /root/.ssh/authorized_keys
 
+for ip in `seq 1 50`
+do
+ echo "sshd:192.168.254.${ip}:allow"
+done
 ```
 
 - 设置host的查找顺序（确保）
@@ -823,6 +863,7 @@ create user cdnrepl with login replication password 'cdnrepl';
 create role cdnrepl with login replication password 'cdnrepl';
 
 mkdir /var/lib/pgsql/archieve/
+
 #修改配置文件，允许从机连接pg
 
 vi /var/lib/pgsql/data/pg_hba.conf
@@ -839,7 +880,7 @@ hot_standby_feedback = on
 wal_keep_segments = 32          # in logfile segments, 16MB each; 0 disables
 replication_timeout = 60s       # in milliseconds; 0 disables
 log_connections = on
-archive_mode = on #允许归档
+archive_mode = on #
 archive_command = 'cp %p /var/lib/pgsql/archieve/%f' 
 
 #注意，这里是*监听所有的IP
@@ -857,10 +898,10 @@ insert into zws_test select 3;
 insert into zws_test select 4;
 
 #########################################
-#从库上备份数据
+#从库上备份数据 36
 
 #测试连接主数据库
-psql -h 192.168.2.43 -U hive -W -d hive
+psql -h 192.168.2.40 -U hive -W -d hive
 su - postgres
 mkdir /var/lib/pgsql/data
 chmod 700 /var/lib/pgsql/data
@@ -881,6 +922,25 @@ hot_standby = on
 
 #重启数据库
 systemctl restart postgresql
+
+#master主机查看
+select * from pg_stat_replication;
+#==============================================
+#主备切换
+#停掉master主机的
+systemctl stop postgresql
+
+#备机
+su - postgres
+pg_ctl promote
+```
+
+
+
+```bash
+#常用命令
+ pg_controldata /var/lib/pgsql/data/
+ 
 ```
 
 
@@ -1117,6 +1177,19 @@ krb5-config --version
 https://www.oracle.com/technetwork/java/javase/downloads/jce-all-download-5170447.html
 C:\work\Source\
 unzip -o -j -q /data1/jce_policy-8.zip -d $JAVA_HOME/jre/lib/security/
+
+for ip in `echo 2 10 28 29 37 38 `
+do
+scp -P 9000 /home/zhangwusheng/soft/jce_policy-8.zip 192.168.254.${ip}:/usr/local/jdk
+done 
+
+for ip in `echo 2 10 28 29 37 38 `
+do
+ssh -p 9000 192.168.254.${ip} "unzip -o -j -q /usr/local/jdk/jce_policy-8.zip -d /usr/local/jdk/jre/lib/security/"
+done
+
+
+unzip -o -j -q /home/zhangwusheng/jce_policy-8.zip -d /usr/local/jdk/jre/lib/security/
 ```
 
 ## 2.配置KDC
@@ -1157,6 +1230,14 @@ modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog031.cty
 modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog032.ctyun.net
 modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog041.ctyun.net
 modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable kylin/cdnlog042.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
+
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog002.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog010.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
 modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
 
  see https://www.jianshu.com/p/54cd2a659698
@@ -1735,6 +1816,76 @@ groupadd cdnlog
 useradd kylin -g cdnlog
 usermod -G hadoop kylin
 echo 'kylin   ALL=(ALL)       NOPASSWD: ALL' >> /etc/sudoers
+
+useradd cdnlog -g cdnlog
+
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "ank -randkey kylin/cdnlog002.ctyun.net@CTYUN.NET"
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "ank -randkey kylin/cdnlog010.ctyun.net@CTYUN.NET"
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "ank -randkey kylin/cdnlog028.ctyun.net@CTYUN.NET"
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "ank -randkey kylin/cdnlog029.ctyun.net@CTYUN.NET"
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "ank -randkey kylin/cdnlog037.ctyun.net@CTYUN.NET"
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "ank -randkey kylin/cdnlog038.ctyun.net@CTYUN.NET"
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "ank -randkey kylin/cdnlog017.ctyun.net@CTYUN.NET"
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "ank -randkey kylin/cdnlog047.ctyun.net@CTYUN.NET"
+
+
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "listprincs"
+
+for ip in `cat cdn_hosts_all.txt`
+do 
+  echo ${ip}
+  ssh -p 9000 ${ip} "klist -k /etc/security/keytabs/kylin.keytab"
+done
+
+
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog002.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog010.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
+modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
+
+
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog002.ctyun.net"
+
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog047.ctyun.net"
+klist -k /etc/security/keytabs/kylin.keytab
+
+
+for ip in `cat cdn_hosts_nonkylin.txt`
+do
+  echo "ssh -p 9000 ${ip} \"rm -f /etc/security/keytabs/kylin.keytab\""
+done> kylin.keytab.sh 
+
+
+for ip in `cat cdn_hosts_nonkylin.txt`
+do
+  aa=`echo ${ip}|awk -F'.' '{printf("%03d",$4)}'`
+  echo "ssh -p 9000 ${ip} /usr/bin/kadmin -p root/admin -w 'passwd' -q \"xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog${aa}.ctyun.net\""
+done>> kylin.keytab.sh 
+
+sed -i 's/passwd/cdnlog@kdc!@#/g' kylin.keytab.sh 
+
+
+klist -k /etc/security/keytabs/kylin.keytab 
+mv  /etc/security/keytabs/kylin.keytab /etc/security/keytabs/kylin.keytab.20200103
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog031.ctyun.net"
+
+klist -k /etc/security/keytabs/kylin.keytab 
+mv  /etc/security/keytabs/kylin.keytab /etc/security/keytabs/kylin.keytab.20200103
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog032.ctyun.net"
+klist -k /etc/security/keytabs/kylin.keytab 
+
+klist -k /etc/security/keytabs/kylin.keytab 
+mv  /etc/security/keytabs/kylin.keytab /etc/security/keytabs/kylin.keytab.20200103
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog041.ctyun.net"
+klist -k /etc/security/keytabs/kylin.keytab 
+
+klist -k /etc/security/keytabs/kylin.keytab 
+mv  /etc/security/keytabs/kylin.keytab /etc/security/keytabs/kylin.keytab.20200103
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog042.ctyun.net"
+klist -k /etc/security/keytabs/kylin.keytab 
 ```
 
 
@@ -1759,6 +1910,9 @@ source /etc/profile.d/spark.sh
 echo 'export SPARK_HOME=/usr/hdp/3.1.0.0-78/spark2' > /etc/profile.d/spark.sh
 echo 'export PATH=$PATH:$SPARK_HOME/bin' >> /etc/profile.d/spark.sh
 source /etc/profile.d/spark.sh
+
+
+
 ```
 
 ## 3.修改Hive脚本(非kerberos)
@@ -1843,6 +1997,7 @@ kinit -kt  /etc/security/keytabs/kylin.keytab  kylin
 #北京
 addprinc kylin/cdnlog040.ctyun.net@CTYUN.NET
 xst -k /etc/security/keytabs/kylin.keytab  kylin/cdnlog040.ctyun.net@CTYUN.NET
+
 systemctl restart krb5kdc
 systemctl restart kadmin
 chown kylin:hadoop  /etc/security/keytabs/kylin.keytab
@@ -3381,6 +3536,18 @@ sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address
 
 sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="150.223.254.40" accept'
 
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="58.58.53.2" port port="6667" protocol="tcp" accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="58.58.53.3" port port="6667" protocol="tcp" accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="58.58.53.4" port port="6667" protocol="tcp" accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="58.58.53.5" port port="6667" protocol="tcp" accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="58.58.53.7" port port="6667" protocol="tcp" accept'
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="150.223.254.0/26" accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="192.168.254.0/26" accept'
+sudo firewall-cmd --reload
+sudo firewall-cmd --list-all
+
 ```
 
 # 29.Spark-Shell
@@ -4152,6 +4319,13 @@ mvn versions:set -DnewVersion=5.1.0-HBase-2.0-CTG
 
 
 
+
+# 44.问题：
+
+2019-12-30
+
+1. /etc/hosts.allow权限太大
+2. /etc/hosts 配置了两个 cdnlog040，一个内网一个外网
 
 
 
