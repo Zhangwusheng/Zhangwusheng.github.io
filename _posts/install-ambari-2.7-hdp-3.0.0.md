@@ -779,6 +779,8 @@ Ambari Server 'start' completed successfully.
 
 # 6.配置Hive使用Postgresql
 
+## 6.1 配置PG数据库
+
 - 修改配置
 
   vi /var/lib/pgsql/data/pg_hba.conf
@@ -833,7 +835,7 @@ select * from hostcomponentdesiredstate  where component_name like '%LOGSTASH%';
 
 delete from hostcomponentdesiredstate where id=8451
 
-- PG主从复制
+## 6.2 PG主从复制
 
 ```bash
 #################################################
@@ -4236,21 +4238,66 @@ sql("select uri,count(1) as total from test_tmp group by uri order by total desc
 
 
 
-# 42.pgsql维护
+# 42.处理Hbase RIT
+
+1.只保留/apps/hbase/data/data
+
+2.删除/apps/hbase/data/data/hbase(可以测试不删除)
+
+3.重启hbase
+
+4.hbase hbck -fixMeta修复meta表,这时候所有的表都没有region,因为只扫描了表的元数据进去
+
+5.hbase hbck -boundaries检查一下会有很多不一致的
+
+6.hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta cdnlog_test
+
+挨个恢复namespace
+
+
+
+scan 'hbase:meta', {FILTER => "(PrefixFilter ('kylin:kylin_metadata')"}
+
+describe 'kylin:kylin_metadata'
+
+disable_all 'kylin:.*'
+
+disable_all 'cdnlog_dev:.*'
+enable_all 'cdnlog_dev:.*'
+
+count 'kylin:KYLIN_04J4E9Q79B'
+
+count 'kylin:kylin_metadata'
+
+create_namespace "cdnlog_dev"
+grant 'cdnlog-dev','RWXCA','@cdnlog_dev'
+
+create_namespace "cdnlog_test"
+grant 'cdnlog-test','RWXCA','@cdnlog_test'
+
+scan 'kylin:KYLIN_00D4OGTJOU',{LIMIT=>10}
+
+hbase hbck -fixMeta
+
+ hbase hbck -boundaries
+
+hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta cdnlog_test
+
+
+
+
+
+
 
 遇到了连接太多的问题，修改
 
-/var/lib/pgsql/data/postgresql.conf
 
-max_connections 从100改到200
 
 hadoop.proxyuser.hive.hosts 改成*
 
 hadoop.proxyuser.yarn.hosts 改成*
 
 
-
-## 42.1 pgsql主备：
 
 
 
