@@ -2872,33 +2872,81 @@ todo：
 
 如果只是重装，不要删除配置目录，只删除数据目录，然后ambari-server reset即可。
 
-1. 查看日志里面安装了哪些包
+```bash
+1. ambari-server reset
 
+2. 查看日志里面安装了哪些包
    cat  /var/lib/ambari-agent/data/*|grep yum|grep install
 
-2. 删除并且清理ambari的仓库
-
+3. 删除并且清理ambari的仓库
    cd /etc/yum.repos.d
-
-   rm -f ambari* hdp.*
-
+   rm -f /etc/yum.repos.d/ambari* /etc/yum.repos.d/hdp.*
    yum makecache fast
 
-3. 列出所有的已安装的包
-
+4. 列出所有的已安装的包
    yum list installed|grep HDP|awk '{print "yum remove -y "$1;}'|sort -u
-
    yum list installed |grep hadoop
-
    yum list installed |grep HDP 
-
-   yum list installed |grep ambari
-
+   yum list installed |grep ambari|awk '{print "yum remove -y "$1;}'|sort -u
    yum list installed |grep HDP|awk '{print "rpm -e "$1;}'|sort -u
-
-4. 删除数据目录！
-
+5. 删除数据目录！
    rm -rf  XXXX 
+6. yum clean all
+7. rm -rf /var/cache/yum/*
+rm -rf /var/lib/rpm/__db*
+
+#删除配置目录，还是要删掉，不然安装不同的版本会有问题
+ rm -rf /etc/hadoop /etc/hbase/
+ 
+ #删除数据目录,防止软链出问题
+ rm -rf /usr/hdp/*
+ 
+ 8. baseurl为空的问题
+ 
+ https://community.cloudera.com/t5/Community-Articles/ambari-2-7-3-Ambari-writes-Empty-baseurl-values-written-to/ta-p/249314
+ 
+ cd /usr/lib/ambari-server/web/javascripts
+ cp app.js app.js_backup
+ edit the app.js
+
+find out the line(39892) : onNetworkIssuesExist: function () {
+
+Change the line from :
+
+  /**
+   * Use Local Repo if some network issues exist
+   */
+  onNetworkIssuesExist: function () {
+    if (this.get('networkIssuesExist')) {
+      this.get('content.stacks').forEach(function (stack) {
+          stack.setProperties({
+            usePublicRepo: false,
+            useLocalRepo: true
+          });
+          stack.cleanReposBaseUrls();
+      });
+    }
+  }.observes('networkIssuesExist'),
+
+to
+
+  /**
+   * Use Local Repo if some network issues exist
+   */
+  onNetworkIssuesExist: function () {
+    if (this.get('networkIssuesExist')) {
+      this.get('content.stacks').forEach(function (stack) {
+        if(stack.get('useLocalRepo') != true){
+          stack.setProperties({
+            usePublicRepo: false,
+            useLocalRepo: true
+          });
+          stack.cleanReposBaseUrls();
+        } 
+      });
+    }
+  }.observes('networkIssuesExist'),
+```
 
 
 
@@ -4240,6 +4288,12 @@ sql("select uri,count(1) as total from test_tmp group by uri order by total desc
 
 # 42.处理Hbase RIT
 
+1.停止集群,（停止的时候集群会flush的），重要的数据最好先flush一下。
+
+2.将目录备份走
+
+
+
 1.只保留/apps/hbase/data/data
 
 2.删除/apps/hbase/data/data/hbase(可以测试不删除)
@@ -4256,7 +4310,23 @@ sql("select uri,count(1) as total from test_tmp group by uri order by total desc
 
 
 
+
+
+使用pe生成测试表
+
+hbase org.apache.hadoop.hbase.PerformanceEvaluation --nomapred --rows=100000 --presplit=10 --table=testtable sequentialWrite 1 
+
+
+
+hbase org.apache.hadoop.hbase.PerformanceEvaluation --nomapred --rows=100000 --presplit=10 --table=zws:testtable sequentialWrite 1 
+
+hbase org.apache.hadoop.hbase.PerformanceEvaluation --nomapred --rows=100000 --presplit=10 --table=cdnlog:testtable sequentialWrite 1 
+
+
+
 scan 'hbase:meta', {FILTER => "(PrefixFilter ('kylin:kylin_metadata')"}
+
+
 
 describe 'kylin:kylin_metadata'
 
@@ -4264,6 +4334,13 @@ disable_all 'kylin:.*'
 
 disable_all 'cdnlog_dev:.*'
 enable_all 'cdnlog_dev:.*'
+
+
+
+disable_all 'backup:.*'
+enable_all 'backup:.*'
+
+
 
 count 'kylin:KYLIN_04J4E9Q79B'
 
@@ -4281,7 +4358,25 @@ hbase hbck -fixMeta
 
  hbase hbck -boundaries
 
-hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta cdnlog_test
+hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta kylin
+
+
+
+1.验证场景1
+
+hbase目录换掉，zk目录换掉，不能启动成功
+
+2.hbase目录再换回去，使用新的zk目录，是可以重新启动成功的
+
+3.确保数据目录是hbase用户的
+
+4.用全新的目录生成hbase的必要的文件
+
+5.把旧目录的文件copt到
+
+
+
+
 
 
 
@@ -4361,7 +4456,37 @@ mvn versions:set -DnewVersion=5.1.0-HBase-2.0-CTG
 
 
 
-# 43.安装MetricBeat
+# 43.组件部署机器
+
+| 组件                    | Master主机     | 备份主机       |
+| ----------------------- | -------------- | -------------- |
+| ambari-server           | 192.468.254.40 | 192.168.254.36 |
+|                         |                | 192.168.254.39 |
+|                         |                | 192.168.254.41 |
+|                         |                | 192.168.254.42 |
+| pgsql                   | 192.468.254.40 | 192.168.254.36 |
+| namenode                | 192.168.254.36 | 192.168.254.39 |
+| ZKFaileOver             | 192.168.254.36 | 192.168.254.39 |
+| RM                      | 192.168.254.36 | 192.168.254.39 |
+| HMaster                 | 192.168.254.36 | 192.168.254.39 |
+| ZooKeeper               | 192.168.254.36 |                |
+|                         | 192.168.254.39 |                |
+|                         | 192.468.254.40 |                |
+|                         | 192.468.254.41 |                |
+|                         | 192.468.254.42 |                |
+| Kylin                   | 192.468.254.41 |                |
+|                         | 192.468.254.42 |                |
+|                         | 192.468.254.31 |                |
+|                         | 192.468.254.32 |                |
+| object-log              | 192.468.254.21 | 192.468.254.22 |
+| cdn-log                 | 192.468.254.41 | 192.468.254.42 |
+| oss-transcode(尚未部署) | 192.468.254.21 | 192.468.254.22 |
+
+
+
+- ambari-server之间的切换：
+
+https://docs.cloudera.com/HDPDocuments/Ambari-2.7.5.0/administering-ambari/content/amb_populate_the_new_ambari_database.html
 
 
 
@@ -4374,11 +4499,28 @@ mvn versions:set -DnewVersion=5.1.0-HBase-2.0-CTG
 1. /etc/hosts.allow权限太大
 2. /etc/hosts 配置了两个 cdnlog040，一个内网一个外网
 
+22机器：
+
+ssh -p 9000 192.168.254.22 "chmod +x /data1/hadoop/yarn"
+
+机器kylin的keytab都没有改
 
 
 
+45.生产系统操作日志：
 
 
+
+41开通防火墙，允许
+
+| 日期       | 主机           | 操作                                | 原因                                                         |
+| ---------- | -------------- | ----------------------------------- | ------------------------------------------------------------ |
+| 2020-01-10 | 192.168.254.41 | 开通防火墙，允许122.237.100.139访问 | 监控组谢绍航从我们的metricsserver拉取数据，需要开放防火墙    |
+|            |                |                                     | 命令：firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=122.237.100.139  port port=8800 protocol=tcp accept' |
+|            |                |                                     | firewall-cmd --reload;firewall-cmd --list-all                |
+|            |                |                                     | metricsserver地址：http://150.223.254.41:8800/cdnlog/metrics/platform |
+
+122.237.100.139
 
 
 
