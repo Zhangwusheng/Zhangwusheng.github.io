@@ -1390,6 +1390,8 @@ cdnlog@kdc!@#
 master上：
 
 ```bash
+mkdir -p /var/kerberos/backup
+cd /var/kerberos/backup
 datestr=`date +%Y%m%d`
 rm -f /var/kerberos/krb5kdc/backup.dump.${datestr} 
 kdb5_util dump /var/kerberos/krb5kdc/backup.dump.${datestr} 
@@ -1415,6 +1417,32 @@ slave上：
 做到第五步之后（创建了数据库之后）：
 
 kdb5_util load /var/kerberos/krb5kdc/backup.dump.20190805 
+
+最后一次备份是20200202，备份到了36和39上面
+
+
+
+```bash
+cd /var/kerberos/backup
+vi backup.sh
+
+#backup-kerberos.sh
+BACKUP_DIR=/var/kerberos/backup
+mkdir -p ${BACKUP_DIR}
+cd ${BACKUP_DIR}
+datestr=`date +%Y%m%d%H%M`
+#rm -f /var/kerberos/krb5kdc/backup.dump.${datestr} 
+kdb5_util dump /var/kerberos/krb5kdc/backup.dump.${datestr} 
+#rm -f /var/kerberos/krb5kdc.${datestr}.tar.gz 
+tar zcvf ${BACKUP_DIR}/krb5kdc.${datestr}.tar.gz /var/kerberos/krb5kdc/*
+
+scp -P 9000 ${BACKUP_DIR}/krb5kdc.${datestr}.tar.gz 192.168.254.36:/var/kerberos
+scp -P 9000 ${BACKUP_DIR}/krb5kdc.${datestr}.tar.gz 192.168.254.39:/var/kerberos
+
+
+#设置crontab
+50 */2 * * * /bin/bash /var/kerberos/backup/backup.sh
+```
 
 
 
@@ -2243,8 +2271,26 @@ ANALYST/ANALYST@1234@#&
 ## 15.麒麟优化建议
 
 - 将必要维度放在开头
+
 - 然后是在过滤 ( where 条件)中起到很大作用的维度
+
 - 如果多个列都会被用于过滤，将高基数的维度（如 user_id）放在低基数的维度（如 age）的前面，这也是基于过滤作用的考虑
+
+- ```bash
+  kylin.storage.hbase.min-region-count  5
+  kylin.source.hive.redistribute-flat-table  false
+  kylin.engine.spark-conf.spark.executor.cores  2
+  kylin.engine.spark-conf.spark.yarn.queue kylin
+  kylin.engine.spark-conf.spark.executor.instances 40
+  kylin.engine.spark-conf.spark.executor.memory 20G
+  kylin.storage.hbase.region-cut-gb  3
+  kylin.engine.spark.min-partition 20
+  kylin.engine.spark-conf.spark.memory.storageFraction 0.3
+  kylin.storage.hbase.max-region-count 50
+  kylin.engine.spark-conf.spark.executor.extraJavaOptions "-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps  -XX:+PrintTenuringDistribution"
+  ```
+
+- 
 
 # 13.集群参数优化
 
@@ -2404,6 +2450,101 @@ useTicketCache=false
 serviceName="{{kafka_bare_jaas_principal}}"
 principal="{{kafka_jaas_principal}}";
 };
+
+
+
+--------------------------------------------------------------------------
+
+ /**
+        * Example of SASL/PLAIN Configuration
+        *
+        * KafkaServer {
+        *   org.apache.kafka.common.security.plain.PlainLoginModule required
+        *   username="admin"
+        *   password="admin-secret"
+        *   user_admin="admin-secret"
+        *   user_alice="alice-secret";
+        *   };
+        *
+        * Example of SASL/SCRAM
+        *
+        * KafkaServer {
+        *   org.apache.kafka.common.security.scram.ScramLoginModule required
+        *   username="admin"
+        *   password="admin-secret"
+        *   };
+        *
+        * Example of Enabling multiple SASL mechanisms in a broker:
+        *
+        *   KafkaServer {
+        *
+        *    com.sun.security.auth.module.Krb5LoginModule required
+        *    useKeyTab=true
+        *    storeKey=true
+        *    keyTab="/etc/security/keytabs/kafka_server.keytab"
+        *    principal="kafka/kafka1.hostname.com@EXAMPLE.COM";
+        *
+        *    org.apache.kafka.common.security.plain.PlainLoginModule required
+        *    username="admin"
+        *    password="admin-secret"
+        *    user_admin="admin-secret"
+        *    user_alice="alice-secret";
+        *
+        *    org.apache.kafka.common.security.scram.ScramLoginModule required
+        *    username="scram-admin"
+        *    password="scram-admin-secret";
+        *    };
+        *
+        **/
+
+        {% if kerberos_security_enabled %}
+
+      KafkaServer { 
+            org.apache.kafka.common.security.plain.PlainLoginModule required 
+            username="admin" 
+            password="CtYiofnwk@269Mn" 
+            user_admin="CtYiofnwk@269Mn"
+            user_huaweiYun="C#huaTwei2Y4Gun"
+            user_cache_access="TcacGhe2@acCcess"
+            user_youpuYun="GYunCTyou10@p#u"
+            user_haohanYun="GCTha12o#hyun"
+            user_baishanYun="CbaTishGan3@Y#un"
+            user_cdnlog="QwtB+SRLaiZOXysjcapN"
+            user_jicheng="kzptJziTtex6qo7Y"
+            user_axetask="Es68Kuh6elJugj1c"
+            user_ossNginx="yY0I3Mq#xZC@yHOH"
+            user_elkmetricsdocker="2Hlk0jVrmRGZIPTl"
+            user_DebugTopic="ThisisTheDebugUser147@201907";
+        };
+
+        KafkaClient {
+        com.sun.security.auth.module.Krb5LoginModule required
+        useTicketCache=true
+        renewTicket=true
+        serviceName="{{kafka_bare_jaas_principal}}";
+        };
+        Client {
+        com.sun.security.auth.module.Krb5LoginModule required
+        useKeyTab=true
+        keyTab="{{kafka_keytab_path}}"
+        storeKey=true
+        useTicketCache=false
+        serviceName="zookeeper"
+        principal="{{kafka_jaas_principal}}";
+        };
+        com.sun.security.jgss.krb5.initiate {
+        com.sun.security.auth.module.Krb5LoginModule required
+        renewTGT=false
+        doNotPrompt=true
+        useKeyTab=true
+        keyTab="{{kafka_keytab_path}}"
+        storeKey=true
+        useTicketCache=false
+        serviceName="{{kafka_bare_jaas_principal}}"
+        principal="{{kafka_jaas_principal}}";
+        };
+
+        {% endif %}
 ```
 
 - kafka_client_jaas.conf  for producer
@@ -2554,15 +2695,18 @@ topicName=baishanYun
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1  --add --allow-principal User:${topicName} --topic ${topicName}   --consumer --group grp-${topicName}
 
 #调试
-topicName=DebugTopic
+topicName="cdn-log-download-mr"
+userName="elkmetricsdocker"
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --alter --zookeeper ${ZK_CONN} --topic ctYun --partitions 21
 
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 1 --replication-factor 3
 #授权
-/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${topicName} --topic ${topicName}   --producer
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${userName} --topic ${topicName}   --producer
 
 #验证权限
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
@@ -2575,14 +2719,21 @@ ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044  --topic DebugTopic --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-DebugTopic  --consumer.config ./consumer.properties
 
 
-------------------------------------------------------------------
+------------------------------------------------------------------开发
 
-topicName=KAFKA_SERVER_LOG
+topicName=ctYun
+userName="elkmetricsdocker"
 ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
+
+##修改分区数量
+./kafka-topics.sh --alter --zookeeper ${ZK_CONN} --topic ctYun --partitions 30
 
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
 
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${userName} --topic ${topicName}   --producer
+
 
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${topicName} 
 
@@ -3595,6 +3746,14 @@ sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address
 
 sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="150.223.254.0/26" accept'
 sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="192.168.254.0/26" accept'
+
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="125.88.39.158" port port="6667" protocol="tcp" accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="125.88.39.159" port port="6667" protocol="tcp" accept'
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="125.88.39.167" port port="6667" protocol="tcp" accept'
+
+--43--
+sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="125.88.39.157" port port="9806" protocol="tcp" accept'
 sudo firewall-cmd --reload
 sudo firewall-cmd --list-all
 
@@ -4288,97 +4447,250 @@ sql("select uri,count(1) as total from test_tmp group by uri order by total desc
 
 # 42.处理Hbase RIT
 
-1.停止集群,（停止的时候集群会flush的），重要的数据最好先flush一下。
+- 准备工作：
 
-2.将目录备份走
+1. 备份数据
 
+   主要是namespace列表，因为恢复完毕后不会自动创建namespace，需要手动创建
+   
+2. 修改配置： conf.setBoolean("hbase.hregion.memstore.mslab.enabled", false);
 
+   否则后面的OfflineMetaRepair 后抛出NPE异常
 
-1.只保留/apps/hbase/data/data
+3. 如果有可能，flush一下表
 
-2.删除/apps/hbase/data/data/hbase(可以测试不删除)
+   ```bash
+    echo 'flush tablname' |hbase shell -n
+   ```
 
-3.重启hbase
+4. 停止集群
 
-4.hbase hbck -fixMeta修复meta表,这时候所有的表都没有region,因为只扫描了表的元数据进去
+5. 将HDFS上的Hbase的数据目录备份走
 
-5.hbase hbck -boundaries检查一下会有很多不一致的
+   ```bash
+    hdfs dfs -mkdir -p /apps/hbase-backup-20200110/data
+    hdfs dfs -mv /apps/hbase/data/data /apps/hbase-backup-20200110/data 
+   ```
 
-6.hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta cdnlog_test
+   后续的恢复工作以/apps/hbase-backup-20200110/data为基础，因为数据少，所以后面的是copy数据
 
-挨个恢复namespace
-
-
-
-
-
-使用pe生成测试表
-
-hbase org.apache.hadoop.hbase.PerformanceEvaluation --nomapred --rows=100000 --presplit=10 --table=testtable sequentialWrite 1 
-
-
-
-hbase org.apache.hadoop.hbase.PerformanceEvaluation --nomapred --rows=100000 --presplit=10 --table=zws:testtable sequentialWrite 1 
-
-hbase org.apache.hadoop.hbase.PerformanceEvaluation --nomapred --rows=100000 --presplit=10 --table=cdnlog:testtable sequentialWrite 1 
+- 
+  恢复工作
 
 
+1. 停止集群
 
-scan 'hbase:meta', {FILTER => "(PrefixFilter ('kylin:kylin_metadata')"}
+2. 修改hbase的根目录和zk的根目录的配置
 
+   ```bash
+    #Hbase目录
+    /apps/hbase25/staging
+    /apps/hbase25/data
+    #zk目录
+    /hbase25-unsecure
+    #一定要换目录，是为了确保目录下面是干净的！如果不换目录，请确保已经删除了所有的文件！
+   ```
 
+3. 重启集群
 
-describe 'kylin:kylin_metadata'
+   这个重启是必须的，用来生成HBASE的version文件和id文件
 
-disable_all 'kylin:.*'
+4. 验证集群是正常启动的
 
-disable_all 'cdnlog_dev:.*'
-enable_all 'cdnlog_dev:.*'
+   ```bash
+   echo 'list'|hbase shell -n
+   echo 'scan "hbase:meta"'|hbase sh
+   ```
 
+5. 停止集群
 
+6. 挪动数据目录
 
-disable_all 'backup:.*'
-enable_all 'backup:.*'
+   ```bash
+   #！！！切换到HDFS用户，kerberos是不同的命令
+   su - hdfs 
+   #删除default，一般不存在，有时候会出现，确保删掉
+   hdfs dfs -rmr /apps/hbase25/data/data/default
+   #copy数据
+   hdfs dfs -cp /apps/hbase-backup-20200110/data/data/cdnlog /apps/hbase25/data/data
+   
+   hdfs dfs -cp /apps/hbase-backup-20200110/data/data/default /apps/hbase25/data/data
+   
+   hdfs dfs -cp /apps/hbase-backup-20200110/data/data/zws /apps/hbase25/data/data
+   
+   hdfs dfs -chown -R hbase:hdfs /apps/hbase25/data
+   
+   hdfs dfs -ls /apps/hbase25/data/data/*
+   
+   ```
 
+7. 删除zk目录
 
+   ```bash
+   #一定要在集群关闭的状态下删除！
+   /usr/hdp/current/zookeeper-client/bin/zkCli.sh -server t135:2181 rmr /hbase25-unsecure
+   ```
 
-count 'kylin:KYLIN_04J4E9Q79B'
+8. 启动集群，验证是否正常（这一步应该可以省略）
 
-count 'kylin:kylin_metadata'
+   ```bash
+   echo 'list'|hbase shell -n
+   echo 'scan "hbase:meta"'|hbase shell -n
+   echo 'list'|hbase shell -n
+   ```
 
-create_namespace "cdnlog_dev"
-grant 'cdnlog-dev','RWXCA','@cdnlog_dev'
+9. 不正常重新来，一定要确保命令是正常运行的
 
-create_namespace "cdnlog_test"
-grant 'cdnlog-test','RWXCA','@cdnlog_test'
+10. 停止集群
 
-scan 'kylin:KYLIN_00D4OGTJOU',{LIMIT=>10}
+11. 运行命令
 
-hbase hbck -fixMeta
+    ```bash
+    su - hbase
+    hbase org.apache.hadoop.hbase.util.hbck.OfflineMetaRepair -fix 
+    ```
 
- hbase hbck -boundaries
+12. 启动集群
 
-hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta kylin
+    ```bash
+    #验证可以读取数据
+    echo 'scan "hbase:meta" ' | hbase shell -n
+    ```
 
+13. 删除region相关的数据
 
+    ```bash
+    echo 'scan "hbase:meta" ' | hbase shell -n  2>/dev/null|grep ','|grep -v zookeeper|awk '{print $1;}'|grep -v 'hbase:'|grep ','|awk '{printf("deleteall \"hbase:meta\",\"%s\"\n",$1);}'
+    
+    #验证上面输出
+    #在hbase shell里面执行，不同的数据输出是不同的！
+    
+    deleteall "hbase:meta", "cdnlog:testtable,,1578551500025.b7f684b7ef4d39bca29182f88ab9df93."
+    deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000010000,1578551500025.f25045990e8bf33efccc9bbb7b090237."
+    deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000020000,1578551500025.02c8ec8051730292c1a81068763a6525."
+    deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000030000,1578551500025.09986e2942c662be0a6ed6c44f843412."
+    deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000040000,1578551500025.2f5c3942c6ed35bb743f0dc71fd7adea."
+    deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000050000,1578551500025.c6640bfb422a7c90371d9680b69d636a."
+    deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000060000,1578551500025.e1888be48220f0a00c0da5ed2b531432."
+    deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000070000,1578551500025.178aad1c6262dc5675cb4fee63e01b4b."
+    deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000080000,1578551500025.ed7d49f1e2dfdcf0b44b63f7c61bfb11."
+    deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000090000,1578551500025.d3e62896b2651dac4f98a8c523d9deab."
+    deleteall "hbase:meta", "testtable,,1578551478240.62610b4494f71428b8d3198c97f9e98b."
+    deleteall "hbase:meta", "testtable,00000000000000000000010000,1578551478240.16c876a34b4bde70e25e4f121148506e."
+    deleteall "hbase:meta", "testtable,00000000000000000000020000,1578551478240.e949c1158c5157a3f51ffce95117f499."
+    deleteall "hbase:meta", "testtable,00000000000000000000030000,1578551478240.158e1cfc21041173dbfa0933890d15b7."
+    deleteall "hbase:meta", "testtable,00000000000000000000040000,1578551478240.81179946305bd69be0a3dbea04e7b1ab."
+    deleteall "hbase:meta", "testtable,00000000000000000000050000,1578551478240.3a028f391f4d5085c0a9c9e51fcc4f9b."
+    deleteall "hbase:meta", "testtable,00000000000000000000060000,1578551478240.c8ea8b3543c07ceaa9ffeed25411de77."
+    deleteall "hbase:meta", "testtable,00000000000000000000070000,1578551478240.7706a4936316b6c1b9e143853d4c6d48."
+    deleteall "hbase:meta", "testtable,00000000000000000000080000,1578551478240.b5c3fefc80de158f178d45dafcee324b."
+    deleteall "hbase:meta", "testtable,00000000000000000000090000,1578551478240.10b6ec98bf5db7fdbfdfc996c3a22258."
+    deleteall "hbase:meta", "zws:testtable,,1578551494048.6238e0b66e6203fa0c5566532da91d8a."
+    deleteall "hbase:meta", "zws:testtable,00000000000000000000010000,1578551494048.4478f421a32fe206d9cb1a73732f8fcf."
+    deleteall "hbase:meta", "zws:testtable,00000000000000000000020000,1578551494048.94cca9bef528ec2466e54c2f9d2c31aa."
+    deleteall "hbase:meta", "zws:testtable,00000000000000000000030000,1578551494048.eb5ad3c230d08aaff7743f8da7389e59."
+    deleteall "hbase:meta", "zws:testtable,00000000000000000000040000,1578551494048.def014fa8dcefca2b2baa8c61b54dee2."
+    deleteall "hbase:meta", "zws:testtable,00000000000000000000050000,1578551494048.501b997e23409e5251b390f7a22f3a39."
+    deleteall "hbase:meta", "zws:testtable,00000000000000000000060000,1578551494048.e507ddd8a7b1ebc07d49956205ca2ebb."
+    deleteall "hbase:meta", "zws:testtable,00000000000000000000070000,1578551494048.e0c4007576835d8c2d42e0192cd3fb4a."
+    deleteall "hbase:meta", "zws:testtable,00000000000000000000080000,1578551494048.2e1360529420f2ce8d32a6f37fcd1edb."
+    deleteall "hbase:meta", "zws:testtable,00000000000000000000090000,1578551494048.88c4293a2a80543dcd31ebb61a326d57."
+    ```
 
-1.验证场景1
+    
 
-hbase目录换掉，zk目录换掉，不能启动成功
+14. 上传hbase-operator-tools的jar包到/usr/hdp/current/hbase-client/lib
 
-2.hbase目录再换回去，使用新的zk目录，是可以重新启动成功的
+    ```bash
+    git clone https://github.com/apache/hbase-operator-tools
+    #编译通过
+    #上传到 /usr/hdp/current/hbase-client/lib
+    ```
 
-3.确保数据目录是hbase用户的
+15. 运行修复命令
 
-4.用全新的目录生成hbase的必要的文件
+    ```bash
+    cd /usr/hdp/current/hbase-client/bin/
+    ls /usr/hdp/current/hbase-client/lib/hbase-hbck2-1.1.0-SNAPSHOT.jar
+    hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta cdnlog
+    hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta zws
+    hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta default
+    
+    #一定要记录每条命令的输出
+    assigns 10b6ec98bf5db7fdbfdfc996c3a22258 158e1cfc21041173dbfa0933890d15b7 16c876a34b4bde70e25e4f121148506e 3a028f391f4d5085c0a9c9e51fcc4f9b 62610b4494f71428b8d3198c97f9e98b 7706a4936316b6c1b9e143853d4c6d48 81179946305bd69be0a3dbea04e7b1ab b5c3fefc80de158f178d45dafcee324b c8ea8b3543c07ceaa9ffeed25411de77 e949c1158c5157a3f51ffce95117f499
+    #都要记录下来！
+    ```
 
-5.把旧目录的文件copt到
+16. 重启集群,验证数据
 
+    ```bash
+    echo 'scan "hbase:meta", {FILTER => "(PrefixFilter ('"'"'zws:testtable,'"'"')"} ' | hbase shell -n 
+    ```
 
+17. assign region
 
+    ```bash
+    #针对所有的第15步的assigns，运行
+    echo 2e1360529420f2ce8d32a6f37fcd1edb 4478f421a32fe206d9cb1a73732f8fcf 501b997e23409e5251b390f7a22f3a39 6238e0b66e6203fa0c5566532da91d8a 88c4293a2a80543dcd31ebb61a326d57 94cca9bef528ec2466e54c2f9d2c31aa def014fa8dcefca2b2baa8c61b54dee2 e0c4007576835d8c2d42e0192cd3fb4a e507ddd8a7b1ebc07d49956205ca2ebb eb5ad3c230d08aaff7743f8da7389e59 |awk '{for(i=1;i<=NF;i++){printf("assign \"%s\"\n",$i);}}'
+    
+    #产生类似如下输出：
+    assign "2e1360529420f2ce8d32a6f37fcd1edb"
+    assign "4478f421a32fe206d9cb1a73732f8fcf"
+    assign "501b997e23409e5251b390f7a22f3a39"
+    assign "6238e0b66e6203fa0c5566532da91d8a"
+    assign "88c4293a2a80543dcd31ebb61a326d57"
+    assign "94cca9bef528ec2466e54c2f9d2c31aa"
+    assign "def014fa8dcefca2b2baa8c61b54dee2"
+    assign "e0c4007576835d8c2d42e0192cd3fb4a"
+    assign "e507ddd8a7b1ebc07d49956205ca2ebb"
+    assign "eb5ad3c230d08aaff7743f8da7389e59"
+    
+    #将这些命令在hbase shell里面运行
+    
+    ```
 
+    
 
+18. 重启集群
 
+19. 创建nemespace
+
+    ```bash
+    list_namespace
+    create_name
+    grant
+    ```
+
+    
+
+20. 验证集群可读可写
+
+    ```bash
+    #一般写会出问题！
+    scan "hbase:meta", {FILTER => "(PrefixFilter ('"'"'zws:testtable,'"'"')"} 
+    put 'zws:testtable','2','info0:1','1'
+    get 'zws:testtable','2','info0:1'
+    put 'cdnlog:testtable','2','info0:1','1'
+    get 'cdnlog:testtable','2','info0:1'
+    put 'testtable','2','info0:1','1'
+    get 'testtable','2','info0:1'
+    
+    #验证能创建表
+    hbase pe --nomapred --rows=1000 --presplit=10 --table=testtable111_hbase25 sequentialWrite 1 
+    ```
+
+    
+
+21. TODO：
+
+    ```bash
+    1. kylin建的表带有很多自定义属性，尤其是带了协处理器，需要验证
+    2. 验证集群带有本来就disable的表，目前恢复出来的表都是enable的（这个属性是记录到表的序列化的信息里面的，但是最好验证一下）
+    ```
+
+    
+
+22. 
 
 
 
@@ -4460,11 +4772,13 @@ mvn versions:set -DnewVersion=5.1.0-HBase-2.0-CTG
 
 | 组件                    | Master主机     | 备份主机       |
 | ----------------------- | -------------- | -------------- |
-| ambari-server           | 192.468.254.40 | 192.168.254.36 |
+| ambari-server           | 192.168.254.40 | 192.168.254.36 |
 |                         |                | 192.168.254.39 |
 |                         |                | 192.168.254.41 |
 |                         |                | 192.168.254.42 |
-| pgsql                   | 192.468.254.40 | 192.168.254.36 |
+| KDC                     | 192.168.254.40 | 192.168.254.36 |
+|                         |                | 192.168.254.39 |
+| pgsql                   | 192.168.254.40 | 192.168.254.36 |
 | namenode                | 192.168.254.36 | 192.168.254.39 |
 | ZKFaileOver             | 192.168.254.36 | 192.168.254.39 |
 | RM                      | 192.168.254.36 | 192.168.254.39 |
