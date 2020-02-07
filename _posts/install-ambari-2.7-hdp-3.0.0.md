@@ -1804,7 +1804,18 @@ kpasswd(1), gkadmin(1M), kadmin(1M), kadmind(1M), kdb5_ldap_util(1M), kproplog(1
 The global –f is made obsolete with the –sf argument for specifying a non-default stash file location. The global –f argument might be removed in a future release of the Solaris operating system. Use caution in specifying –f as it has different semantics in subcommands as distinguished from its use as a global argument.
 ```
 
+## 13.KDC共存问题
 
+cat /var/lib/sss/pubconf/kdcinfo.CTYUNCDN.NET 
+36.111.140.104
+
+
+
+/etc/security/keytabs/sssd.conf 
+
+增加sssd.conf 
+
+krb5_use_kdcinfo = false
 
 # 11.启用Hadoop和Spark Basic认证
 
@@ -2405,6 +2416,12 @@ NEW_ZK_DIR="kafka-test-auth3"
 
 
 
+> 注意：
+>
+> kafka的安全不是使用的kerberos，一定要先kdestroy！否则会出现莫名其妙的问题！
+>
+> 比如kafka-console-consumer不能读取数据！
+
 - 修改Kafka配置：
 
 | 字段名                               | 字段值                                    |
@@ -2721,9 +2738,11 @@ ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 
 ------------------------------------------------------------------开发
 
-topicName=ctYun
-userName="elkmetricsdocker"
+topicName=KafkaRestTest2
+userName="DebugTopic"
 ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 1 --replication-factor 3
 
 ##修改分区数量
 ./kafka-topics.sh --alter --zookeeper ${ZK_CONN} --topic ctYun --partitions 30
@@ -2735,9 +2754,16 @@ ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${userName} --topic ${topicName}   --producer
 
 
-/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${topicName} 
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667   --topic ${topicName} --producer-property security.protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
 
-/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${topicName} --topic ${topicName}   --consumer --group grp-${topicName}
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${topicName} --consumer.config /usr/hdp/3.1.0.0-78/kafka/consumer-kafka-rest.properties 
+
+cat consumer-test.properties 
+secutiry.protocol=SASL_PLAINTEXT
+sasl.mechanism=PLAIN
+group.id=logstash
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${userName} --topic ${topicName}   --consumer --group grp-${topicName}
 
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:DebugTopic --topic ${topicName}   --consumer --group grp-${topicName}
 
@@ -2825,6 +2851,18 @@ Security Protocol: SASL_PLAINTEXT
 SASL Mechanism :PLAIN
 
 SASL JAAS Config:org.apache.kafka.common.security.plain.PlainLoginModule required  username="admin" password="CtYiofnwk@269Mn" ; 
+
+
+
+```
+Security Protocol:SASL_PLAINTEXT
+SASL Mechanism:PLAIN
+
+JAAS:
+KafkaClient { org.apache.kafka.common.security.plain.PlainLoginModule required  username="admin" password="admin-sec" ; };
+```
+
+
 
 # 19.Kafaka配置
 
@@ -4445,7 +4483,9 @@ sql("select uri,count(1) as total from test_tmp group by uri order by total desc
 
 
 
-# 42.处理Hbase RIT
+# 42.恢复Hbase元数据
+
+> 目前我们使用的Hbase版本（2.0.0和2.0.2）是比较尴尬的版本，提供的hbck2工具基本不可使用。 2.0.3, 2.1.2, 2.2.0之后的版本才会提供可用的hbck2，但是开发环境中kylin已经造成了两次集群数据不可用，因此要找到一种方法来恢复元数据，经过探索， 发现了一个可以恢复元数据的方法，记录如下：
 
 - 准备工作：
 
@@ -4686,6 +4726,7 @@ sql("select uri,count(1) as total from test_tmp group by uri order by total desc
     ```bash
     1. kylin建的表带有很多自定义属性，尤其是带了协处理器，需要验证
     2. 验证集群带有本来就disable的表，目前恢复出来的表都是enable的（这个属性是记录到表的序列化的信息里面的，但是最好验证一下）
+    3. OfflineMetaRepair 在2.1.6中会被废弃
     ```
 
     
@@ -4768,7 +4809,107 @@ mvn versions:set -DnewVersion=5.1.0-HBase-2.0-CTG
 
 
 
-# 43.组件部署机器
+# 43.安装KafkaRestProxy
+
+```bash
+40:
+cd /data1/Soft
+wget -c http://packages.confluent.io/archive/5.4/confluent-community-5.4.0-2.12.tar.gz
+
+tar zxvf confluent-community-5.4.0-2.12.tar.gz -C /data2
+cd /data2/confluent-5.4.0
+
+#建立kafka-rest的zk目录
+NEW_ZK_DIR="kafka-test-auth3"
+/usr/hdp/current/zookeeper-client/bin/zkCli.sh -server ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181 create /kafka-rest-server "nodata"
+
+#设置环境变量
+export KAFKA_REST_HOME=/data2/confluent-5.4.0
+export KAFKA_REST_CONF_DIR=${KAFKA_REST_HOME}/etc/kafka-rest
+export KAFKA_REST_JAAS_CONF="${KAFKA_REST_CONF_DIR}/kafka-rest.jaas"
+export KAFKAREST_OPTS="-Djava.security.auth.login.config=${KAFKA_REST_JAAS_CONF}" 
+cd ${KAFKA_REST_HOME}
+
+
+useradd kafkarest -g hadoop
+
+#创建topic
+topicName=KafkaRestTest2
+userName="DebugTopic"
+ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 1 --replication-factor 3
+#检查
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+#授权可写
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${userName} --topic ${topicName}   --producer
+#授权可读
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${userName} --topic ${topicName}   --consumer --group grp-${topicName}
+#检查授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+#控制台写数据
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667   --topic ${topicName} --producer-property security.protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
+#控制台读数据
+kafka]# cat /usr/hdp/3.1.0.0-78/kafka/consumer-kafka-rest.properties 
+security.protocol=SASL_PLAINTEXT
+sasl.mechanism=PLAIN
+group.id=grp-KafkaRestTest2
+#两个consumer的参数可以去掉的
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${topicName} --consumer.config /usr/hdp/3.1.0.0-78/kafka/consumer-kafka-rest.properties 
+
+#加入用户
+#生成jaas文件
+
+cat > ${KAFKA_REST_JAAS_CONF}<<EOF
+KafkaClient {
+org.apache.kafka.common.security.plain.PlainLoginModule required
+username="admin"
+password="admin-sec";
+};
+EOF
+
+
+${KAFKA_REST_HOME}/bin/kafka-rest-start ${KAFKA_REST_CONF_DIR}/kafka-rest.properties
+
+
+curl -X POST -H "Content-Type: application/vnd.kafka.json.v2+json"      -H "Accept: application/vnd.kafka.v2+json"       --data '{"records":[{"value":{"foo":"bar"}}]}' "http://192.168.2.40:18682/topics/KafkaRestTest2"
+
+#producer
+```
+
+
+
+```bash
+
+id=kafka-rest-40
+#schema.registry.url=http://localhost:8081
+#zookeeper.connect=localhost:2181
+#bootstrap.servers=PLAINTEXT://localhost:9092
+#
+# Configure interceptor classes for sending consumer and producer metrics to Confluent Control Center
+# Make sure that monitoring-interceptors-<version>.jar is on the Java class path
+#consumer.interceptor.classes=io.confluent.monitoring.clients.interceptor.MonitoringConsumerInterceptor
+#producer.interceptor.classes=io.confluent.monitoring.clients.interceptor.MonitoringProducerInterceptor
+
+bootstrap.servers=SASL_PLAINTEXT://ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:6667,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:6667
+zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-028.ctyuncdn.net:12181/kafka-rest-server
+
+listeners=http://0.0.0.0:18682
+
+producer.threads=3
+shutdown.graceful.ms=10000
+client.sasl.mechanism = PLAIN
+client.security.protocol=SASL_PLAINTEXT
+debug=true
+#client.sasl.jaas.config="KafkaClient\n{\norg.apache.kafka.common.security.plain.PlainLoginModule required\nusername="admin"\npassword="admin-sec";\n};"
+
+```
+
+
+
+
+
+# 44.组件部署机器
 
 | 组件                    | Master主机     | 备份主机       |
 | ----------------------- | -------------- | -------------- |
