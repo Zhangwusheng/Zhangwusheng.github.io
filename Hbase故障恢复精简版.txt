@@ -1,0 +1,223 @@
+1.备份数据
+  
+主要是namespace列表，因为恢复完毕后不会自动创建namespace，需要手动创建
+
+
+修改配置： conf.setBoolean("hbase.hregion.memstore.mslab.enabled", false);
+
+2.重要的表flush备份
+ echo 'flush tablname' |hbase shell -n
+
+ 
+2.停止集群,（停止的时候集群会flush的），重要的数据最好先flush一下。
+
+3.将目录备份走(恢复集群尽量使用原来的目录，因为数据里面可能写死了，所以要先把数据备份走，再挪回来)
+ hdfs dfs -mkdir -p /apps/hbase-backup-20200110/data
+ hdfs dfs -mv /apps/hbase/data/data /apps/hbase-backup-20200110/data 
+ 
+ 
+4.修改hbase的根目录和zk的根目录，重启集群
+ 
+ /apps/hbase25/staging
+ /apps/hbase25/data
+ /hbase25-unsecure
+ 
+ 验证集群是正常启动的
+ 
+ echo 'list'|hbase shell -n
+echo 'scan "hbase:meta"'|hbase shell -n
+
+ 重启集群是为了生成id文件和verison文件
+5. 停止集群，开始挪动数据目录
+
+！！！！！！停止集群
+stop cluster
+
+HDFS用户操作：
+
+su - hdfs 
+#copy数据
+----------------------------------
+
+hdfs dfs -rmr /apps/hbase25/data/data/default
+
+hdfs dfs -cp /apps/hbase-backup-20200110/data/data/cdnlog /apps/hbase25/data/data
+
+hdfs dfs -cp /apps/hbase-backup-20200110/data/data/default /apps/hbase25/data/data
+
+hdfs dfs -cp /apps/hbase-backup-20200110/data/data/zws /apps/hbase25/data/data
+
+hdfs dfs -chown -R hbase:hdfs /apps/hbase25/data
+
+
+hdfs dfs -ls /apps/hbase25/data/data/*
+
+#授权
+
+
+#删除zk目录
+注意切换成root用户
+/usr/hdp/current/zookeeper-client/bin/zkCli.sh -server t135:2181 rmr /hbase25-unsecure
+
+
+6.启动集群，等待集群正常(有时候是重启集群，忘记停掉集群了)
+echo 'list'|hbase shell -n
+echo 'scan "hbase:meta"'|hbase shell -n
+
+echo 'list'|hbase shell -n
+
+--------------------------------------
+截止到上面为止都是没有问题的
+
+#停止集群，运行命令
+
+#hdfs dfs -rmr /apps/hbase25/data/data/hbase
+
+su - hbase
+hbase org.apache.hadoop.hbase.util.hbck.OfflineMetaRepair -fix 
+ 
+ 9.
+启动集群
+echo 'scan "hbase:meta", {FILTER => "(PrefixFilter ('"'"'zws:testtable,'"'"')"} ' | hbase shell -n 
+echo 'scan "hbase:meta" ' | hbase shell -n  2>/dev/null|grep ','|grep -v zookeeper|awk '{print $1;}'|grep -v 'hbase:'|grep ','|awk '{printf("deleteall \"hbase:meta\",\"%s\"\n",$1);}'
+echo 'scan "hbase:meta" ' | hbase shell -n
+  
+cd /usr/hdp/current/hbase-client/bin/
+hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta cdnlog
+hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta zws
+
+hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta default
+
+
+ 重启集群
+ 
+assign "02c8ec8051730292c1a81068763a6525"
+assign "09986e2942c662be0a6ed6c44f843412"
+assign "178aad1c6262dc5675cb4fee63e01b4b"
+assign "2f5c3942c6ed35bb743f0dc71fd7adea"
+assign "b7f684b7ef4d39bca29182f88ab9df93"
+assign "c6640bfb422a7c90371d9680b69d636a"
+assign "d3e62896b2651dac4f98a8c523d9deab"
+assign "e1888be48220f0a00c0da5ed2b531432"
+assign "ed7d49f1e2dfdcf0b44b63f7c61bfb11"
+assign "f25045990e8bf33efccc9bbb7b090237"
+
+ |awk '{for(i=1;i<=NF;i++){printf("assign \"%s\"\n",$i);}}'
+ 
+
+echo 2e1360529420f2ce8d32a6f37fcd1edb 4478f421a32fe206d9cb1a73732f8fcf 501b997e23409e5251b390f7a22f3a39 6238e0b66e6203fa0c5566532da91d8a 88c4293a2a80543dcd31ebb61a326d57 94cca9bef528ec2466e54c2f9d2c31aa def014fa8dcefca2b2baa8c61b54dee2 e0c4007576835d8c2d42e0192cd3fb4a e507ddd8a7b1ebc07d49956205ca2ebb eb5ad3c230d08aaff7743f8da7389e59 |awk '{for(i=1;i<=NF;i++){printf("assign \"%s\"\n",$i);}}'
+
+
+assign "2e1360529420f2ce8d32a6f37fcd1edb"
+assign "4478f421a32fe206d9cb1a73732f8fcf"
+assign "501b997e23409e5251b390f7a22f3a39"
+assign "6238e0b66e6203fa0c5566532da91d8a"
+assign "88c4293a2a80543dcd31ebb61a326d57"
+assign "94cca9bef528ec2466e54c2f9d2c31aa"
+assign "def014fa8dcefca2b2baa8c61b54dee2"
+assign "e0c4007576835d8c2d42e0192cd3fb4a"
+assign "e507ddd8a7b1ebc07d49956205ca2ebb"
+assign "eb5ad3c230d08aaff7743f8da7389e59"
+
+ 
+  tart Masters, then run hbck2 'assigns' command below:
+echo  10b6ec98bf5db7fdbfdfc996c3a22258 158e1cfc21041173dbfa0933890d15b7 16c876a34b4bde70e25e4f121148506e 3a028f391f4d5085c0a9c9e51fcc4f9b 62610b4494f71428b8d3198c97f9e98b 7706a4936316b6c1b9e143853d4c6d48 81179946305bd69be0a3dbea04e7b1ab b5c3fefc80de158f178d45dafcee324b c8ea8b3543c07ceaa9ffeed25411de77 e949c1158c5157a3f51ffce95117f499  |awk '{for(i=1;i<=NF;i++){printf("assign \"%s\"\n",$i);}}'
+   
+assign "10b6ec98bf5db7fdbfdfc996c3a22258"
+assign "158e1cfc21041173dbfa0933890d15b7"
+assign "16c876a34b4bde70e25e4f121148506e"
+assign "3a028f391f4d5085c0a9c9e51fcc4f9b"
+assign "62610b4494f71428b8d3198c97f9e98b"
+assign "7706a4936316b6c1b9e143853d4c6d48"
+assign "81179946305bd69be0a3dbea04e7b1ab"
+assign "b5c3fefc80de158f178d45dafcee324b"
+assign "c8ea8b3543c07ceaa9ffeed25411de77"
+assign "e949c1158c5157a3f51ffce95117f499"		
+			
+10.
+echo 'scan "hbase:meta",{LIMIT=>10}' |hbase shell -n
+echo 'list_namespace' |hbase shell -n
+echo 'scan "hbase:meta"' |hbase shell -n
+
+11.重启集群
+12.
+
+echo 'create_namespace "zws"'|hbase shell -n
+echo 'create_namespace "cdnlog"'|hbase shell -n
+
+echo 'disable "zws:testtable"' |hbase shell -n
+echo 'enable "zws:testtable"' |hbase shell -n
+echo 'scan "zws:testtable",{LIMIT=>10}' |hbase shell -n
+
+
+echo 'disable "cdnlog:testtable"' |hbase shell -n
+echo 'enable "cdnlog:testtable"' |hbase shell -n
+echo 'scan "cdnlog:testtable",{LIMIT=>10}' |hbase shell -n
+
+
+echo 'disable "default:testtable"' |hbase shell -n
+echo 'enable "default:testtable"' |hbase shell -n
+echo 'scan "default:testtable",{LIMIT=>10}' |hbase shell -n
+
+
+put "hbase:meta",'cdnlog:testtable,00000000000000000000010000,1578551500025.f25045990e8bf33efccc9bbb7b090237.','info:state','CLOSED'
+put "hbase:meta",'cdnlog:testtable,00000000000000000000020000,1578551500025.02c8ec8051730292c1a81068763a6525.','info:state','CLOSED'
+put "hbase:meta",'cdnlog:testtable,00000000000000000000030000,1578551500025.09986e2942c662be0a6ed6c44f843412.','info:state','CLOSED'
+put "hbase:meta",'cdnlog:testtable,00000000000000000000040000,1578551500025.2f5c3942c6ed35bb743f0dc71fd7adea.','info:state','CLOSED'
+put "hbase:meta",'cdnlog:testtable,00000000000000000000050000,1578551500025.c6640bfb422a7c90371d9680b69d636a.','info:state','CLOSED'
+put "hbase:meta",'cdnlog:testtable,00000000000000000000060000,1578551500025.e1888be48220f0a00c0da5ed2b531432.','info:state','CLOSED'
+put "hbase:meta",'cdnlog:testtable,00000000000000000000070000,1578551500025.178aad1c6262dc5675cb4fee63e01b4b.','info:state','CLOSED'
+put "hbase:meta",'cdnlog:testtable,00000000000000000000080000,1578551500025.ed7d49f1e2dfdcf0b44b63f7c61bfb11.','info:state','CLOSED'
+put "hbase:meta",'cdnlog:testtable,00000000000000000000090000,1578551500025.d3e62896b2651dac4f98a8c523d9deab.','info:state','CLOSED'
+put "hbase:meta",'cdnlog:testtable,,1578551500025.b7f684b7ef4d39bca29182f88ab9df93.','info:state','CLOSED'
+
+scan 'hbase:meta', {FILTER => "(PrefixFilter ('cdnlog:testtable,00000000000000000000010000,1578551500025.f25045990e8bf33efccc9bbb7b090237')"}  
+
+echo 'scan "hbase:meta"' |hbase shell -n 2>/dev/null|sed '1,2d'|awk '{print $1;}'
+
+
+deleteall "hbase:meta", "cdnlog:testtable,,1578551500025.b7f684b7ef4d39bca29182f88ab9df93."
+deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000010000,1578551500025.f25045990e8bf33efccc9bbb7b090237."
+deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000020000,1578551500025.02c8ec8051730292c1a81068763a6525."
+deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000030000,1578551500025.09986e2942c662be0a6ed6c44f843412."
+deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000040000,1578551500025.2f5c3942c6ed35bb743f0dc71fd7adea."
+deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000050000,1578551500025.c6640bfb422a7c90371d9680b69d636a."
+deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000060000,1578551500025.e1888be48220f0a00c0da5ed2b531432."
+deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000070000,1578551500025.178aad1c6262dc5675cb4fee63e01b4b."
+deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000080000,1578551500025.ed7d49f1e2dfdcf0b44b63f7c61bfb11."
+deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000090000,1578551500025.d3e62896b2651dac4f98a8c523d9deab."
+deleteall "hbase:meta", "testtable,,1578551478240.62610b4494f71428b8d3198c97f9e98b."
+deleteall "hbase:meta", "testtable,00000000000000000000010000,1578551478240.16c876a34b4bde70e25e4f121148506e."
+deleteall "hbase:meta", "testtable,00000000000000000000020000,1578551478240.e949c1158c5157a3f51ffce95117f499."
+deleteall "hbase:meta", "testtable,00000000000000000000030000,1578551478240.158e1cfc21041173dbfa0933890d15b7."
+deleteall "hbase:meta", "testtable,00000000000000000000040000,1578551478240.81179946305bd69be0a3dbea04e7b1ab."
+deleteall "hbase:meta", "testtable,00000000000000000000050000,1578551478240.3a028f391f4d5085c0a9c9e51fcc4f9b."
+deleteall "hbase:meta", "testtable,00000000000000000000060000,1578551478240.c8ea8b3543c07ceaa9ffeed25411de77."
+deleteall "hbase:meta", "testtable,00000000000000000000070000,1578551478240.7706a4936316b6c1b9e143853d4c6d48."
+deleteall "hbase:meta", "testtable,00000000000000000000080000,1578551478240.b5c3fefc80de158f178d45dafcee324b."
+deleteall "hbase:meta", "testtable,00000000000000000000090000,1578551478240.10b6ec98bf5db7fdbfdfc996c3a22258."
+deleteall "hbase:meta", "zws:testtable,,1578551494048.6238e0b66e6203fa0c5566532da91d8a."
+deleteall "hbase:meta", "zws:testtable,00000000000000000000010000,1578551494048.4478f421a32fe206d9cb1a73732f8fcf."
+deleteall "hbase:meta", "zws:testtable,00000000000000000000020000,1578551494048.94cca9bef528ec2466e54c2f9d2c31aa."
+deleteall "hbase:meta", "zws:testtable,00000000000000000000030000,1578551494048.eb5ad3c230d08aaff7743f8da7389e59."
+deleteall "hbase:meta", "zws:testtable,00000000000000000000040000,1578551494048.def014fa8dcefca2b2baa8c61b54dee2."
+deleteall "hbase:meta", "zws:testtable,00000000000000000000050000,1578551494048.501b997e23409e5251b390f7a22f3a39."
+deleteall "hbase:meta", "zws:testtable,00000000000000000000060000,1578551494048.e507ddd8a7b1ebc07d49956205ca2ebb."
+deleteall "hbase:meta", "zws:testtable,00000000000000000000070000,1578551494048.e0c4007576835d8c2d42e0192cd3fb4a."
+deleteall "hbase:meta", "zws:testtable,00000000000000000000080000,1578551494048.2e1360529420f2ce8d32a6f37fcd1edb."
+deleteall "hbase:meta", "zws:testtable,00000000000000000000090000,1578551494048.88c4293a2a80543dcd31ebb61a326d57."
+
+#不删除hdfs目录，只copy数据，然后重启
+
+
+测试写：
+
+hbase pe --nomapred --rows=1000 --presplit=10 --table=testtable111_hbase25 sequentialWrite 1 
+
+put 'zws:testtable','2','info0:1','1'
+get 'zws:testtable','2','info0:1'
+put 'cdnlog:testtable','2','info0:1','1'
+get 'cdnlog:testtable','2','info0:1'
+put 'testtable','2','info0:1','1'
+get 'testtable','2','info0:1'
+

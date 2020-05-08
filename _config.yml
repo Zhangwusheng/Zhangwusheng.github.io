@@ -4,7 +4,7 @@ SEOTitle: 老张的博客 | 农夫山泉
 header-img: img/post-bg-desk.jpg
 email: zhangwusheng@sina.com
 description: "Fork别人的，还没有改完..."
-keyword: "BY, BY Blog, 柏荧的博客, qiubaiying, 邱柏荧, iOS, Apple, iPhone"
+keyword: "Java 大数据"
 url: "http://zhangwusheng.github.io"          # your host, for absolute URL
 baseurl: ""      # for example, '/blog' if your blog hosted on 'host/blog'
 github_repo: "https://github.com/Zhangwusheng/Zhangwusheng.github.io.git" # you code repository
@@ -68,17 +68,6 @@ gitalk:
   owner: zhangwusheng    #github用户名
   admin: zhangwusheng
   distractionFreeMode: true #是否启用类似FB的阴影遮罩
-
-
-# 统计,暂时屏蔽掉了
-
-# Analytics settings
-# Baidu Analytics
-# ba_track_id: b50bf2b12b5338a1845e33832976fd68
-
-# Google Analytics
-# ga_track_id: 'UA-90855596-1'            # Format: UA-xxxxxx-xx
-# ga_domain: qiubaiying.top               # 默认的是 auto, 这里我是自定义了的域名，你如果没有自己的域名，需要改成auto
 
 
 

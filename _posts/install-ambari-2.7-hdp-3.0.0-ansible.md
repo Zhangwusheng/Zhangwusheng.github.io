@@ -89,30 +89,62 @@ wget -c 'http://public-repo-1.hortonworks.com/HDP-GPL/ubuntu18/3.x/updates/3.1.0
 
 **注意一定要上来先停掉防火墙，否则很容易出现莫名其妙的问题！！**
 
+脚本所在目录：/var/www/html/scripts/third
+
+软件所在目录：/var/www/html/soft
+
+主机：192.168.254.40 
+
+端口： 8181
+
+### 2.0首先设置免密登录！
+
+- ssh设置
 
 
-| IP            | 用途                                     |
-| ------------- | ---------------------------------------- |
-| 192.168.0.47  | 跳板机，安装httpserver，配置ambari本地源 |
-| 192.168.0.193 | Namenode，ZooKeeper,DataNode             |
-| 192.168.0.110 | NameNode，ZooKeeper,DataNode             |
-| 192.168.0.201 | DataNode，ZooKeeper                      |
+```bash
+#mkdir /root/.ssh;chmod 600 /root/.ssh
+#允许ROOT ssh
+vi /etc/ssh/sshd_config
+
+#PermitRootLogin no
+PermitRootLogin yes
+
+#然后重启sshd
+systemctl restart sshd
+
+#修改hosts.allow:
+vi /etc/hosts.allow
+
+#加入自己的IP
+sshd:36.111.140.40:allow
+
+#不能ssh-copy-id的时候手工编辑这个文件，把pub文件拷贝过来
+vi /root/.ssh/authorized_keys
+#一定要修改权限
+chmod 644 /root/.ssh/authorized_keys
+```
+
+- 设置host的查找顺序（确保）
+
+  ```bash
+  cat /etc/host.conf
+  order hosts,bind
+  multi on
+  ```
 
 ### 2.1变量设置
 
 ```bash
-#jdk安装软件所在目录
-JAVA_SOFT=/data1/HDP-3.1
-#HDP所在目录
-HDP_SOFT=/data1/HDP-3.1
-#所有机器IP列表,最后一位
-HOSTS="36 66 160"
-
 vi /etc/ansible/hosts
 #增加新的一批主机
 [thirdnew]
 192.168.254.118  ansible_ssh_user=root ansible_ssh_port=9000
 
+export THISBATCH=thirdnew
+
+ansible ${THISBATCH} -m shell -a 'mkdir -p /home/zhangwusheng/soft'
+ansible ${THISBATCH} -m shell -a 'mkdir -p /home/zhangwusheng/scripts/third'
 ```
 
 ### 2.2关闭防火墙
@@ -126,151 +158,64 @@ systemctl stop firewalld
 ### 2.3挂载磁盘
 
 ```bash
-#每台机器执行，可以手动执行，也可以使用ansible批量执行
-#最开始文件系统是ext4，后面调整成了xfs,盘名字要自己根据机器的实际情况修改，有的是sda已经分区，有的是sdm已经分区，每一批机器的命令不一样
-ansible thirdnew -m shell -a 'mkfs.xfs /dev/sdb'
-ansible thirdnew -m shell -a 'mkfs.xfs /dev/sdc'
-ansible thirdnew -m shell -a 'mkfs.xfs /dev/sdd'
-ansible thirdnew -m shell -a 'mkfs.xfs /dev/sde'
-ansible thirdnew -m shell -a 'mkfs.xfs /dev/sdf'
-ansible thirdnew -m shell -a 'mkfs.xfs /dev/sdg'
-ansible thirdnew -m shell -a 'mkfs.xfs /dev/sdh'
-ansible thirdnew -m shell -a 'mkfs.xfs /dev/sdi'
-ansible thirdnew -m shell -a 'mkfs.xfs /dev/sdj'
+#格式化磁盘
+#最开始文件系统是ext4，后面调整成了xfs,
+#盘名字要自己根据机器的实际情况修改，有的是sda已经分区，有的是sdm已经分区，每一批机器的命令不一样
+ansible ${THISBATCH} -m shell -a 'mkfs.xfs /dev/sdb'
+ansible ${THISBATCH} -m shell -a 'mkfs.xfs /dev/sdc'
+ansible ${THISBATCH} -m shell -a 'mkfs.xfs /dev/sdd'
+ansible ${THISBATCH} -m shell -a 'mkfs.xfs /dev/sde'
+ansible ${THISBATCH} -m shell -a 'mkfs.xfs /dev/sdf'
+ansible ${THISBATCH} -m shell -a 'mkfs.xfs /dev/sdg'
+ansible ${THISBATCH} -m shell -a 'mkfs.xfs /dev/sdh'
+ansible ${THISBATCH} -m shell -a 'mkfs.xfs /dev/sdi'
+ansible ${THISBATCH} -m shell -a 'mkfs.xfs /dev/sdj'
 
-#最开始文件系统是ext4，后面变成了xfs
-mkfs.ext4 /dev/sdb
-mkfs.ext4 /dev/sdc 
-mkfs.ext4 /dev/sdd 
-mkfs.ext4 /dev/sde 
-mkfs.ext4 /dev/sdf 
-mkfs.ext4 /dev/sdg 
-mkfs.ext4 /dev/sdh 
-mkfs.ext4 /dev/sdi 
-mkfs.ext4 /dev/sdj 
-mkfs.ext4 /dev/sdk
-mkfs.ext4 /dev/sdl 
-mkfs.ext4 /dev/sdm
+#建立目录
+ansible ${THISBATCH} -m shell -a 'mkdir /data1 /data2 /data3 /data4 /data5 /data6 /data7 /data8 /data9 /data10 /ssd1 /ssd2'
+;
+#挂盘
+#ssd，注意一定要检查脚本，把那个数字改一下，有的是960，有的是959
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/ssd.sh -O /home/zhangwusheng/scripts/third/ssd.sh' 
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/ssd.sh'
+#sata，注意一定要检查脚本，把那个数字改一下，有的是6001，有的是6000.9
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/sata.sh -O /home/zhangwusheng/scripts/third/sata.sh' 
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/sata.sh'
+#检查挂载是否成功
+ansible ${THISBATCH} -m shell -a 'df -h'
 
-
-mkdir /data1 /data2 /data3 /data4 /data5 /data6 /data7 /data8 /data9 /data10 /ssd1 /ssd2;
-mount /dev/sdb /data1
-mount /dev/sdc /data2
-mount /dev/sdd /data3
-mount /dev/sde /data4
-mount /dev/sdf /data5
-mount /dev/sdg /data6
-mount /dev/sdh /data7
-mount /dev/sdi /data8
-mount /dev/sdj /data9
-mount /dev/sdk /data10
-mount /dev/sdl /ssd1
-mount /dev/sdm /ssd2
-df -h
-
-
-#开机自动挂载fstab
-#!/bin/bash
-
-cat > /home/zhangwusheng/disk.awk<<EOF
-{
-if(\$2 ~ /sdb/){printf("UUID=%s  /data1  ext4 defaults  0 0\\n",\$1);}
-else if(\$2 ~ /sdc/){printf("UUID=%s  /data2  ext4 defaults  0 0\\n",\$1);}
-else if(\$2 ~ /sdd/){printf("UUID=%s  /data3  ext4 defaults  0 0\\n",\$1);}
-else if(\$2 ~ /sde/){printf("UUID=%s  /data4  ext4 defaults  0 0\\n",\$1);}
-else if(\$2 ~ /sdf/){printf("UUID=%s  /data5  ext4 defaults  0 0\\n",\$1);}
-else if(\$2 ~ /sdg/){printf("UUID=%s  /data6  ext4 defaults  0 0\\n",\$1);}
-else if(\$2 ~ /sdh/){printf("UUID=%s  /data7  ext4 defaults  0 0\\n",\$1);}
-else if(\$2 ~ /sdi/){printf("UUID=%s  /data8  ext4 defaults  0 0\\n",\$1);}
-else if(\$2 ~ /sdj/){printf("UUID=%s  /data9  ext4 defaults  0 0\\n",\$1);}
-else if(\$2 ~ /sdk/){printf("UUID=%s  /data10  ext4 defaults  0 0\\n",\$1);}
-else if(\$2 ~ /sdl/){printf("UUID=%s  /ssd1  ext4 defaults  0 0\\n",\$1);}
-else if(\$2 ~ /sdm/){printf("UUID=%s  /ssd2  ext4 defaults  0 0\\n",\$1);}
-}
-EOF
-
-
-ls -lart /dev/disk/by-uuid/|grep -e 'sd[bcdefghijklm]'|awk '{print $9" "$11;}'|awk -f /home/zhangwusheng/disk.awk > /home/zhangwusheng/etc_fstab.3
-
-cat /etc/fstab|grep -v '/data'|grep -v '/ssd' > /home/zhangwusheng/etc_fstab.2
-cat /home/zhangwusheng/etc_fstab.3 >> /home/zhangwusheng/etc_fstab.2
-mv /etc/fstab /etc/fstab.`date +%s`
-mv /home/zhangwusheng/etc_fstab.2 /etc/fstab
-
-cat /etc/fstab
-
+#挂载fstab
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/fstab.py -O /home/zhangwusheng/scripts/third/fstab.py'
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/fstab.sh -O /home/zhangwusheng/scripts/third/fstab.sh' 
+#检查fstab
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/fstab.sh'
+ansible  ${THISBATCH}  -m shell -a 'python /home/zhangwusheng/scripts/third/fstab.py --action=check'
 ```
 
 ### 2.4安装JDK
 
 ```bash
-#每台机器执行
-tar zxvf ${JAVA_SOFT}/jdk-8u161-linux-x64.tar.gz -C /usr/local/
-rm -f /usr/local/jdk
-ln -fs /usr/local/jdk1.8.0_161 /usr/local/jdk
-```
+export THISBATCH=thirdnew
+#安装java
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/soft/jdk-8u211-linux-x64.tar.gz -O /home/zhangwusheng/soft/jdk-8u211-linux-x64.tar.gz' 
 
-### 2.5设置JDK环境变量：
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/soft/jce_policy-8.zip -O /home/zhangwusheng/soft/jce_policy-8.zip' 
 
-```bash
-#每台机器执行
-cat /etc/profile.d/java.sh 
-echo 'export JAVA_HOME=/usr/local/jdk' > /etc/profile.d/java.sh
-echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile.d/java.sh
-source /etc/profile.d/java.sh
+#安装jdk
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/java-env.sh -O /home/zhangwusheng/scripts/third/java-env.sh' 
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/java-env.sh'
 
-
-for ip in `echo 2 10 28 29 37 38`
-do
-scp -P 9000 /home/zhangwusheng/soft/jdk-8u211-linux-x64.tar.gz root@192.168.254.${ip}:/home/zhangwusheng
-done
-
-for ip in `echo 2 10 28 29 37 38 `
-do
-ssh -p 9000 192.168.254.${ip} tar zxvf /home/zhangwusheng/jdk-8u211-linux-x64.tar.gz -C /usr/local
-done
-
-for ip in `echo 2 10 28 29 37 38 `
-do
-ssh -p 9000 192.168.254.${ip} ln -fs /usr/local/jdk1.8.0_211 /usr/local/jdk
-done
-
-for ip in `echo 2 10 28 29 37 38 `
-do
-ssh -p 9000 192.168.254.${ip} 
-echo 'export SPARK_HOME=/usr/hdp/3.1.0.0-78/spark2' > /etc/profile.d/spark.sh
-echo 'export PATH=$PATH:$SPARK_HOME/bin' >> /etc/profile.d/spark.sh
-echo 'export JAVA_HOME=/usr/local/jdk' > /etc/profile.d/java.sh
-echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile.d/java.sh
-done
 
 
 ```
 
-### 2.6设置ulimit
+### 2.5设置ulimit
 
 ```bash
-#每台机器执行
-cat /etc/security/limits.conf
-echo '* soft nofile 65536' >> /etc/security/limits.conf
-echo '* hard nofile 65536' >> /etc/security/limits.conf
-echo '* soft nproc 131072' >> /etc/security/limits.conf
-echo '* hard nproc 131072' >> /etc/security/limits.conf
-echo '* soft core unlimited' >> /etc/security/limits.conf
-cat /etc/security/limits.conf
-
-#或者自动执行
-cat /etc/security/limits.conf|grep -v nofile|grep -v nproc|grep -v 'soft core' > /home/zhangwusheng/limits.conf2
-echo '* soft nofile 65536' >> /home/zhangwusheng/limits.conf2
-echo '* hard nofile 65536' >> /home/zhangwusheng/limits.conf2
-echo '* soft nproc 131072' >> /home/zhangwusheng/limits.conf2
-echo '* hard nproc 131072' >> /home/zhangwusheng/limits.conf2
-echo '* soft core unlimited' >> /home/zhangwusheng/limits.conf2
-
-mv /etc/security/limits.conf /etc/security/limits.conf.`date +%s`
-mv -f /home/zhangwusheng/limits.conf2 /etc/security/limits.conf
-
-
+export THISBATCH=thirdnew
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/ulimit.sh -O /home/zhangwusheng/scripts/third/ulimit.sh' 
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/ulimit.sh' 
+ansible ${THISBATCH} -m shell -a ' cat /etc/security/limits.conf' 
 ################
 #有的时候root不能su 其他用户，需要修改这里
 vi /etc/security/limits.d/20-nproc.conf 
@@ -279,13 +224,23 @@ vi /etc/security/limits.d/20-nproc.conf
 root       soft    nproc     unlimited
 默认的4096不行
 
+#for es 
+ansible ${THISBATCH} -m shell -a 'sysctl -w vm.max_map_count=262144'
+ansible ${THISBATCH} -m shell -a 'sysctl -p'
+
+
+
 ```
-### 2.7设置core文件：
+### 2.6设置通用环境变量
 
 ```bash
-mkdir -p /data2/core_files
-echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
-
+#设置swappiness
+#设置语言
+#禁止ipv6
+#设置core文件位置
+export THISBATCH=thirdnew
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/misc-env.sh -O /home/zhangwusheng/scripts/third/misc-env.sh' 
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/misc-env.sh' 
 ```
 
 >  *core_pattern的参数说明*
@@ -298,45 +253,36 @@ echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
 > ​          *%h - insert hostname where the coredump happened into filename 添加主机名*
 > ​          %e - insert coredumping executable name into filename 添加命令名*  
 
-
-- 设置hostname
-
-```bash
-#每台机器执行，每台机器hostname都不一样，这里根据IP设置HostName
-HOST_PREFIX=hbase
-HOST_POSTFIX="ecloud.com"
-hostip=`ifconfig|grep 192|awk '{print $2;}'|awk -vhost=${HOST_PREFIX} -vdomain="${HOST_POSTFIX}" -F'.' '{print $4;}'`
-echo "hostname ${HOST_PREFIX}${hostip}.${HOST_POSTFIX}"|bash
-echo "${HOST_PREFIX}${hostip}.${HOST_POSTFIX}" > /etc/hostname
-cat /etc/hostname
-```
-
--   设置hosts文件
-
+### 2.7修改hostname
 
 ```bash
-#每台机器执行
-HOST_PREFIX=hbase
-HOST_POSTFIX="ecloud.com"
-grep -v ecloud  /etc/hosts  > /etc/hosts2 
-for ip in `echo ${HOSTS}`
-do	
- echo "192.168.1.${ip}  ${HOST_PREFIX}${ip}.${HOST_POSTFIX}" >> /etc/hosts2
-done
-mv -f /etc/hosts2 /etc/hosts
-cat /etc/hosts
+#这个每个批次机器都设置好了，要改的也不一样，这个脚本并不是通用的，每次要根据实际情况修改
+export THISBATCH=thirdnew
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/hostname-1.sh -O /home/zhangwusheng/scripts/third/hostname-1.sh' 
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/hostname-1.sh' 
 ```
 
 
-- 设置ssh免密登录
+
+### 2.8设置hosts
 
 ```bash
-#从Ambari主机免密登录到其他三台机器
-ssh-keygen -t rsa 
-ssh-copy-id hbase36.ecloud.com
-ssh-copy-id hbase66.ecloud.com
-ssh-copy-id hbase160.ecloud.com
+export THISBATCH=XX
+#获取所有的hostname
+ansible ${THISBATCH} -m shell -a 'hostname' 
+#发布,HOSTS文件需要全网发布
+ansible cdnlog -m shell -a 'mkdir -p /home/zhangwusheng/scripts/third'
+#下发host文件
+ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/hosts -O /home/zhangwusheng/scripts/third/hosts' 
+#下发host脚本
+ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/hosts.sh -O /home/zhangwusheng/scripts/third/hosts.sh' 
+#执行host脚本
+ansible cdnlog -m shell -a 'bash /home/zhangwusheng/scripts/third/hosts.sh' 
+#检查hosts文件
+ansible cdnlog -m shell -a 'cat /etc/hosts' 
 ```
+
+
 
 -   ntp服务
 
@@ -358,6 +304,16 @@ fudge   127.127.1.0 stratum 2
 
 systemctl start ntpd.service 
 systemctl enable ntpd.service 
+
+#36.111.140.40的配置：
+restrict default kod nomodify notrap nopeer noquery
+restrict -6 default kod nomodify notrap nopeer noquery
+restrict 127.0.0.1
+restrict -6 ::1
+server 36.111.136.110
+server  127.127.1.0     # local clock
+driftfile /var/lib/ntp/drift
+keys /etc/ntp/keys
 ```
 
 可以不设置。
@@ -386,87 +342,44 @@ SELINUX=enforcing 改为 SELINUX=disabled
 
 ```
 
-- 禁用IPV6
+### 2.9增加用户
 
 
 ```bash
-#这样幂等
-echo 1> /proc/sys/net/ipv6/conf/all/disable_ipv6 
-echo 1> /proc/sys/net/ipv6/conf/default/disable_ipv6 
-#或者这样也行
-grep -v 'net.ipv6.conf.all.disable_ipv6=1' /etc/sysctl.conf > /etc/sysctl.conf2
-grep -v 'net.ipv6.conf.default.disable_ipv6=1' /etc/sysctl.conf2 > /etc/sysctl.conf3
-mv /etc/sysctl.conf3 /etc/sysctl.conf
-sysctl  -p
+export THISBATCH=thirdnew
+#下发host脚本
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/useradd.sh -O /home/zhangwusheng/scripts/third/useradd.sh' 
+#执行host脚本
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/useradd.sh' 
+
+#安装集群完毕后再安装！
+需要把kylin -G到hadoop组
 
 
-sed -i '/disable_ipv6/d' /etc/sysctl.conf
-sed -i '/vm.swappiness/d' /etc/sysctl.conf
-echo 'net.ipv6.conf.all.disable_ipv6=1' >> /etc/sysctl.conf 
-echo 'vm.swappiness=1' >> /etc/sysctl.conf 
-cat /etc/sysctl.conf
-sysctl  -p
+#分开执行
+
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "ank -randkey tsdb/${HOSTNAME}@CTYUN.NET"
+
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/tsdb.keytab tsdb/${HOSTNAME}@CTYUN.NET"
+
+klist -k /etc/security/keytabs/tsdb.keytab
+
+######
+chmod a+r /etc/security/keytabs/tsdb.keytab
 ```
 
-- ssh设置
-
-
-```bash
-#mkdir /root/.ssh;chmod 600 /root/.ssh
-#允许ROOT ssh
-vi /etc/ssh/sshd_config
-
-#PermitRootLogin no
-PermitRootLogin yes
-
-#然后重启sshd
-systemctl restart sshd
-
-#修改hosts.allow:
-vi /etc/hosts.allow
-
-#加入自己的IP
-sshd:36.111.140.40:allow
-
-#不能ssh-copy-id的时候手工编辑这个文件，把pub文件拷贝过来
-vi /root/.ssh/authorized_keys
-#一定要修改权限
-chmod 644 /root/.ssh/authorized_keys
-
-for ip in `seq 1 50`
-do
- echo "sshd:192.168.254.${ip}:allow"
-done
-```
-
-- 设置host的查找顺序（确保）
-
-  ```bash
-  cat /etc/host.conf
-  order hosts,bind
-  multi on
-  ```
-
-
-- 修改中文
+### 2.10 开通防火墙
 
 ```bash
-echo 'LANG=en_US.UTF-8' > /etc/locale.conf
+export THISBATCH=tsdb
+ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/firewall-cluster-visit-tsdb.sh -O /home/zhangwusheng/scripts/third/firewall-cluster-visit-tsdb.sh' 
 
-```
+ansible cdnlog -m shell -a 'bash /home/zhangwusheng/scripts/third/firewall-cluster-visit-tsdb.sh' 
 
-- 设置swapiness
 
-```bash
-for ip in `cat ./cdn_hosts_all.txt`; do echo "$ip"; ssh -p 9000 ${ip} grep swappiness /etc/sysctl.conf; done
-
-for ip in `echo 192.168.254.12`; do echo "$ip"; ssh -p 9000 ${ip} "sed -i 's/vm.swappiness=10/vm.swappiness=1/g' /etc/sysctl.conf" ; done
-
-for ip in `cat cdn_hosts_hdfs.txt`; do echo "$ip"; ssh -p 9000 ${ip} "echo '1' > /proc/sys/vm/swappiness" ; done
-
-for ip in `cat cdn_hosts_all.txt`; do echo "$ip"; ssh -p 9000 ${ip} "cat  /proc/sys/vm/swappiness" ; done
-
-for ip in `cat cdn_hosts_all.txt`; do echo "$ip"; ssh -p 9000 ${ip} "grep swappiness  /etc/sysctl.conf" ; done
+ansible tsdb -m shell -a 'wget http://192.168.254.40:8181/scripts/third/firewall-tsdb-visit-cluster.sh -O /home/zhangwusheng/scripts/third/firewall-tsdb-visit-cluster.sh' 
+ansible tsdb -m shell -a 'bash /home/zhangwusheng/scripts/third/firewall-tsdb-visit-cluster.sh' 
+ansible tsdb -m shell -a 'firewall-cmd --list-all' 
 ```
 
 
@@ -806,7 +719,7 @@ Ambari Server 'start' completed successfully.
 
 # 6.配置Hive使用Postgresql
 
-## 6.1 配置PG数据库
+## 6.1  配置PG数据库
 
 - 修改配置
 
@@ -970,6 +883,20 @@ pg_ctl promote
 #常用命令
  pg_controldata /var/lib/pgsql/data/
  
+```
+
+## 6.3 常用Psql命令
+
+```bash
+#show databases
+\l
+#use ambari
+\c ambari
+#show tables;
+SELECT * FROM information_schema.tables where table_schema='ambari';
+
+# 
+select *from ambari.hosts where host_name='ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net';
 ```
 
 
@@ -1471,6 +1398,16 @@ scp -P 9000 ${BACKUP_DIR}/krb5kdc.${datestr}.tar.gz 192.168.254.39:/var/kerberos
 50 */2 * * * /bin/bash /var/kerberos/backup/backup.sh
 ```
 
+备份到其他主机：
+
+
+
+```bash
+ansible master -m shell -a "mkdir -p /home/zhangwusheng/data/kdc"    
+
+ansible master -m shell -a "wget http://192.168.254.40:8181/data/krb5kdc.202004241650.tar.gz -O /home/zhangwusheng/data/kdc/krb5kdc.202004241650.tar.gz "
+```
+
 
 
 ## 11.KDC保活
@@ -1838,11 +1775,13 @@ cat /var/lib/sss/pubconf/kdcinfo.CTYUNCDN.NET
 
 
 
-/etc/security/keytabs/sssd.conf 
+/etc/sssd/sssd.conf
 
 增加sssd.conf 
 
 krb5_use_kdcinfo = false
+
+systemctl restart sssd
 
 # 11.启用Hadoop和Spark Basic认证
 
@@ -1914,6 +1853,7 @@ modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ct
 modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
 modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
 
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "ank -randkey kylin/cdnlog047.ctyun.net@CTYUN.NET"
 
 /usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog002.ctyun.net"
 
@@ -1954,6 +1894,9 @@ klist -k /etc/security/keytabs/kylin.keytab
 mv  /etc/security/keytabs/kylin.keytab /etc/security/keytabs/kylin.keytab.20200103
 /usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog042.ctyun.net"
 klist -k /etc/security/keytabs/kylin.keytab 
+
+#批量增加机器
+
 ```
 
 
@@ -2746,8 +2689,8 @@ topicName=baishanYun
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --list  --topic ctYun
 
 #调试
-topicName="elk-metrics-docker"
-userName="elkmetricsdocker"
+topicName="ctYun_MidLevel"
+userName="cache_access"
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --alter --zookeeper ${ZK_CONN} --topic ctYun --partitions 21
@@ -2772,7 +2715,7 @@ ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 
 ------------------------------------------------------------------开发
 
-topicName=KafkaRestTest2
+topicName=Kafka_Rest_Test2
 userName="DebugTopic"
 ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 
@@ -2960,6 +2903,23 @@ firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="125
 firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="125.88.39.167" port port="6667" protocol="tcp" accept'
 firewall-cmd --reload
 firewall-cmd --list-all
+```
+
+## 4.查看消费者组
+
+```bash
+export KAFKA_OPTS=" -Djava.security.auth.login.config=/home/zhangwusheng/zws_jaas.conf" 
+
+/usr/hdp/current/kafka-broker/bin/kafka-consumer-groups.sh --bootstrap-server ctl-nm-hhht-yxxya6-ceph-011.ctyuncdn.net:6667 --describe --group edge_computing_log --command-config /usr/hdp/current/kafka-broker/config/consumer.properties
+```
+
+## 5.删除Topic
+
+```bash
+userName="DebugTopic"
+ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
+/usr/hdp/current/kafka-broker/bin/kafka-topics  --delete --zookeeper ${ZK_CONN}  --topic Kafka_Rest_Test2
+
 ```
 
 
@@ -3793,6 +3753,65 @@ export GOROOT=/data3/elk/source
 
 
 
+### 7.ES数据测试
+
+```bash
+curl --user 'elastic:elastic123!@' -H "Content-Type: application/json" -XGET http://192.168.2.43:19200/edge_computing_event_dev/_search -d '{
+"query" : { 
+"match" : { "cluster" : "guangzhou"}
+},
+"sort" : [{"event.lastTimestamp" : {"order" : "desc"}}], 
+"from":0,
+"size":3
+}'
+
+
+
+#构造数据
+curl --user 'elastic:elastic123!@' -H "Content-Type: application/json" -XPUT http://192.168.2.43:19200/edge_computing_event_dev/_doc/27369621-2d89-43b4-adc0-46114f69f4c5_zz-yus-6cddc54ccf-bgspk.15f94b0fa5a11252 -d '{
+    "cluster": "guangzhou1",
+    "time": "1583220219160",
+    "message": "Deployment synced successfully",
+    "resourceName": "pond-agent",
+    "resourceKind": "Deployment",
+    "namespace": "default-8",
+    "event": {
+        "metadata": {
+            "name": "pond-agent.15f644824412d338",
+            "namespace": "default-8",
+            "selfLink": "/api/v1/namespaces/default-8/events/pond-agent.15f644824412d338",
+            "uid": "50e0b089-ba2e-4ab6-b635-5429ad30c7dc",
+            "resourceVersion": "4024595",
+            "creationTimestamp": "1583220219160"
+        },
+        "involvedObject": {
+            "kind": "Deployment",
+            "namespace": "default-8",
+            "name": "pond-agent",
+            "uid": "5e1de52a-9eeb-4067-bf64-049d47218390",
+            "apiVersion": "apps/v1",
+            "resourceVersion": "3773619"
+        },
+        "reason": "Synced",
+        "message": "Deployment synced successfully",
+        "source": {
+            "component": "deployment-controller"
+        },
+        "firstTimestamp": "1583220219160",
+        "lastTimestamp": "1583220219160",
+        "count": 313,
+        "type": "Normal",
+        "eventTime": null,
+        "reportingComponent": "",
+        "reportingInstance": ""
+    }
+}'
+```
+
+
+
+
+
 # 24.配置Ambari服务
 
 参考文章：https://github.com/BalaBalaYi/Ambari-Elastic-Service
@@ -3914,7 +3933,7 @@ sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address
 sudo firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="36.111.140.26" port port="15601" protocol="tcp" accept'
 
 firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.30/24 port port=3306 protocol=tcp accept'
-sudo firewall-cmd --permanent --remove-rich-rule 'rule family="ipv4" source address="42.123.92.11" port port="8000" protocol="tcp" accept'
+sudo firewall-cmd --permanent --remove-rich-rule 'rule family="ipv4" source address="36.111.140.26" port port="19200" protocol="tcp" accept'
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.26 port port=8181 protocol=tcp accept'
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=150.223.254.39 accept'
 
@@ -3965,7 +3984,7 @@ aa.show()
 
 
  import sqlContext.implicits._
-    val parquetFile = sqlContext.read.parquet("/user/spark/apachelog.parquet")
+    val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-03-15/2020-03-15-12/minute=2020-03-15-12-30")
     parquetFile.registerTempTable("logs")
 
 ```
@@ -4034,9 +4053,24 @@ kinit -kt /etc/security/keytabs/hbase.service.keytab hbase/ctl-nm-hhht-yxxya6-ce
 
 hbase shell
 
-scan 'hbase:meta',{ROWPREFIXFILTER => 'KYLIN_ETCK33KSCM'}
+scan 'hbase:meta',{ROWPREFIXFILTER => 'kylin:KYLIN_OO6KVM9J4T'}
+
+put 'hbase:meta','kylin:KYLIN_OO6KVM9J4T','table:state',"\x08\x01",1579464201498
+
+get  'hbase:meta',"kylin:KYLIN_OO6KVM9J4T,,1579464200900.c6a968c41414509c708fa01c18f9c805."
 
 
+put 'hbase:meta','kylin:KYLIN_OO6KVM9J4T,,1579464200900.c6a968c41414509c708fa01c18f9c805.','info:state','CLOSED',1584929438589
+put 'hbase:meta',"kylin:KYLIN_OO6KVM9J4T,\x00\x01,1579464200900.b42993d61501407ed4a97be442467716.",'info:state','CLOSED',1584929438597
+
+put 'hbase:meta',"kylin:KYLIN_OO6KVM9J4T,\x00\x02,1579464200900.4bfe3dbd9c0c13aca179acf8972fa1ad.",'info:state','CLOSED',1584950118350
+put 'hbase:meta',"kylin:KYLIN_OO6KVM9J4T,\x00\x03,1584950118349.10898d68f5f99a83435a5880dab78596.",'info:state','CLOSED',1584929438597
+put 'hbase:meta',"kylin:KYLIN_OO6KVM9J4T,\x00\x04,1579464200900.6ab620ef74f7be7304dbc55c5e047c46.",'info:state','CLOSED',1584950118318
+
+
+
+
+echo "scan 'hbase:meta',{FILTER => org.apache.hadoop.hbase.filter.PrefixFilter.new(org.apache.hadoop.hbase.util.Bytes.toBytes('kylin:KYLIN_Q4ZG4MY5R1'))}"|hbase shell -n|grep OPENING
 
 
 klist -k /etc/security/keytabs/zk.service.keytab 
@@ -4653,6 +4687,8 @@ val df = spark.read.parquet("/apps/cdn/log/2020-02-19/2020-02-19-00")
 
 # 42.恢复Hbase元数据
 
+## 42.1 恢复整个集群
+
 > 目前我们使用的Hbase版本（2.0.0和2.0.2）是比较尴尬的版本，提供的hbck2工具基本不可使用。 2.0.3, 2.1.2, 2.2.0之后的版本才会提供可用的hbck2，但是开发环境中kylin已经造成了两次集群数据不可用，因此要找到一种方法来恢复元数据，经过探索， 发现了一个可以恢复元数据的方法，记录如下：
 
 - 准备工作：
@@ -4901,27 +4937,58 @@ val df = spark.read.parquet("/apps/cdn/log/2020-02-19/2020-02-19-00")
 
 22. 
 
-打印table和region信息:
+## 42.2单个表遇到了RIT
 
-hbase org.apache.hbase.hbck1.OfflineMetaReader -table kylin:KYLIN_WNKD14415B
+- 第一步：清理zk
 
-hbase org.apache.hbase.hbck1.OfflineMetaReader
-
-
-
-
-
-hbase org.apache.hadoop.hbase.wal.WALPrettyPrinter --json /apps/hbasenew/data/WALs/ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net,16020,1578367562765/ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net%2C16020%2C1578367562765.1578750045908
-
-
-
-hbase org.apache.hadoop.hbase.procedure2.store.wal.ProcedureWALPrettyPrinter -f /hbase/MasterProcWALs/state-00000000000000002571.log
+  ```bash
+  #1  清理zookeeper的目录
+  #使用hbase的keytab
+  kinit -kt /etc/security/keytabs/hbase.service.keytab hbase/sct-nmg-huhehaote2-tsdb-04.in.ctyun.net@CTYUN.NET
+  #使用域名连接zk  
+  /usr/hdp/current/zookeeper-client/bin/zkCli.sh -server cdnlog036.ctyun.net:12181 
+  #删除表
+  rmr /hbase-secure/table/tsdb:cdn_monitor-rollup
+  ```
 
 
+- 第二步：清理hdfs目录
 
-利用hbase pe写入wal
+  ```bash
+   hdfs dfs -mkdir /tmp/hbase-tsdb-backup
+   hdfs dfs -mv /apps/hbase/data/data/tsdb/cdn_monitor-rollup /tmp/hbase-tsdb-backup
+  ```
 
-hbase pe --nomapred  --table=testtable --rows=100 sequentialWrite 1
+- 第三步：清理hbase meta表
+
+  ```bash
+  
+  echo  'scan "hbase:meta",{ROWPREFIXFILTER=>"tsdb:cdn_monitor-rollup"}' | hbase shell -n > cdn_monitor-rollup.meta
+  
+  cat cdn_monitor-rollup.meta |awk -F' column=' '{printf("deleteall \"hbase:meta\",\"%s\"\n",$1);}'|sort -u > cdn_monitor-rollup.rowkey
+  
+  ## !! 检查命令，手工执行输出！！
+  
+  #检查是否删除干净
+  scan "hbase:meta",{ROWPREFIXFILTER=>"tsdb:cdn_monitor-rollup"}
+  ```
+
+  
+
+- 第四步：清理MasterWal
+
+  ```bash
+  # 最好停掉两个master
+  hdfs dfs -mv /apps/hbase/data/MasterProcWALs/* /tmp/hbase-tsdb-backup/MasterProcWALs
+  ```
+
+- 第五步：重启Master
+
+  ```bash
+  检查结果！！
+  ```
+
+  
 
 
 
@@ -5375,6 +5442,266 @@ kafka的配置是**compression.type**，rest的配置是**producer.compression.t
 - ambari-server之间的切换：
 
 https://docs.cloudera.com/HDPDocuments/Ambari-2.7.5.0/administering-ambari/content/amb_populate_the_new_ambari_database.html
+
+
+
+# 45.添加新机器
+
+```bash
+#建立脚本目录
+ansible cdnlog  -m shell -a 'mkdir -p /home/zhangwusheng/scripts/third/'
+#备份hosts
+ansible thirdnew -m shell -a 'cp /etc/hosts /etc/hosts.`date +%s` ' 
+#幂等操作
+ansible thirdnew -m shell -a 'sed -i "/sct-nmg-huhehaote/d" /etc/hosts'
+#添加新的机器
+ansible thirdnew -m shell -a 'echo "192.168.254.119 sct-nmg-huhehaote2-loganalysis-02.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.127 sct-nmg-huhehaote2-loganalysis-07.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.118 sct-nmg-huhehaote2-loganalysis-03.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.128 sct-nmg-huhehaote2-loganalysis-06.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.120 sct-nmg-huhehaote2-loganalysis-01.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.130 sct-nmg-huhehaote2-loganalysis-04.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.136 sct-nmg-huhehaote2-loganalysis-11.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.129 sct-nmg-huhehaote2-loganalysis-05.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.138 sct-nmg-huhehaote2-loganalysis-09.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.137 sct-nmg-huhehaote2-loganalysis-10.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.139 sct-nmg-huhehaote2-loganalysis-08.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.145 sct-nmg-huhehaote2-loganalysis-15.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.147 sct-nmg-huhehaote2-loganalysis-13.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.146 sct-nmg-huhehaote2-loganalysis-14.in.ctyun.net" >> /etc/hosts'
+ansible thirdnew -m shell -a 'echo "192.168.254.148 sct-nmg-huhehaote2-loganalysis-12.in.ctyun.net" >> /etc/hosts'
+
+#40新增防火墙，允许安装ambari
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.29" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.28" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.30" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.37" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.38" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.39" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.40" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.46" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.47" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.48" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.49" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.55" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.56" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.57" port port="8181" protocol="tcp" accept'
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="182.42.255.58" port port="8181" protocol="tcp" accept'
+firewall-cmd --reload
+firewall-cmd --list-all
+
+
+ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/firewall.sh -O /home/zhangwusheng/scripts/third/firewall.sh' 
+ansible thirdnew -m shell -a 'bash /home/zhangwusheng/scripts/third/firewall.sh'
+
+#
+192.168.254.119 sct-nmg-huhehaote2-loganalysis-02.in.ctyun.net
+192.168.254.127 sct-nmg-huhehaote2-loganalysis-07.in.ctyun.net
+192.168.254.118 sct-nmg-huhehaote2-loganalysis-03.in.ctyun.net
+192.168.254.128 sct-nmg-huhehaote2-loganalysis-06.in.ctyun.net
+192.168.254.120 sct-nmg-huhehaote2-loganalysis-01.in.ctyun.net
+192.168.254.130 sct-nmg-huhehaote2-loganalysis-04.in.ctyun.net
+192.168.254.136 sct-nmg-huhehaote2-loganalysis-11.in.ctyun.net
+192.168.254.129 sct-nmg-huhehaote2-loganalysis-05.in.ctyun.net
+192.168.254.138 sct-nmg-huhehaote2-loganalysis-09.in.ctyun.net
+192.168.254.137 sct-nmg-huhehaote2-loganalysis-10.in.ctyun.net
+192.168.254.139 sct-nmg-huhehaote2-loganalysis-08.in.ctyun.net
+192.168.254.145 sct-nmg-huhehaote2-loganalysis-15.in.ctyun.net
+192.168.254.147 sct-nmg-huhehaote2-loganalysis-13.in.ctyun.net
+192.168.254.146 sct-nmg-huhehaote2-loganalysis-14.in.ctyun.net
+192.168.254.148 sct-nmg-huhehaote2-loganalysis-12.in.ctyun.net
+#
+
+cat /etc/hosts|grep 'sct-nmg-huhehaote2'|awk '{print $2;}'|awk '{print "kylin/"$1;}'
+
+
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "ank -randkey kylin/sct-nmg-huhehaote2-loganalysis-02.in.ctyun.net@CTYUN.NET"
+
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog002.ctyun.net"
+```
+
+
+
+# 46.nginx
+
+openresty安装步骤：
+wget https://openresty.org/download/openresty-1.33.6.2.tar.gz
+tar zxvf openresty-1.33.6.2.tar.gz
+cd openresty-1.33.6.2
+./configure --prefix=/usr/local/openresty --with-luajit --with-http_iconv_module
+make 
+make install
+export PATH=$PATH:/usr/local/openresty/nginx/sbin 
+
+# 47.HDFS复制慢
+
+dfs.namenode.blockmanagement.queues.shuffle= true
+dfs.namenode.replication.max-streams= 12 默认是2，限制一个datanode复制数量，即一个datanode同时最多有2个block在复制；
+dfs.namenode.replication.max-streams-hard-limit=12 默认是4
+dfs.namenode.replication.work.multiplier.per.iteration= 4 默认2 / namenode一次调度的数量=该值×datanodes数量，默认为2，即每次处理datanode数量*2个block；
+
+dfs.namenode.replication.max-streams，默认是2，
+
+# 48.dmesg时间转换
+
+```bash
+date -d "1970-01-01 UTC `echo "$(date +%s)-$(cat /proc/uptime|cut -f 1 -d' ')+69740.690129"|bc `seconds"
+```
+
+
+
+# 49.Hbase ReGroup
+
+```bash
+
+#To enable, add the following to your hbase-site.xml and restart your Master:
+#first 修改配置
+
+<property>
+  <name>hbase.coprocessor.master.classes</name>
+  <value>org.apache.hadoop.hbase.rsgroup.RSGroupAdminEndpoint</value>
+</property>
+<property>
+  <name>hbase.master.loadbalancer.class</name>
+  <value>org.apache.hadoop.hbase.rsgroup.RSGroupBasedLoadBalancer</value>
+</property>
+
+重启hmaster
+
+kinit -kt /etc/security/keytabs/hbase.service.keytab  hbase/cdnlog041.ctyun.net@CTYUN.NET
+hbase shell
+> add_rsgroup 'tsdb'
+
+move_servers_rsgroup 'tsdb',['sct-nmg-huhehaote2-tsdb-01.in.ctyun.net:16020']
+move_servers_rsgroup 'tsdb',['sct-nmg-huhehaote2-tsdb-02.in.ctyun.net:16020']
+move_servers_rsgroup 'tsdb',['sct-nmg-huhehaote2-tsdb-03.in.ctyun.net:16020']
+move_servers_rsgroup 'tsdb',['sct-nmg-huhehaote2-tsdb-04.in.ctyun.net:16020']
+move_servers_rsgroup 'tsdb',['sct-nmg-huhehaote2-loganalysis-15.in.ctyun.net:16020']
+move_servers_rsgroup 'tsdb',['sct-nmg-huhehaote2-loganalysis-14.in.ctyun.net:16020']
+
+move_servers_rsgroup 'tsdb',['sct-nmg-huhehaote2-loganalysis-13.in.ctyun.net:16020']
+move_servers_rsgroup 'tsdb',['sct-nmg-huhehaote2-loganalysis-12.in.ctyun.net:16020']
+
+
+create_namespace 'tsdb'
+grant 'tsdb','RWXCA','@tsdb'
+
+create 'tsdb:cdn_monitor_tsdb-uid',
+  {NAME => 'id', COMPRESSION => 'SNAPPY', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true'},
+  {NAME => 'name', COMPRESSION => 'SNAPPY', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true'},'MEMSTORE_FLUSHSIZE'=>35651584
+
+create 'tsdb:cdn_monitor_tsdb',{NAME => 't', VERSIONS => 1, COMPRESSION => 'SNAPPY', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true',TTL => 7776000},SPLITS => ['\x01','\x02','\x03','\x04','\x05','\x06','\x07','\x08','\x09']
+
+create 'tsdb:cdn_monitor_tsdb-tree',{NAME => 't', VERSIONS => 1, COMPRESSION => 'SNAPPY', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true'}
+  
+create 'tsdb:cdn_monitor_tsdb-meta',{NAME => 'name', COMPRESSION => 'SNAPPY', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true'},{NAME => 'count', COMPRESSION => 'NONE', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true'},{NAME => 'del', COMPRESSION => 'NONE', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true'}
+
+create 'tsdb:cdn_monitor_tsdb-tag', {NAME => 'm', COMPRESSION => 'NONE', BLOOMFILTER => 'ROW'}, {NAME => 'k', COMPRESSION => 'NONE', BLOOMFILTER => 'ROW'}, {NAME => 'v', COMPRESSION => 'NONE', BLOOMFILTER => 'ROW'}
+
+move_tables_rsgroup 'tsdb',['tsdb:cdn_monitor_tsdb-uid']
+move_tables_rsgroup 'tsdb',['tsdb:cdn_monitor_tsdb']
+move_tables_rsgroup 'tsdb',['tsdb:cdn_monitor_tsdb-tree']
+move_tables_rsgroup 'tsdb',['tsdb:cdn_monitor_tsdb-meta']
+move_tables_rsgroup 'tsdb',['tsdb:cdn_monitor_tsdb-tag']
+
+hdfs storagepolicies -help
+
+hdfs storagepolicies -setStoragePolicy
+hdfs storagepolicies -getStoragePolicy -path <path>
+
+#会递归的设置子目录的
+hdfs storagepolicies -setStoragePolicy -policy HOT -path /apps/hbase/data/data/tsdb
+hdfs storagepolicies -getStoragePolicy -path /apps/hbase/data/data/tsdb/cdn_monitor_tsdb
+```
+
+# 50.Docker升级
+
+```bash
+systemctl stop  docker
+yum remove docker docker-common docker-selinux docker-engine
+ wget http://192.168.254.40:8181/soft/docker-ce-17.12.1.ce-1.el7.centos.x86_64.rpm
+ yum install docker-ce-17.12.1.ce-1.el7.centos.x86_64.rpm
+ systemctl enable docker && systemctl start docker
+ 
+ 
+ modprobe ip_vs
+ cat /proc/net/ip_vs
+ 
+```
+
+
+
+# 51.Rsync
+
+```bash
+rpm -qa | grep rsync
+
+cat /etc/rsyncd.conf
+
+uid =  root
+gid = root 
+use chroot = no
+max connections = 200
+timeout = 300
+pid file = /var/run/rsyncd.pid
+lock file = /var/run/rsync.lock
+log file = /var/log/rsyncd.log
+ignore errors
+read only = yes
+list = yes
+hosts allow = 192.168.254.0/24
+hosts deny = 0.0.0.0/32
+#auth users = rsync_backup
+#secrets file = /etc/rsync.password
+
+[ambari]
+path = /var/www/html
+comment = ftp export area
+#ignore errors　　#忽略I/O错误
+#read only = no　　#默认为ture,不让客户端上传文件到服务器上.
+#list = no
+#auth users = zhu　　#虚拟用户
+#secrets file = /etc/rsyncd.d/pass.server　　#虚拟用户密码存放地址
+
+# mkdir /etc/rsyncd.d/
+# vim /etc/rsysd.d/pass.server
+zhu:111
+test:111
+
+# chmod 600 /etc/rsyncd.d/pass.server
+
+telnet 192.168.254.40 873
+ 
+cat /etc/rsync.passwd 
+111
+ll /etc/rsync.passwd 
+-rw-------. 1 root root 4 Sep  4 01:59 /etc/rsync.passwd
+
+cd /var/www/html
+rsync -avz test@192.168.254.40::ambari/* /var/www/html
+#--password-file=/etc/rsync.passw
+```
+
+
+
+52.TSDB
+
+```bash
+#上传包
+ansible tsdbhbase -m shell -a "mkdir -p /home/zhangwusheng/soft/tsdb"
+
+ansible tsdbhbase -m shell -a "wget http://192.168.254.40:8181/soft/tsdb/hbase-server-2.0.2.3.1.0.0-78-patched.jar -O /home/zhangwusheng/soft/hbase-server-2.0.2.3.1.0.0-78-patched.jar"
+
+ansible tsdbhbase -m shell -a "wget http://192.168.254.40:8181/soft/tsdb/tsd-compaction-0.0.1.jar -O /home/zhangwusheng/soft/tsd-compaction-0.0.1.jar"
+
+#替换包
+ansible tsdbhbase -m shell -a "cp /home/zhangwusheng/soft/hbase-server-2.0.2.3.1.0.0-78-patched.jar /usr/hdp/3.1.0.0-78/hbase/lib/"
+ansible tsdbhbase -m shell -a "cp /home/zhangwusheng/soft/tsd-compaction-0.0.1.jar /usr/hdp/3.1.0.0-78/hbase/lib/"
+ansible tsdbhbase -m shell -a "mv /usr/hdp/3.1.0.0-78/hbase/lib/hbase-server-2.0.2.3.1.0.0-78.jar /usr/hdp/3.1.0.0-78/hbase/"
+
+ansible tsdbhbase -m shell -a "rm -f /usr/hdp/3.1.0.0-78/hbase/lib/hbase-server.jar"
+ansible tsdbhbase -m shell -a "ln -fs /usr/hdp/3.1.0.0-78/hbase/lib/hbase-server-2.0.2.3.1.0.0-78-patched.jar /usr/hdp/3.1.0.0-78/hbase/lib/hbase-server.jar"
+```
 
 
 
