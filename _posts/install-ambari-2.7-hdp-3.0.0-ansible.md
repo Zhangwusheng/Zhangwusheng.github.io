@@ -380,6 +380,21 @@ ansible cdnlog -m shell -a 'bash /home/zhangwusheng/scripts/third/firewall-clust
 ansible tsdb -m shell -a 'wget http://192.168.254.40:8181/scripts/third/firewall-tsdb-visit-cluster.sh -O /home/zhangwusheng/scripts/third/firewall-tsdb-visit-cluster.sh' 
 ansible tsdb -m shell -a 'bash /home/zhangwusheng/scripts/third/firewall-tsdb-visit-cluster.sh' 
 ansible tsdb -m shell -a 'firewall-cmd --list-all' 
+
+
+
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="125.88.39.167" port port="6667" protocol="tcp" accept'
+firewall-cmd --reload
+
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" port port="9091" protocol="tcp" accept'
+
+firewall-cmd --permanent --remove-rich-rule 'rule family="ipv4" port port="9091" protocol="tcp" accept'
+
+
+firewall-cmd --reload
+firewall-cmd --list-all
+
+
 ```
 
 
@@ -2903,6 +2918,10 @@ firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="125
 firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="125.88.39.167" port port="6667" protocol="tcp" accept'
 firewall-cmd --reload
 firewall-cmd --list-all
+
+
+
+rule family="ipv4" port port="161" protocol="udp" accept
 ```
 
 ## 4.查看消费者组
@@ -2950,6 +2969,9 @@ zk上需要建立/kafka-manager目录
 
 ```
 nohup /data2/kafka-manager-2.0.0.2/bin/kafka-manager -Dconfig.file=/data2/kafka-manager-2.0.0.2/conf/application.conf -Dhttp.port=19090  -Dapplication.home=/data2/kafka-manager/kafka-manager-2.0.0.2 &
+
+
+nohup /data2/kafka-manager/kafka-manager-2.0.0.2/bin/kafka-manager -Dconfig.file=/data2/kafka-manager/kafka-manager-2.0.0.2/conf/application.conf -Dhttp.port=19090  -Dapplication.home=/data2/kafka-manager/kafka-manager-2.0.0.2 &
 ```
 
 5.新增配置；
@@ -4665,15 +4687,33 @@ done
 # 41.Spark-Shell
 
 ```scala
+hdfs dfs -mkdir /tmp/2020-05-31
+
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=10 --conf spark.executor.memory=2G 
+
+import spark.sql
+
 val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
-val parquetFile = sqlContext.parquetFile("/apps/cdn/log/2020-02-19/2020-02-19-11/minute=2020-02-19-11-15")
+val filename="/apps/druid_018/2020-05-31/2020-05-31-01"
+
+val filename="/apps/druid_018/2020-05-31-00/minute=2020-05-31-00-55/part-00058-b979ae85-7821-4cf4-9ee8-9c0fb03ef148-c000.snappy.parquet"
+
+val parquetFile = sqlContext.parquetFile(filename)
 
 parquetFile.printSchema()
 
 parquetFile.registerTempTable("test_tmp")
 
- import spark.sql
+val bb = sql("select TraceContext, body_sent, connTag, type, serverIp, liveProtocol, bodyBytes, completion, region, hostingType, qypid, destIp, recvBytes, ServerTiming, http_range, keyFlag, tcpinfo_rttvar, host_name, respondTime,cast(timestamp*1000 as bigint) as timestamp, clientIp, bytessent, url, tcpinfo_rtt, sendBytes, sent_http_content_length, protocol, isp, source_old, url_param, Error_Reason, http_hls_param, qyid, source_id, minute, genericsChannel, httpVersion, fileType, requestTime, playDur, Ua, httpCode, uri, vendorCode, clientPort, lakeId, range, requestBytes, channel, stream, appName, proxyIp, http_tt_request_traceid, currentTime, TT_Request_TraceId, command, sent_http_content_range, source_ip, status, referer, via, clientId, destPort, productType, eventTime, method from test_tmp")
+
+bb.write.parquet("/tmp/2020-05-31/01")
+
+val bb2 = sql("select timestamp from test_tmp  limit 2")
+bb2.show
+
+bb2.registerTempTable("ccc")
+sql("select cast(timestamp*1000 as bigint) from ccc").show
 
 sql("select count(distinct serverIp) from test_tmp  limit 2").show
 
@@ -4681,6 +4721,13 @@ sql("select uri,count(1) as total from test_tmp group by uri order by total desc
 
 
 val df = spark.read.parquet("/apps/cdn/log/2020-02-19/2020-02-19-00")
+
+
+
+
+val df = spark.read.parquet("/tmp/zws-parquet-4")
+
+
 ```
 
 
@@ -4963,7 +5010,7 @@ val df = spark.read.parquet("/apps/cdn/log/2020-02-19/2020-02-19-00")
 
   ```bash
   
-  echo  'scan "hbase:meta",{ROWPREFIXFILTER=>"tsdb:cdn_monitor-rollup"}' | hbase shell -n > cdn_monitor-rollup.meta
+  echo  'scan "hbase:meta",{ROWPREFIXFILTER=>"tsdb:cdn_monitor-rollup",COLUMNS=>["info:state"]}' | hbase shell -n > cdn_monitor-rollup.meta
   
   cat cdn_monitor-rollup.meta |awk -F' column=' '{printf("deleteall \"hbase:meta\",\"%s\"\n",$1);}'|sort -u > cdn_monitor-rollup.rowkey
   
@@ -4988,7 +5035,25 @@ val df = spark.read.parquet("/apps/cdn/log/2020-02-19/2020-02-19-00")
   检查结果！！
   ```
 
+- 第六步(恢复单个表)
+
+  ```bash
+  如果需要恢复表，那么进行如下操作：
   
+  ```
+
+#找出所有的region和时间戳
+  hdfs dfs -ls /apps/hbasenew-20200324/data/data/tsdb/cdn_monitor-rollup
+
+  #生成表的信息
+  put 'hbase:meta','tsdb:cdn_monitor_tsdb','table:state',"\x08\x00"
+  ```
+  
+  
+
+
+
+
 
 
 
@@ -5006,7 +5071,7 @@ hadoop.proxyuser.yarn.hosts 改成*
 
 部署flink：
 
-```bash
+​```bash
 #config.sh最后面增加两行
 
 export HADOOP_CLASSPATH=`hadoop classpath`
@@ -5021,7 +5086,7 @@ nc -l -p 9000
 bin/flink run examples/streaming/SocketWindowWordCount.jar   --hostname 192.168.2.40 --port 9000
 #console3
 tail -f flink-root-taskexecutor-0-ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net.out
-```
+  ```
 
 
 
@@ -5550,7 +5615,7 @@ date -d "1970-01-01 UTC `echo "$(date +%s)-$(cat /proc/uptime|cut -f 1 -d' ')+69
 
 
 
-# 49.Hbase ReGroup
+# 49.Hbase RsGroup
 
 ```bash
 
@@ -5684,11 +5749,27 @@ rsync -avz test@192.168.254.40::ambari/* /var/www/html
 
 
 
-52.TSDB
+# 52.TSDB
 
 ```bash
 #上传包
 ansible tsdbhbase -m shell -a "mkdir -p /home/zhangwusheng/soft/tsdb"
+
+#ansible datanode -m shell -a "groupadd tsdb"
+ansible datanode -m shell -a "useradd tsdb -g cdnlog"
+ansible datanode -m shell -a "usermod -G hadoop tsdb"
+
+ansible datanode -m shell -a "wget http://192.168.254.40:8181/soft/tsdb/tsdb.keytab -O /etc/security/keytabs/tsdb.keytab"
+
+ansible datanode -m shell -a "ls /etc/security/keytabs/tsdb.keytab"
+
+
+#ansible thirdnew -m shell -a "groupadd tsdb"
+ansible thirdnew -m shell -a "useradd tsdb -g cdnlog"
+ansible thirdnew -m shell -a "usermod -G hadoop tsdb"
+ansible thirdnew -m shell -a "wget http://192.168.254.40:8181/soft/tsdb/tsdb.keytab -O /etc/security/keytabs/tsdb.keytab"
+ansible thirdnew -m shell -a "ls /etc/security/keytabs/tsdb.keytab"
+
 
 ansible tsdbhbase -m shell -a "wget http://192.168.254.40:8181/soft/tsdb/hbase-server-2.0.2.3.1.0.0-78-patched.jar -O /home/zhangwusheng/soft/hbase-server-2.0.2.3.1.0.0-78-patched.jar"
 
@@ -5701,6 +5782,121 @@ ansible tsdbhbase -m shell -a "mv /usr/hdp/3.1.0.0-78/hbase/lib/hbase-server-2.0
 
 ansible tsdbhbase -m shell -a "rm -f /usr/hdp/3.1.0.0-78/hbase/lib/hbase-server.jar"
 ansible tsdbhbase -m shell -a "ln -fs /usr/hdp/3.1.0.0-78/hbase/lib/hbase-server-2.0.2.3.1.0.0-78-patched.jar /usr/hdp/3.1.0.0-78/hbase/lib/hbase-server.jar"
+```
+
+
+
+# 53.Druid
+
+```bash
+192.168.2.40:3306
+easyscheduler/KLETUadgj1!
+cdnlog-dev /cdnlog123@
+root/  QETUadgj1!        
+
+ mysql -h 192.168.2.40 -u cdnlog-dev -p
+ 
+ CREATE DATABASE druid DEFAULT CHARACTER SET utf8mb4;
+ 
+ CREATE USER 'druid'@'192.168.2.%' IDENTIFIED BY 'diurd';
+ 
+ CREATE USER 'druid' IDENTIFIED BY 'diurd';
+ 
+ GRANT ALL PRIVILEGES ON druid.* TO 'druid'@'192.168.2.%';
+ 
+--drop user dolphinscheduler@'192.168.254.%';
+--create user 'dolphinscheduler'@'192.168.254.%' identified by 'BL4OUvXtZWefh5Z!';
+-- grant all privileges on dolphinscheduler.* to 'dolphinscheduler'@'192.168.254.%' identified by 'BL4OUvXtZWefh5Z!' ;
+grant all privileges on druid.* to 'druid'@'192.168.2.%' identified by 'diurd' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+
+192.168.2.44
+ root   /   QETUadgj1!
+ 
+ 
+ 问题：
+1.修改数据库字符编码
+
+alter database druid character set utf8 collate utf8_general_ci;
+
+2.保存mysql新版本的jar包到meta的那个目录和lib目录，都需要
+```
+
+
+
+下载软件
+
+```bash
+wget -c 'https://mirror.bit.edu.cn/apache/druid/0.18.1/apache-druid-0.18.1-bin.tar.gz'
+
+#下载至/home/zhangwusheng/soft/hadoop
+put apache-druid-0.18.1-bin.tar.gz
+
+cd /home/zhangwusheng/soft
+tar zxvf /home/zhangwusheng/soft/hadoop/apache-druid-0.18.1-bin.tar.gz -C /home/zhangwusheng/soft
+
+
+cp /var/www/html/soft/zwssoft/hadoop/apache-druid-0.18.1-bin.tar.gz /var/www/html/soft
+#发布到全网
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/apache-druid-0.18.1-bin.tar.gz -O /home/zhangwusheng/soft/apache-druid-0.18.1-bin.tar.gz"
+
+ansible cdnlog -m shell -a "tar zxvf /home/zhangwusheng/soft/apache-druid-0.18.1-bin.tar.gz -C /home/zhangwusheng/"
+
+
+ansible cdnlog -m shell -a "ls /home/zhangwusheng"
+
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/mysql-connector-java-5.1.49.jar  -O /home/zhangwusheng/apache-druid-0.18.1/lib/mysql-connector-java-5.1.49.jar"
+
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/mysql-connector-java-5.1.49.jar  -O /home/zhangwusheng/apache-druid-0.18.1/extensions/mysql-metadata-storage/mysql-connector-java-5.1.49.jar"
+
+#这个版本的度量需要自己编译出来，所以先删掉
+ansible cdnlog -m shell -a "rm -f /home/zhangwusheng/apache-druid-0.18.1/extensions/ambari-metrics-emitter"
+
+ansible cdnlog -m shell -a "ln -fs /usr/hdp/3.1.0.0-78/druid/extensions/ambari-metrics-emitter /home/zhangwusheng/apache-druid-0.18.1/extensions/ambari-metrics-emitter"
+
+
+#####注意修改hosts
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/common.runtime.properties -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/_common/common.runtime.properties"
+
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/modify-common-host.sh -O /home/zhangwusheng/apache-druid-0.18.1/bin/modify-common-host.sh"
+
+ansible cdnlog -m shell -a "bash /home/zhangwusheng/apache-druid-0.18.1/bin/modify-common-host.sh"
+
+ cdnlog -m shell -a "grep druid.host /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/_common/common.runtime.properties"
+
+cp /usr/hdp/3.1.0.0-78/druid/conf/druid_jaas.conf /var/www/html/soft/druid/
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/druid_jaas.conf -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid_jaas.conf"
+
+#
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/historical-jvm.config -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/data/historical/jvm.config"
+
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/historical-runtime.properties -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/data/historical/runtime.properties"
+
+
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/broker-jvm.config -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/query/broker/jvm.config"
+
+
+
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/middleManager-jvm.config -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/data/middleManager/jvm.config"
+
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/middleManager-runtime.properties -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/data/middleManager/runtime.properties"
+
+
+
+ansible cdnlog -m shell -a "chown -R zhangwusheng:zhangwusheng /home/zhangwusheng/apache-druid-0.18.1"
+
+
+#下载 ambari插件
+https://repo1.maven.org/maven2/org/apache/druid/extensions/contrib/ambari-metrics-emitter/0.18.1/
+```
+
+
+
+测试
+
+```bash
+
 ```
 
 
