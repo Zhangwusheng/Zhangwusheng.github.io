@@ -6264,7 +6264,7 @@ select * from "COLUMNS_V2" where "CD_ID"=44062 order by "INTEGER_IDX";
 
 
 
-55.安装GCC
+# 55.安装GCC
 
 ```bash
 sudo yum install centos-release-scl
@@ -6275,6 +6275,49 @@ yum install devtoolset-8
 scl enable devtoolset-8 -- bash
 enable the tools:
 source /opt/rh/devtoolset-8/enable 
+```
+
+# 56.Kafka死锁排查以及升级
+
+```bash
+ps -ef|grep 'kafka.Kafka'
+
+#有的时候没有反应
+jstack 4800 > /home/zhangwusheng/data/4800.kafka.jstack
+jstack -F 4800 > /home/zhangwusheng/data/4800.kafka.jstack
+
+ls -al /home/zhangwusheng/data/4800.kafka.jstack
+sz -bye   /home/zhangwusheng/data/4800.kafka.jstack
+
+
+int-chengdu-loganalysis-125-ecloud.com:2181
+
+#白山云直播
+topicName=zws-upgrade-test
+ZK_CONN="int-chengdu-loganalysis-125-ecloud.com:2181"
+KAFKA_USER="zws-upgrade-test"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 5 --replication-factor 3
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  int-chengdu-loganalysis-125-ecloud.com:6667   --topic ${topicName} --from-beginning --group grp-${KAFKA_USER} 
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list int-chengdu-loganalysis-125-ecloud.com:6667  --topic ${topicName} 
+
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --consumer --group grp-${KAFKA_USER}
+
+
+#验证数据
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
+
 ```
 
 
