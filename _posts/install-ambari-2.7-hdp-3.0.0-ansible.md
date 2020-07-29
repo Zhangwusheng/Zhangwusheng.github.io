@@ -1342,6 +1342,11 @@ kadmin
 
 #addprinc  -randkey  host/hbase36.ecloud.com
 
+#addprinc  -randkey druid-cdnlog@CTYUNCDN.NET
+rm -f /etc/security/keytabs/druid.headless.keytab
+#xst -k /etc/security/keytabs/druid.headless.keytab  druid-cdnlog@CTYUNCDN.NET
+/usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst  -k /etc/security/keytabs/druid.headless.keytab  druid-cdnlog@CTYUNCDN.NET"
+chmod a+r /etc/security/keytabs/druid.headless.keytab
 #ktadd host/hbase36.ecloud.com
 
 首先在40master上添加如下两个账号;
@@ -4124,6 +4129,16 @@ hbase.client.scanner.caching
 
 
 
+```bash
+
+
+
+```
+
+
+
+
+
 # 33.多环境
 
 1.增加cdnlog-dev和cdnlog-test组
@@ -4696,7 +4711,7 @@ import spark.sql
 val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
 val filename="/apps/druid_018/2020-05-31/2020-05-31-01"
-
+val filename="/tmp/202005/druid_parquet_202005.db/proc_time=202005312355"
 val filename="/apps/druid_018/2020-05-31-00/minute=2020-05-31-00-55/part-00058-b979ae85-7821-4cf4-9ee8-9c0fb03ef148-c000.snappy.parquet"
 
 val parquetFile = sqlContext.parquetFile(filename)
@@ -5836,19 +5851,105 @@ put apache-druid-0.18.1-bin.tar.gz
 cd /home/zhangwusheng/soft
 tar zxvf /home/zhangwusheng/soft/hadoop/apache-druid-0.18.1-bin.tar.gz -C /home/zhangwusheng/soft
 
+#kdc增加druid用户，这个是ambari自己增加好了。生产需要自己增加这一步
+ansible cdnlog -m shell -a "chmod a+r /etc/security/keytabs/druid.headless.keytab"
+
+
+#建立数据目录
+ansible cdnlog -m shell -a "mkdir -p /data1/zhangwusheng/druid;chown -R zhangwusheng:zhangwusheng /data1/zhangwusheng"
+ansible cdnlog -m shell -a "mkdir -p /data2/zhangwusheng/druid;chown -R zhangwusheng:zhangwusheng /data2/zhangwusheng"
+ansible cdnlog -m shell -a "mkdir -p /data3/zhangwusheng/druid;chown -R zhangwusheng:zhangwusheng /data3/zhangwusheng"
+ansible cdnlog -m shell -a "mkdir -p /data4/zhangwusheng/druid;chown -R zhangwusheng:zhangwusheng /data4/zhangwusheng"
+ansible cdnlog -m shell -a "mkdir -p /data5/zhangwusheng/druid;chown -R zhangwusheng:zhangwusheng /data5/zhangwusheng"
+ansible cdnlog -m shell -a "mkdir -p /data6/zhangwusheng/druid;chown -R zhangwusheng:zhangwusheng /data6/zhangwusheng"
+ansible cdnlog -m shell -a "mkdir -p /data7/zhangwusheng/druid;chown -R zhangwusheng:zhangwusheng /data7/zhangwusheng"
+ansible cdnlog -m shell -a "mkdir -p /data8/zhangwusheng/druid;chown -R zhangwusheng:zhangwusheng /data8/zhangwusheng"
+ansible cdnlog -m shell -a "mkdir -p /data9/zhangwusheng/druid;chown -R zhangwusheng:zhangwusheng /data9/zhangwusheng"
+ansible cdnlog -m shell -a "mkdir -p /data10/zhangwusheng/druid;chown -R zhangwusheng:zhangwusheng /data10/zhangwusheng"
+
+
+ansible cdnlog -m shell -a "mkdir -p /data1/zhangwusheng/druid/var/logs/druid;mkdir -p /data1/zhangwusheng/druid/var/druid;mkdir -p /data1/zhangwusheng/druid/var/tmp;mkdir -p /data1/zhangwusheng/druid/var/sv;chown -R zhangwusheng:zhangwusheng /data1/zhangwusheng"
+#zk建立目录
+/usr/hdp/current/zookeeper-client/bin/zkCli.sh -server ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181 create /druid_018_20200603 "zwscreated"
+
+#建立hdfs目录
+hdfs dfs -mkdir -p /apps/druid_018_20200603/warehouse
+hdfs dfs -chown -R druid:druid /apps/druid_018_20200603
+hdfs dfs -ls /apps/
+
+hdfs dfs -mkdir -p /user/druid_018_20200603/logs
+hdfs dfs -chown -R druid:druid  /user/druid_018_20200603
+
+#把hadoop的xml建立软链
+ln -fs /etc/hadoop/3.1.0.0-78/0/core-site.xml /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/_common/hadoop-xml/core-site.xml
+ln -fs /etc/hadoop/3.1.0.0-78/0/hdfs-site.xml /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/_common/hadoop-xml/hdfs-site.xml
+ln -fs /etc/hadoop/3.1.0.0-78/0/mapred-site.xml  /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/_common/hadoop-xml/mapred-site.xml
+ln -fs /etc/hadoop/3.1.0.0-78/0/yarn-site.xml /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/_common/hadoop-xml/yarn-site.xml
+
+
+# cat druid-env.sh 
+#!/bin/bash
+# Set DRUID specific environment variables here.
+# The java implementation to use.
+export JAVA_HOME=/usr/local/jdk
+export PATH=$JAVA_HOME/bin:$PATH
+#export DRUID_PID_DIR=/var/run/druid
+#export DRUID_LOG_DIR=/var/log/druid
+#export DRUID_CONF_DIR=/usr/hdp/current/druid-coordinator/conf
+#export DRUID_LIB_DIR=/usr/hdp/current/druid-coordinator/lib
+#export HADOOP_CONF_DIR=/usr/hdp/3.1.0.0-78/hadoop/conf
+export HADOOP_HOME=/usr/hdp/3.1.0.0-78/hadoop
+
+#vi /home/zhangwusheng/apache-druid-0.18.1/bin/run-druid
+#line 38 增加
+echo "==============================================="
+echo "CONFDIR=${CONFDIR}"
+source /home/zhangwusheng/apache-druid-0.18.1/conf/druid-env.sh
+echo "==============================================="
+
 
 cp /var/www/html/soft/zwssoft/hadoop/apache-druid-0.18.1-bin.tar.gz /var/www/html/soft
-#发布到全网
+#发布软件到全网
 ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/apache-druid-0.18.1-bin.tar.gz -O /home/zhangwusheng/soft/apache-druid-0.18.1-bin.tar.gz"
 
 ansible cdnlog -m shell -a "tar zxvf /home/zhangwusheng/soft/apache-druid-0.18.1-bin.tar.gz -C /home/zhangwusheng/"
 
-
 ansible cdnlog -m shell -a "ls /home/zhangwusheng"
 
+#发布环境变量
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/druid-env.sh -O /home/zhangwusheng/apache-druid-0.18.1/conf"
+
+#发布mysql包
 ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/mysql-connector-java-5.1.49.jar  -O /home/zhangwusheng/apache-druid-0.18.1/lib/mysql-connector-java-5.1.49.jar"
 
 ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/mysql-connector-java-5.1.49.jar  -O /home/zhangwusheng/apache-druid-0.18.1/extensions/mysql-metadata-storage/mysql-connector-java-5.1.49.jar"
+
+#发布修改的脚本
+#这里增加了 source druid-env
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/run-druid -O /home/zhangwusheng/apache-druid-0.18.1/bin/run-druid"
+#这里修改了输出的日志目录
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/start-cluster-master-no-zk-server  -O /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-master-no-zk-server "
+
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/start-cluster-query-server  -O /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-query-server"
+
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/start-cluster-data-server  -O /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-data-server"
+
+
+####
+cat druid_jaas.conf 
+KafkaClient {
+   com.sun.security.auth.module.Krb5LoginModule required
+   useKeyTab=true
+   keyTab="/etc/security/keytabs/druid.headless.keytab"
+   storeKey=true
+   useTicketCache=false
+   serviceName="kafka"
+   principal="druid-cdnlog@CTYUNCDN.NET";
+};
+
+#发布jaas
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/druid_jaas.conf -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid_jaas.conf"
+
 
 #这个版本的度量需要自己编译出来，所以先删掉
 ansible cdnlog -m shell -a "rm -f /home/zhangwusheng/apache-druid-0.18.1/extensions/ambari-metrics-emitter"
@@ -5857,38 +5958,62 @@ ansible cdnlog -m shell -a "ln -fs /usr/hdp/3.1.0.0-78/druid/extensions/ambari-m
 
 
 #####注意修改hosts
+##common配置
 ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/common.runtime.properties -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/_common/common.runtime.properties"
 
 ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/modify-common-host.sh -O /home/zhangwusheng/apache-druid-0.18.1/bin/modify-common-host.sh"
 
 ansible cdnlog -m shell -a "bash /home/zhangwusheng/apache-druid-0.18.1/bin/modify-common-host.sh"
 
- cdnlog -m shell -a "grep druid.host /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/_common/common.runtime.properties"
+ansible cdnlog -m shell -a "grep druid.host /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/_common/common.runtime.properties"
 
 cp /usr/hdp/3.1.0.0-78/druid/conf/druid_jaas.conf /var/www/html/soft/druid/
 ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/druid_jaas.conf -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid_jaas.conf"
 
-#
-ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/historical-jvm.config -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/data/historical/jvm.config"
-
-ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/historical-runtime.properties -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/data/historical/runtime.properties"
-
-
-ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/broker-jvm.config -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/query/broker/jvm.config"
-
-
-
+#middleManager配置
 ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/middleManager-jvm.config -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/data/middleManager/jvm.config"
 
 ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/middleManager-runtime.properties -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/data/middleManager/runtime.properties"
 
+# historical配置
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/historical-jvm.config -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/data/historical/jvm.config"
 
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/historical-runtime.properties -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/data/historical/runtime.properties"
 
+#broker配置
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/broker-jvm.config -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/query/broker/jvm.config"
+
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/broker-runtime.properties -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/query/broker/runtime.properties"
+
+#master配置
+
+ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/coordinator-overlord-jvm.config -O /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/master/coordinator-overlord/jvm.config"
+
+#修改目录权限
 ansible cdnlog -m shell -a "chown -R zhangwusheng:zhangwusheng /home/zhangwusheng/apache-druid-0.18.1"
 
+#启动程序
+
+ nohup /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-master-no-zk-server &
+ 
+ nohup /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-query-server &
+ 
+ nohup /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-data-server &
+ 
+ 
+#验证数据库是否创建
+root/QETUadgj1!        
+
+mysql -h 192.168.2.44 -u root -p
+use druid_018_20200603;
+show tables;
 
 #下载 ambari插件
 https://repo1.maven.org/maven2/org/apache/druid/extensions/contrib/ambari-metrics-emitter/0.18.1/
+
+
+#修改代码，处理
+druid.segmentCache.locationSelectorStrategy=mostAvailableSize
 ```
 
 
@@ -5896,8 +6021,306 @@ https://repo1.maven.org/maven2/org/apache/druid/extensions/contrib/ambari-metric
 测试
 
 ```bash
+导入csv
+#第一行要有header
+导入kadka
+
+ZK_CONN="ctl-nm-hhht-yxxya6-ceph-028.ctyuncdn.net:12181/kafka-auth-test-1"
+userName="DebugTopic"
+topicName="zws-druid-test"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}   --topic zws-druid-test    --partitions 30 --replication-factor 3
+
+
+#授权可写
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${userName} --topic ${topicName}   --producer
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+#授权可读
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${userName} --topic ${topicName}   --consumer --group grp-${userName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic ${topicName} --producer-property security.protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN < /home/zhangwusheng/apache-druid-0.18.1/quickstart/tutorial/zws-2015-09-12.json
+
+#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties 
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic  ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property sasl.mechanism=PLAIN --consumer-property  auto.offset.reset=earliest --consumer-property group.id=grp-${userName} --consumer-property client.id=zws-druid-consumer --from-beginning  
+
+
+{
+  "security.protocol":"SASL_PLAINTEXT",
+  "sasl.mechanism":"PLAIN",
+  "client.id":"zws-druid-consumer",
+  "group.id":"grp-DebugTopic"
+}
+
+
+  "auto.offset.reset":"latest",
+  
+  
+  
+  #转换数据
+  CREATE EXTERNAL TABLE `druid_202005`(   
+  `client_id` int  ,                  
+  `protocol_type` tinyint  ,          
+  `product_code` tinyint  ,           
+  `channel` string  ,                   
+  `province_code` int  ,               
+  `isp_code` tinyint  ,                
+  `vendor_code` tinyint  ,            
+  `http_code` int  ,                   
+  `netflag_type` tinyint  ,           
+  `event_time` int  ,                 
+  `req_cnt` int  ,                     
+  `hit_req_cnt` int  ,               
+  `miss_req_cnt` int  ,            
+  `pv_req_cnt` int  ,                
+  `flow` bigint  ,                     
+  `hit_flow` bigint  ,                
+  `miss_flow` bigint  ,             
+  `int_flag` tinyint  ,                
+  `hosting_type` tinyint  ,         
+  `response_time` bigint,                          
+  `city_code` int,                                 
+  `county_code` int,                               
+  `lake_id` int)                                   
+PARTITIONED BY (                                   
+  `proc_time` string  )               
+ROW FORMAT SERDE                                   
+  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'  
+STORED AS INPUTFORMAT                              
+  'org.apache.hadoop.mapred.SequenceFileInputFormat'  
+OUTPUTFORMAT                                       
+  'org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat' 
+
+
+ALTER TABLE druid_202005 ADD IF NOT EXISTS PARTITION (proc_time='202005010000') LOCATION '/apps/druid_018_20200603/202005/01/00/00';
+
+ CREATE EXTERNAL TABLE `druid_parquet_202005`(   
+  `client_id` int  ,                  
+  `protocol_type` tinyint  ,          
+  `product_code` tinyint  ,           
+  `channel` string  ,                   
+  `province_code` int  ,               
+  `isp_code` tinyint  ,                
+  `vendor_code` tinyint  ,            
+  `http_code` int  ,                   
+  `netflag_type` tinyint  ,           
+  `event_time` int  ,                 
+  `req_cnt` int  ,                     
+  `hit_req_cnt` int  ,               
+  `miss_req_cnt` int  ,            
+  `pv_req_cnt` int  ,                
+  `flow` bigint  ,                     
+  `hit_flow` bigint  ,                
+  `miss_flow` bigint  ,             
+  `int_flag` tinyint  ,                
+  `hosting_type` tinyint  ,         
+  `response_time` bigint,                          
+  `city_code` int,                                 
+  `county_code` int,                               
+  `lake_id` int)   
+PARTITIONED BY (                                   
+  `proc_time` string)                             
+ROW FORMAT SERDE                                   
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'  
+STORED AS INPUTFORMAT                              
+  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat'
+OUTPUTFORMAT                                       
+  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat' 
+LOCATION                                           
+  'hdfs://cdnlog/tmp/202005/druid_parquet_202005.db' 
+
+insert overwrite table druid_parquet_202005 partition  (proc_time='202005010000') 
+select client_id,protocol_type,product_code,channel,province_code,isp_code,vendor_code,http_code,netflag_type,event_time,req_cnt
+,hit_req_cnt,miss_req_cnt,pv_req_cnt,flow,hit_flow,miss_flow,int_flag,hosting_type,response_time,city_code,county_code,lake_id
+from druid_202005 where proc_time='202005010000'
+```
+
+***必须注意的问题：***
+
+1. logrotate
+2. cache的目录配置
+
+否则很容易引起磁盘满的问题！！！
+
+# 54.手工修改Hive元数据
+
+
+
+```bash
+#新建目录
+hdfs  dfs -mkdir /tmp/zws_cdn_log_parquet2/
+
+hdfs  dfs -mkdir /tmp/zws_cdn_log_parquet3/
+
+#hive建表
+CREATE EXTERNAL TABLE `zws_cdn_log_parquet3`(  
+client_id bigint,
+protocol_type tinyint,
+product_code tinyint,
+channel string,
+province_code int,
+isp_code int,
+vendor_code tinyint,
+http_code int,
+netflag_type tinyint,
+event_time int,
+req_cnt int,
+hit_req_cnt int,
+miss_req_cnt int,
+pv_req_cnt int,
+flow bigint,
+hit_flow bigint,
+miss_flow bigint,
+int_flag tinyint,
+hosting_type tinyint,
+response_time bigint,
+city_code int,
+county_code int,
+lake_id int
+)                                   
+ PARTITIONED BY (                                   
+   `dateminute` string)                             
+ ROW FORMAT SERDE                                   
+   'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'  
+ STORED AS INPUTFORMAT                              
+   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat'  
+ OUTPUTFORMAT                                       
+   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat' 
+ LOCATION                                           
+   '/tmp/zws_cdn_log_parquet3'
+   ;
+   
+hdfs dfs -mkdir /tmp/zws_cdn_log_sequence3;
+   
+CREATE EXTERNAL TABLE `zws_cdn_log_sequence3`(  
+client_id bigint,
+protocol_type tinyint,
+product_code tinyint,
+channel string,
+province_code int,
+isp_code int,
+vendor_code tinyint,
+http_code int,
+netflag_type tinyint,
+event_time int,
+req_cnt int,
+hit_req_cnt int,
+miss_req_cnt int,
+pv_req_cnt int,
+flow bigint,
+hit_flow bigint,
+miss_flow bigint,
+int_flag tinyint,
+hosting_type tinyint,
+response_time bigint,
+city_code int,
+county_code int,
+lake_id int
+)                                   
+ PARTITIONED BY (                                   
+   `dateminute` string)                             
+ ROW FORMAT SERDE                                   
+   'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'   
+ STORED AS INPUTFORMAT                              
+   'org.apache.hadoop.mapred.SequenceFileInputFormat'
+ OUTPUTFORMAT                                       
+   'org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat'
+ LOCATION                                           
+   '/tmp/zws_cdn_log_sequence3' 
+   ;
+   
+   
+   insert overwrite  table zws_cdn_log_sequence3 partition(dateminute='202005312355')
+   select 
+client_id ,protocol_type ,product_code ,channel ,province_code ,isp_code ,vendor_code ,
+http_code ,netflag_type ,event_time ,req_cnt ,hit_req_cnt ,miss_req_cnt ,pv_req_cnt ,
+flow ,hit_flow ,miss_flow ,int_flag ,hosting_type ,response_time ,city_code ,county_code ,
+lake_id 
+   from zws_cdn_log_parquet3 where 
+   dateminute='202005312355'
+   
+ 
+ 
+   
+   
+alter table zws_cdn_log_parquet3 add partition (dateminute='202005312355') location '/tmp/202005/druid_parquet_202005.db/proc_time=202005312355';  
+#mysql元数据修改
+
+select "TBL_ID","OWNER","SD_ID","TBL_NAME" from "TBLS" where "TBL_NAME"='zws_cdn_log_parquet3';
+29519	cdnlog-dev	153338	zws_cdn_log_origin
+
+select "SD_ID","CD_ID","SERDE_ID" from "SDS" where "SD_ID"=153338;
+
+153338	44062	153338
+
+select * from "COLUMNS_V2" where "CD_ID"=44062 order by "INTEGER_IDX";
+
+
+
+
 
 ```
+
+
+
+# 55.安装GCC
+
+```bash
+sudo yum install centos-release-scl
+
+
+yum install centos-release-scl
+yum install devtoolset-8
+scl enable devtoolset-8 -- bash
+enable the tools:
+source /opt/rh/devtoolset-8/enable 
+```
+
+# 56.Kafka死锁排查以及升级
+
+```bash
+ps -ef|grep 'kafka.Kafka'
+
+#有的时候没有反应
+jstack 4800 > /home/zhangwusheng/data/4800.kafka.jstack
+jstack -F 4800 > /home/zhangwusheng/data/4800.kafka.jstack
+
+ls -al /home/zhangwusheng/data/4800.kafka.jstack
+sz -bye   /home/zhangwusheng/data/4800.kafka.jstack
+
+
+int-chengdu-loganalysis-125-ecloud.com:2181
+
+#白山云直播
+topicName=zws-upgrade-test
+ZK_CONN="int-chengdu-loganalysis-125-ecloud.com:2181"
+KAFKA_USER="zws-upgrade-test"
+
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+
+#建立topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 5 --replication-factor 3
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  int-chengdu-loganalysis-125-ecloud.com:6667   --topic ${topicName} --from-beginning --group grp-${KAFKA_USER} 
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list int-chengdu-loganalysis-125-ecloud.com:6667  --topic ${topicName} 
+
+#授权
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
+
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN}  --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --consumer --group grp-${KAFKA_USER}
+
+
+#验证数据
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
+
+```
+
+
 
 
 
