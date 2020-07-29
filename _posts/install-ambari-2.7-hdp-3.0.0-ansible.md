@@ -5304,6 +5304,9 @@ curl -X GET -H "Accept: application/vnd.kafka.v1+json, application/vnd.kafka+jso
 
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044    --topic oss-vod-capacity --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-oss-vod-capacity
 
+#生产系统03主机使用debugtopic用户读取最后的数据
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044    --topic ctYun --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-oy-ctyun
+
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
 
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${userName} --topic  oss-vod-transcode   --operation Read
