@@ -4901,7 +4901,27 @@ val df = spark.read.parquet("/apps/cdn/log/2020-02-19/2020-02-19-00")
 
 22. 
 
+打印table和region信息:
 
+hbase org.apache.hbase.hbck1.OfflineMetaReader -table kylin:KYLIN_WNKD14415B
+
+hbase org.apache.hbase.hbck1.OfflineMetaReader
+
+
+
+
+
+hbase org.apache.hadoop.hbase.wal.WALPrettyPrinter --json /apps/hbasenew/data/WALs/ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net,16020,1578367562765/ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net%2C16020%2C1578367562765.1578750045908
+
+
+
+hbase org.apache.hadoop.hbase.procedure2.store.wal.ProcedureWALPrettyPrinter -f /hbase/MasterProcWALs/state-00000000000000002571.log
+
+
+
+利用hbase pe写入wal
+
+hbase pe --nomapred  --table=testtable --rows=100 sequentialWrite 1
 
 
 
