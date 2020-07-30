@@ -6277,7 +6277,9 @@ enable the tools:
 source /opt/rh/devtoolset-8/enable 
 ```
 
-# 56.Kafka死锁排查以及升级
+# 56.Kafka死锁排查
+
+- 死锁排查
 
 ```bash
 ps -ef|grep 'kafka.Kafka'
@@ -6289,6 +6291,10 @@ jstack -F 4800 > /home/zhangwusheng/data/4800.kafka.jstack
 ls -al /home/zhangwusheng/data/4800.kafka.jstack
 sz -bye   /home/zhangwusheng/data/4800.kafka.jstack
 
+```
+- 成都环境升级
+
+```
 
 int-chengdu-loganalysis-125-ecloud.com:2181
 
@@ -6296,6 +6302,10 @@ int-chengdu-loganalysis-125-ecloud.com:2181
 topicName=zws-upgrade-test
 ZK_CONN="int-chengdu-loganalysis-125-ecloud.com:2181"
 KAFKA_USER="zws-upgrade-test"
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list int-chengdu-loganalysis-125-ecloud.com:6667  --topic ${topicName} < /data2/zhangwusheng/messages
+
+nohup /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server int-chengdu-loganalysis-125-ecloud.com:6667  --topic ${topicName} --from-beginning --group grp5-${KAFKA_USER} > /data2/zhangwusheng/messages5.log &
 
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
 
@@ -6319,6 +6329,130 @@ KAFKA_USER="zws-upgrade-test"
 #/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
 
 ```
+
+- 开发环境升级
+
+```bash
+#第一步
+新增自定义变量，可以尝试重启一下kafka，看看是否正常
+inter.broker.protocol.version
+设置为2.0
+
+#第二步
+#每台机器操作
+下载新版本2.2.2
+wget http://192.168.2.40:17080/soft/kafka_2.11-2.2.2.tgz -O /home/zhangwusheng/soft/kafka_2.11-2.2.2.tgz
+
+#停掉kafka，然后
+tar zxvf /home/zhangwusheng/soft/kafka_2.11-2.2.2.tgz -C  /home/zhangwusheng/soft
+cp -R /home/zhangwusheng/soft/kafka_2.11-2.2.2/libs /usr/hdp/3.1.0.0-78/kafka/libs-2.2.2
+mv /usr/hdp/3.1.0.0-78/kafka/libs /usr/hdp/3.1.0.0-78/kafka/libs-2.0.0
+ln -fs /usr/hdp/3.1.0.0-78/kafka/libs-2.2.2 /usr/hdp/3.1.0.0-78/kafka/libs
+ls -al /usr/hdp/3.1.0.0-78/kafka
+
+grep version /usr/hdp/current/kafka-broker/conf/server.properties
+
+tail -f /data10/var/log/kafka/server.log
+
+#第三步
+inter.broker.protocol.version
+设置为2.2
+```
+
+# 57.Kafka升级
+
+## 1.问题
+
+线上最近Kafka频繁出问题，原因是因为CLOSE_WAIT过高，在解决的过程中发现了有可能是Kafka的BUG引起来的，而线上采用直连kafka的方式，随着直连的机器越来越过（目前1200台左右），后续引发问题的可能性更大，因此决定首先针对此BUG进行版本升级。
+
+## 2.版本选择：
+
+https://issues.apache.org/jira/browse/KAFKA-7697      Possible deadlock in kafka.cluster.Partition
+
+https://issues.apache.org/jira/browse/KAFKA-7538      Improve locking model used to update ISRs and HW
+
+后查到2.1.0和2.1.1继续有BUG
+
+![img](/img/N2DWD_POSZ4E87XZ67DGY%W.png)
+
+
+
+![image-20200730092031276](/img/image-20200730092031276.png)
+
+2.2.0的RELEASE LOG里面
+
+![image-20200730092222447](/img/image-20200730092222447.png)
+
+说明BUG可能仍然未得到解决，查看2.2.1和2.2.2的RELEASE LOG，发现2.2.2解决的BUG比2.2.1少，说明此时版本相对比较稳定，因此选择2.2.2版本进行升级
+
+
+
+## 3.参考文档以及步骤
+
+https://kafka.apache.org/22/documentation.html#upgrade
+
+主要参考如下步骤
+
+> ### [1.5 Upgrading From Previous Versions](https://kafka.apache.org/22/documentation.html#upgrade)
+>
+> #### [Upgrading from 0.8.x, 0.9.x, 0.10.0.x, 0.10.1.x, 0.10.2.x, 0.11.0.x, 1.0.x, 1.1.x, 2.0.x or 2.1.x to 2.2.0](https://kafka.apache.org/22/documentation.html#upgrade_2_2_0)
+>
+> **If you are upgrading from a version prior to 2.1.x, please see the note below about the change to the schema used to store consumer  offsets.    Once you have changed the inter.broker.protocol.version to the  latest version, it will not be possible to downgrade to a version prior  to 2.1.**
+>
+> **For a rolling upgrade:**
+>
+> 1.  Update server.properties on all brokers and add the following  properties. CURRENT_KAFKA_VERSION refers to the version you        are upgrading from. CURRENT_MESSAGE_FORMAT_VERSION refers to the message format version currently in use. If you have previously        overridden the message format version, you should keep its  current value. Alternatively, if you are upgrading from a version prior        to 0.11.0.x, then CURRENT_MESSAGE_FORMAT_VERSION should be set  to match CURRENT_KAFKA_VERSION.        
+>
+>    - inter.broker.protocol.version=CURRENT_KAFKA_VERSION (e.g. 0.8.2, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 1.0, 1.1).
+>    - log.message.format.version=CURRENT_MESSAGE_FORMAT_VERSION  (See [potential performance impact                 following the upgrade](https://kafka.apache.org/22/documentation.html#upgrade_10_performance_impact) for the details on what this configuration does.)
+>
+>    ​        If you are upgrading from 0.11.0.x, 1.0.x, 1.1.x, or 2.0.x and  you have not overridden the message format, then you only need to  override        the inter-broker protocol version.        
+>
+>    - inter.broker.protocol.version=CURRENT_KAFKA_VERSION (0.11.0, 1.0, 1.1, 2.0).
+>
+> 2.  Upgrade the brokers one at a time: shut down the broker, update the code, and restart it. Once you have done so, the        brokers will be running the latest version and you can verify  that the cluster's behavior and performance meets expectations.        It is still possible to downgrade at this point if there are any problems.    
+>
+> 3.  Once the cluster's behavior and performance has been verified, bump the protocol version by editing        `inter.broker.protocol.version` and setting it to 2.2.    
+>
+> 4.  Restart the brokers one by one for the new protocol version to take effect. Once the brokers begin using the latest        protocol version, it will no longer be possible to downgrade the cluster to an older version.    
+>
+> 5.  If you have overridden the message format version as instructed above, then you need to do one more rolling restart to        upgrade it to its latest version. Once all (or most) consumers have been upgraded to 0.11.0 or later,        change log.message.format.version to 2.2 on each broker and restart them one by one. Note that the older Scala clients,        which are no longer maintained, do not support the message format introduced in 0.11, so to avoid conversion costs        (or to take advantage of [exactly once semantics](https://kafka.apache.org/22/documentation.html#upgrade_11_exactly_once_semantics)),        the newer Java clients must be used.    
+>
+> ##### [Notable changes in 2.2.1](https://kafka.apache.org/22/documentation.html#upgrade_221_notable)
+>
+> - Kafka Streams 2.2.1 requires 0.11 message format or higher and does not work with older message format.
+>
+> ##### [Notable changes in 2.2.0](https://kafka.apache.org/22/documentation.html#upgrade_220_notable)
+>
+> - The default consumer group id has been changed from the empty string (`""`) to `null`. Consumers who use the new default group id will not be able to  subscribe to topics,        and fetch or commit offsets. The empty string as consumer group  id is deprecated but will be supported until a future major release. Old clients that rely on the empty string group id will now        have to explicitly provide it as part of their consumer config.  For more information see        [KIP-289](https://cwiki.apache.org/confluence/display/KAFKA/KIP-289%3A+Improve+the+default+group+id+behavior+in+KafkaConsumer).
+> - The `bin/kafka-topics.sh` command line tool is now able to connect directly to brokers with `--bootstrap-server` instead of zookeeper. The old `--zookeeper`        option is still available for now. Please read [KIP-377](https://cwiki.apache.org/confluence/display/KAFKA/KIP-377%3A+TopicCommand+to+use+AdminClient) for more information.
+> - Kafka Streams depends on a newer version of RocksDBs that requires MacOS 10.13 or higher.
+
+
+
+## 4.测试环境实施过程
+
+1. 新建一个topic，使用console-producer写入一批数据，测试使用
+2. 下载kafka新版程序包    https://www.apache.org/dyn/closer.cgi?path=/kafka/2.2.2/kafka_2.11-2.2.2.tgz
+3. 将kafka_2.11-2.2.2.tgz解压后，将libs目录拷贝到/usr/hdp/3.1.0.0-78/kafka，命名为libs-2.2.2
+4. 通过Ambari新增参数inter.broker.protocol.version为2.0
+5. 停掉单台Kafka Broker
+6. 将/usr/hdp/3.1.0.0-78/kafka/libs重命名为/usr/hdp/3.1.0.0-78/kafka/libs-2.0.0
+7. 将/usr/hdp/3.1.0.0-78/kafka/libs-2.2.2软链到/usr/hdp/3.1.0.0-78/kafka/libs
+8. 启动单台kafka broker，查看启动日志是否正常
+9. 使用console-producer和console-consumer验证是否读写数据正常
+10. 循环5-9，直到所有的broker全部重启完毕。
+11. 通过Ambari新增参数inter.broker.protocol.version为2.2
+12. 循环5-9，直到所有的broker全部重启完毕。
+
+
+
+## 5.需要继续验证的步骤
+
+1. 验证升级期间，streaming是否能够正常工作
+2. 验证升级期间，外部客户的数据写入是否会受到影响
+3. 高并发写入，查看是否会出现CLOSE_WAIT的情况
+4. 验证回滚情况（重要）
 
 
 
