@@ -119,6 +119,7 @@ vi /etc/hosts.allow
 #加入自己的IP
 sshd:36.111.140.40:allow
 
+ssh-keygen -t rsa
 #不能ssh-copy-id的时候手工编辑这个文件，把pub文件拷贝过来
 vi /root/.ssh/authorized_keys
 #一定要修改权限
@@ -454,7 +455,7 @@ EOF
 cat > /etc/yum.repos.d/ambari.repo<<EOF 
 [ambari-2.7.3.0]
 name=HDP Version - ambari-2.7.3.0
-baseurl=http://192.168.1.36:18181/ambari/ambari/centos7/2.7.3.0-139/
+baseurl=http://172.31.0.14:18181/ambari/ambari/centos7/2.7.3.0-139/
 gpgcheck=0
 EOF
 
@@ -3952,6 +3953,9 @@ sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=3
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=192.168.2.40/24 accept'
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=58.62.0.226 accept'
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.26 accept'
+
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 port port=6667 protocol=tcp  accept'
 sudo firewall-cmd --reload
 sudo firewall-cmd --list-all
 
@@ -3999,6 +4003,8 @@ sudo firewall-cmd --list-all
 
 # 29.Spark-Shell
 
+## 1.shell
+
 ```scala
 val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
@@ -4041,6 +4047,44 @@ addauth digest kafka:Kafka0701@2019
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper hbase36.ecloud.com:2181/kafka-no-auth2  --topic zwstest    --partitions 1 --replication-factor 1
 
 
+```
+
+## 2.thriftserver
+
+```bash
+metastore.catalog.default
+默认为spark，需要修改为hive
+
+#注意，后面的principal要是thriftserver所在的机器的
+
+/usr/hdp/current/spark2-client/bin/beeline -u "jdbc:hive2://cdnlog029.ctyun.net:10016/;principal=spark/cdnlog029.ctyun.net@CTYUN.NET"
+
+----spark sql能跑通
+select count(*) from (select cast(cast(substring(timestamp,1,11) as int)/300 as int)*300 as ttt,channel,source_ip,cast(region/100 as int)*100 as rrr
+ from  cdn_log_origin
+where dateminute>='2020-07-30-16-30'
+and  dateminute<='2020-07-30-16-40'
+group by ttt,channel,source_ip,rrr
+) aaa
+
+----hive
+select count(1) from (
+SELECT ttt,channel,source_ip,rrr 
+FROM(
+SELECT
+cast( cast( substring( `TIMESTAMP`, 1, 11 ) AS INT )/ 300 AS INT )* 300 AS ttt,
+ channel,
+source_ip,
+cast( region / 100 AS INT )* 100 AS rrr 
+FROM
+cdn_log_origin 
+ WHERE
+dateminute >= '2020-07-29-21-30' 
+AND dateminute <= '2020-07-29-21-40' 
+and vendorcode=1
+) aaa
+group by ttt,channel,source_ip,rrr 
+) bbb
 ```
 
 
@@ -6146,6 +6190,17 @@ from druid_202005 where proc_time='202005010000'
 
 否则很容易引起磁盘满的问题！！！
 
+
+
+```bash
+
+DSQL:
+./dsql --host http://ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:18888 --execute "SELECT  clientId,protocolType,productCode,channel,province,city,county,ispCode from \"cdn-log-analysis-realtime-dev-rollup\" WHERE \"eventTime\" = 1594456260"
+
+```
+
+
+
 # 54.手工修改Hive元数据
 
 
@@ -6444,8 +6499,7 @@ https://kafka.apache.org/22/documentation.html#upgrade
 7. 将/usr/hdp/3.1.0.0-78/kafka/libs-2.2.2软链到/usr/hdp/3.1.0.0-78/kafka/libs
 8. 启动单台kafka broker，查看启动日志是否正常
 9. 使用console-producer和console-consumer验证是否读写数据正常
-10. 循环5-9，直到所有的broker全部重启完毕。
-11. 通过Ambari新增参数inter.broker.protocol.version为2.2
+10. 循环5-9，直到所有的broker全部重启完毕。开发
 12. 循环5-9，直到所有的broker全部重启完毕。
 
 
@@ -6456,6 +6510,99 @@ https://kafka.apache.org/22/documentation.html#upgrade
 2. 验证升级期间，外部客户的数据写入是否会受到影响
 3. 高并发写入，查看是否会出现CLOSE_WAIT的情况
 4. 验证回滚情况（重要）
+
+
+
+# 58.Fluentd Docker操作
+
+- 准备基础镜像：
+
+```bash
+开发40机器：(需要login，赞煌有权限)
+
+docker pull registry.ctzcdn.com/log/fluentd:v2.2.2
+
+docker tag registry.ctzcdn.com/log/fluentd:v2.2.2  harbor.ctyuncdn.cn/cdn-log-fluentd/fluentd:v2.2.2
+
+docker login harbor.ctyuncdn.cn
+
+docker push harbor.ctyuncdn.cn/cdn-log-fluentd/fluentd:v2.2.2
+```
+
+- 西安测试环境：
+
+```bash
+增加nginx.fluent-xian-test-env.conf，修改kafka连接串
+增加三个文件
+fluentd-xian-test-env.conf  
+nginx.fluent-xian-test-env.conf  
+start-xian-test-env.sh
+从各自的文件进行Copy。
+
+yum -y install docker
+systemctl start docker
+
+cd /home/zhangwusheng/soft/fluentd/2020-07-13/xian-test-env
+docker build -t harbor.ctyuncdn.cn/cdn-log-fluentd/cdn-fluentd-collect:xian-test-v20200804-1 .
+#save it to local
+docker save c9738d74b998 > fluentd_xian.tar
+gzip fluentd_xian.tar
+
+上传fluentd_xian.tar.gz到西安环境，然后
+gunzip fluentd_xian.tar.gz
+#load it to images
+docker load < fluentd_xian.tar
+#tag it
+docker tag c9738d74b998 fluentd/xian:v20200804
+
+#HOSTNAME=`hostname -f`
+mkdir /home/zhangwusheng/nginx-logs
+touch /home/zhangwusheng/nginx-logs/nginx.log
+
+#-p 192.168.254.100:$HOST_PORT:8585 \
+#-v /etc/security/keytabs/tsdb.keytab:/etc/security/keytabs/tsdb.keytab \
+
+sudo docker run -dit \
+-v /home/zhangwusheng/nginx-logs/nginx.log:/fluentd/nginx/access.log \
+-v /etc/hosts:/etc/hosts \
+-e HOST_NAME=$HOSTNAME \
+--cpus=4 \
+-m 2G \
+--name="$HOSTNAME" \
+fluentd/xian:v20200804
+
+docker ps -a
+
+docker exec -it 76c4af8ccae2 /bin/sh
+ls -al /fluentd/nginx/access.log
+ 
+ 
+firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=172.17.0.2/16 accept' 
+firewall-cmd --reload
+
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list  ecm-b254-011.ctyunxian.cn:6667  --topic ctYun 
+
+
+#########
+echo '[12/May/2020:14:50:36 +0800]"8999999999999999999999999"200"1589266236.415"0.002"0.000"0.000"0.002"0"172.17.0.2"80"172.17.0.1"48482"GET"http"www.fakeclient.com"http://www.fakeclient.com/4K.file"HTTP/1.1"168"4096"4421"4096"172.17.0.4:8886"200"0.000"-"-"-"-"-"application/octet-stream"-"curl/7.58.0"-"-"-"-"-"-"-"haobai88888"' >> /home/zhangwusheng/nginx-logs/nginx.log
+
+##########
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ecm-b254-011.ctyunxian.cn:6667    --topic ctYun --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-ctyun 
+
+##########
+for i in `seq 1 10000`
+do
+for j in `seq 1 5`
+do
+echo '[12/May/2020:14:50:36 +0800]"8999999999999999999999999"200"1589266236.415"0.002"0.000"0.000"0.002"0"172.17.0.2"80"172.17.0.1"48482"GET"http"www.fakeclient.com"http://www.fakeclient.com/4K.file"HTTP/1.1"168"4096"4421"4096"172.17.0.4:8886"200"0.000"-"-"-"-"-"application/octet-stream"-"curl/7.58.0"-"-"-"-"-"-"-"haobai88888"' >> /home/zhangwusheng/nginx-logs/nginx.log
+done
+done
+```
+
+
 
 
 
