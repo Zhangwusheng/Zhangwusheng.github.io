@@ -2947,6 +2947,115 @@ ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 
 ```
 
+## 6.Topic级别配置修改
+
+- 开发环境
+
+```bash
+
+#看看有没有单独的配置
+
+#开发broker对应关系
+1001 	ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net 	
+1003 	ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net 	
+1004 	ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net 	
+1005 	ctl-nm-hhht-yxxya6-ceph-011.ctyuncdn.net 	
+1006 	ctl-nm-hhht-yxxya6-ceph-012.ctyuncdn.net 	
+1007 	ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net 	
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1 --describe --entity-type topics --entity-name ctYun
+
+#调整topic过期时间：
+#开发环境
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1  --entity-type topics --entity-name ctYun  --alter --add-config retention.ms=172800000
+
+
+#调整topic参数（设置topic可以从不同步的副本选择leader！！慎用）：
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name ambari_kafka_service_check  --alter --add-config unclean.leader.election.enable=true  
+
+# 查看分区分布情况
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --describe --zookeeper 192.168.2.27:12181/kafka-auth-test-1 --topic cdn-fee-flow-increment
+
+#生成重新分区的数据
+/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1 --generate --topics-to-move-json-file /home/zhangwusheng/scripts/kafka-reassign.txt --broker-list 1001,1003,1004,1005,1006,1007
+
+cat /home/zhangwusheng/scripts/kafka-reassign.txt
+echo 
+{
+     "topics":[
+                {
+                        "topic":"ctYun"
+                }
+        ],
+     "version":1
+}
+
+Current partition replica assignment
+{"version":1,"partitions":[{"topic":"ctYun-dev","partition":2,"replicas":[1007,1003,1005],"log_dirs":["any","any","any"]},{"topic":"ctYun-dev","partition":1,"replicas":[1006,1003,1005],"log_dirs":["any","any","any"]},{"topic":"ctYun-dev","partition":0,"replicas":[1005,1003,1006],"log_dirs":["any","any","any"]}]}
+
+Proposed partition reassignment configuration
+{"version":1,"partitions":[{"topic":"ctYun-dev","partition":0,"replicas":[1004,1003,1005],"log_dirs":["any","any","any"]},{"topic":"ctYun-dev","partition":2,"replicas":[1006,1003,1004],"log_dirs":["any","any","any"]},{"topic":"ctYun-dev","partition":1,"replicas":[1005,1003,1004],"log_dirs":["any","any","any"]}]}
+
+
+
+
+```
+
+
+
+生产环境
+
+```bash
+
+#生产broker对应关系
+1001 	cdnlog003.ctyun.net 	
+1002 	cdnlog004.ctyun.net 	
+1012 	cdnlog043.ctyun.net 	
+1013 	cdnlog044.ctyun.net 	
+1014 	cdnlog023.ctyun.net 	
+1015 	cdnlog014.ctyun.net 	
+1016 	cdnlog033.ctyun.net 	
+1017 	cdnlog024.ctyun.net 	
+1018 	cdnlog034.ctyun.net 	
+1019 	cdnlog013.ctyun.net 
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --describe --entity-type topics --entity-name huaweiYun
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name ctYun  --alter --add-config retention.ms=172800000
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name elk-metrics --alter --delete-config retention.ms
+
+cat > /home/zhangwusheng/scripts/kafka-reassign.txt<<EOF
+{
+     "topics":[
+                {
+                        "topic":"huaweiYun"
+                }
+        ],
+     "version":1
+}
+EOF
+
+/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --generate --topics-to-move-json-file /home/zhangwusheng/scripts/kafka-reassign.txt --broker-list 1001,1002,1012,1013,1014,1015,1016,1017,1018,1019
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --bootstrap-server cdnlog003.ctyun.net:5044,cdnlog004.ctyun.net:5044 --execute --reassignment-json-file /home/zhangwusheng/scripts/kafka-reassign-youpuYun.json
+
+/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first  --verify --reassignment-json-file /home/zhangwusheng/scripts/kafka-reassign-youpuYun.json
+
+
+#查看偏移量：
+/usr/hdp/current/kafka-broker/bin/kafka-consumer-groups-acls.sh --command-config  /usr/hdp/current/kafka-broker/config/consumer_lizw.properties --bootstrap-server  cdnlog003.ctyun.net:5044 --group ctYun-realtime-bilibili --describe
+
+#平衡leader：
+bin/kafka-preferred-replica-election.sh --zookeeper zk_host:port/chroot
+
+#不限group消费授权：
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=192.168.254.36:12181/cdnlog-first --add --allow-principal User:edge_computing --consumer --topic evm-billing-out-bandwidth     --group '*'
+
+
+```
+
 
 
 
