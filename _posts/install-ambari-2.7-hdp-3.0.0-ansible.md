@@ -6651,12 +6651,14 @@ start-xian-test-env.sh
 yum -y install docker
 systemctl start docker
 
+#开发环境构建镜像
 cd /home/zhangwusheng/soft/fluentd/2020-07-13/xian-test-env
 docker build -t harbor.ctyuncdn.cn/cdn-log-fluentd/cdn-fluentd-collect:xian-test-v20200804-1 .
-#save it to local
+#导出到本地，便于上传到其他环境的机器
 docker save c9738d74b998 > fluentd_xian.tar
 gzip fluentd_xian.tar
 
+#西安环境，导入镜像
 上传fluentd_xian.tar.gz到西安环境，然后
 gunzip fluentd_xian.tar.gz
 #load it to images
