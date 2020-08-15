@@ -6765,9 +6765,8 @@ done
 28. jmh使用
 29. clickhouse分布式表的使用
 30. kafkaproxy的使用,原理介绍
-31. 
-
-
+31. java
+32. 常用jdk工具jstack,jconsole,jmap常用负载过高和内存过高
 
 
 
