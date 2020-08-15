@@ -6715,6 +6715,62 @@ done
 
 
 
+# 59.知识分享点(积跬步,成千里)
+
+有能够 运行的代码demo,有基本的原理说明,每次分享10-15分钟
+
+1. kafka常用基本命令
+
+2. kafka mirror的测试过程
+
+3. parquet文件格式
+
+4. orc文件格式
+
+5.hdfs存储策略以及验证方式
+
+6. JDK threadlocal的实现
+
+7.curator recipe知识分享
+
+8. JDK 并发包源码分享
+
+9.Guice基础使用分享(multibinder)
+
+10. docker基本命令分享
+
+11.跳表分享
+
+12. 一致性hash分享
+
+13.  布隆过滤器分享
+
+14. awk常用技巧分享
+
+15. sed常用技巧分享
+
+16. guice aop分享
+
+17. spring aop分享
+18. protobuf使用以及service分享
+19. TriTree分享
+20. ambari插件编写和安装,调试
+21. hbase表备份和恢复(全量和增量)
+22. Hbase表迁移
+23. hyperloglog分享
+24. thrift编写service
+25. roaringbitmap
+26. hashwheeltimer
+27. jmeter使用
+28. jmh使用
+29. clickhouse分布式表的使用
+30. kafkaproxy的使用,原理介绍
+31. 
+
+
+
+
+
 
 
 
