@@ -6091,6 +6091,9 @@ ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/start-clus
 ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/start-cluster-data-server  -O /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-data-server"
 
 
+ssh -p 9000 192.168.254.21 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/druid.keytab kylin/cdnlog003.ctyun.net"'
+
+
 ####
 cat druid_jaas.conf 
 KafkaClient {
@@ -6170,6 +6173,10 @@ https://repo1.maven.org/maven2/org/apache/druid/extensions/contrib/ambari-metric
 
 #修改代码，处理
 druid.segmentCache.locationSelectorStrategy=mostAvailableSize
+
+#建立tmp目录
+java.io.tmpdir=/data1/druid_18/tmp
+#启动logrotate
 ```
 
 
