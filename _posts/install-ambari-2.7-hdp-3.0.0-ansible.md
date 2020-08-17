@@ -6767,9 +6767,15 @@ done
 28. jmh使用
 29. clickhouse分布式表的使用
 30. kafkaproxy的使用,原理介绍
-31. java常用jdk工具jstack,jconsole,jmap常用负载过高和内存过高
+31. java常用jdk工具jstack,jconsole,jmap，jstat,eclipse memory analysizer常用负载过高和内存过高
 32. 开源组件的自带性能测试工具(hbase,kafka,hadoop)
-33. 
+33. mysql binlog
+34. netty编写基本网络程序
+35. netty解析mysql binlog等
+36. canal binlog接入
+37. flume的使用（详细一点）
+38. springboot相关（如何写命令行程序？）
+39. druid命令行解析（类似git命令组io.airlift.airline）
 
 
 
