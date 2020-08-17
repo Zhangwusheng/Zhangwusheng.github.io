@@ -679,29 +679,5 @@ Spark已经将Parquet设为默认的文件存储格式，Cloudera投入了很多
 
 如果说HDFS是大数据时代文件系统的事实标准的话，Parquet就是大数据时代存储格式的事实标准。
 
-
-
-[[s1\]](https://www.jianshu.com/writer#_msoanchor_1)存储转换对象
-
-
-
-[[s2\]](https://www.jianshu.com/writer#_msoanchor_2)存储格式
-
-
-
-[[s3\]](https://www.jianshu.com/writer#_msoanchor_3)Definitionrepetition
-
-
-
-[[s4\]](https://www.jianshu.com/writer#_msoanchor_4)序列化
-
-
-
-[[s5\]](https://www.jianshu.com/writer#_msoanchor_5)反序列化
-
-
-
 作者：时待吾
 链接：https://www.jianshu.com/p/b823c727fe46
-来源：简书
-著作权归作者所有。商业转载请联系作者获得授权，非商业转载请注明出处。
