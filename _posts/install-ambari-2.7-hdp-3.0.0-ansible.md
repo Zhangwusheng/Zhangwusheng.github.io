@@ -6727,28 +6727,17 @@ done
 有能够 运行的代码demo,有基本的原理说明,每次分享10-15分钟
 
 1. kafka常用基本命令
-
 2. kafka mirror的测试过程
-
 3. parquet文件格式
-
 4. orc文件格式
-
 5. hdfs存储策略以及验证方式
-
 6. JDK threadlocal的实现
-
 7. curator recipe知识分享
-
-8. JDK 并发包源码分享
-
+8. JDK 并发包源码分享（太笼统？）
 9. Guice基础使用分享(multibinder)
-
 10. docker基本命令分享
-
-11.跳表分享
-
-12. 一致性hash分享
+11. 跳表分享
+12.  一致性hash分享
 13. 布隆过滤器分享
 14. awk常用技巧分享
 15. sed常用技巧分享
@@ -6769,15 +6758,50 @@ done
 30. kafkaproxy的使用,原理介绍
 31. java常用jdk工具jstack,jconsole,jmap，jstat,eclipse memory analysizer常用负载过高和内存过高
 32. 开源组件的自带性能测试工具(hbase,kafka,hadoop)
-33. mysql binlog
-34. netty编写基本网络程序
+33. mysql binlog、主从搭建，基于gtid的复制
+34. netty编写基本网络程序（网络基本参数的设置，主动断开，被动断开，断开重连，主动发起多个连接的处理）
 35. netty解析mysql binlog等
 36. canal binlog接入
-37. flume的使用（详细一点）
-38. springboot相关（如何写命令行程序？）
-39. druid命令行解析（类似git命令组io.airlift.airline）
+37. tungsent 如何处理binlog数据？（hive sql）
+38. flume的使用（详细一点）
+39. springboot相关（不好拆分？）
+40. druid命令行解析（类似git命令组io.airlift.airline）
+41. lua基础知识分享
+42. 均匀分布的随机数分享
+43. 测试相关（需要细分）？
+44. livy提交管理spark？
+45. hbase rit处理
+46. ES相关？（需要细分）
+47. devops相关（那张图，工具链？）
+48. Kerberos相关原理.以及备份和恢复
+49. postgresql的复制
+50. jmxterm？
+51. Guice scope？
 
 
+
+# 60.开发规范
+
+1. web程序使用springboot
+2. json使用jackson
+3. gitlab目录按照功能架构来组织
+4. 命令行程序使用依赖注入框架(spring/guice)
+5. zk使用curator框架
+6. webserver使用jetty不用tomcat
+7. 代码规范使用sonar+阿里p3c扫描
+8. 新提交的代码测试覆盖率必须达到A以上
+9. 文档必须有changelog，里面包含：1需求连接，2改动点3关联的版本号
+10. 系统gitlab版本号，程序运行版本号，制品版本号，三者必须统一
+11. hadoop等开源组件的配置文件，严禁copy到应用程序目录（docker除外）
+12. 各个程序目录结构必须统一，包含bin,conf,logs等常见目录
+13. 配置统一使用配置中心，配置中心地址通过环境变量进行共享
+14. 接口统一使用yapi进行管理
+15. 开发流程管理使用giflow
+16. codereview首先由各领域开发小组进行，必须包含这一步
+17. 所有组件的安全管理通过ldap进行
+18. 开发必须就自己的程序完成一轮性能测试，查询接口要求每秒不少于1000次，调度型接口必须有限流功能
+19. 后台程序测试必须支持一次性处理10亿级别的数据
+20. 所有的程序必须考虑容灾
 
 
 
