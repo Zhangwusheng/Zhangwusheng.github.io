@@ -119,6 +119,7 @@ vi /etc/hosts.allow
 #加入自己的IP
 sshd:36.111.140.40:allow
 
+ssh-keygen -t rsa
 #不能ssh-copy-id的时候手工编辑这个文件，把pub文件拷贝过来
 vi /root/.ssh/authorized_keys
 #一定要修改权限
@@ -454,7 +455,7 @@ EOF
 cat > /etc/yum.repos.d/ambari.repo<<EOF 
 [ambari-2.7.3.0]
 name=HDP Version - ambari-2.7.3.0
-baseurl=http://192.168.1.36:18181/ambari/ambari/centos7/2.7.3.0-139/
+baseurl=http://172.31.0.14:18181/ambari/ambari/centos7/2.7.3.0-139/
 gpgcheck=0
 EOF
 
@@ -2946,6 +2947,115 @@ ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 
 ```
 
+## 6.Topic级别配置修改
+
+- 开发环境
+
+```bash
+
+#看看有没有单独的配置
+
+#开发broker对应关系
+1001 	ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net 	
+1003 	ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net 	
+1004 	ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net 	
+1005 	ctl-nm-hhht-yxxya6-ceph-011.ctyuncdn.net 	
+1006 	ctl-nm-hhht-yxxya6-ceph-012.ctyuncdn.net 	
+1007 	ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net 	
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1 --describe --entity-type topics --entity-name ctYun
+
+#调整topic过期时间：
+#开发环境
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1  --entity-type topics --entity-name ctYun  --alter --add-config retention.ms=172800000
+
+
+#调整topic参数（设置topic可以从不同步的副本选择leader！！慎用）：
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name ambari_kafka_service_check  --alter --add-config unclean.leader.election.enable=true  
+
+# 查看分区分布情况
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --describe --zookeeper 192.168.2.27:12181/kafka-auth-test-1 --topic cdn-fee-flow-increment
+
+#生成重新分区的数据
+/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1 --generate --topics-to-move-json-file /home/zhangwusheng/scripts/kafka-reassign.txt --broker-list 1001,1003,1004,1005,1006,1007
+
+cat /home/zhangwusheng/scripts/kafka-reassign.txt
+echo 
+{
+     "topics":[
+                {
+                        "topic":"ctYun"
+                }
+        ],
+     "version":1
+}
+
+Current partition replica assignment
+{"version":1,"partitions":[{"topic":"ctYun-dev","partition":2,"replicas":[1007,1003,1005],"log_dirs":["any","any","any"]},{"topic":"ctYun-dev","partition":1,"replicas":[1006,1003,1005],"log_dirs":["any","any","any"]},{"topic":"ctYun-dev","partition":0,"replicas":[1005,1003,1006],"log_dirs":["any","any","any"]}]}
+
+Proposed partition reassignment configuration
+{"version":1,"partitions":[{"topic":"ctYun-dev","partition":0,"replicas":[1004,1003,1005],"log_dirs":["any","any","any"]},{"topic":"ctYun-dev","partition":2,"replicas":[1006,1003,1004],"log_dirs":["any","any","any"]},{"topic":"ctYun-dev","partition":1,"replicas":[1005,1003,1004],"log_dirs":["any","any","any"]}]}
+
+
+
+
+```
+
+
+
+生产环境
+
+```bash
+
+#生产broker对应关系
+1001 	cdnlog003.ctyun.net 	
+1002 	cdnlog004.ctyun.net 	
+1012 	cdnlog043.ctyun.net 	
+1013 	cdnlog044.ctyun.net 	
+1014 	cdnlog023.ctyun.net 	
+1015 	cdnlog014.ctyun.net 	
+1016 	cdnlog033.ctyun.net 	
+1017 	cdnlog024.ctyun.net 	
+1018 	cdnlog034.ctyun.net 	
+1019 	cdnlog013.ctyun.net 
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --describe --entity-type topics --entity-name huaweiYun
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name ctYun  --alter --add-config retention.ms=172800000
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name elk-metrics --alter --delete-config retention.ms
+
+cat > /home/zhangwusheng/scripts/kafka-reassign.txt<<EOF
+{
+     "topics":[
+                {
+                        "topic":"huaweiYun"
+                }
+        ],
+     "version":1
+}
+EOF
+
+/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --generate --topics-to-move-json-file /home/zhangwusheng/scripts/kafka-reassign.txt --broker-list 1001,1002,1012,1013,1014,1015,1016,1017,1018,1019
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --bootstrap-server cdnlog003.ctyun.net:5044,cdnlog004.ctyun.net:5044 --execute --reassignment-json-file /home/zhangwusheng/scripts/kafka-reassign-youpuYun.json
+
+/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first  --verify --reassignment-json-file /home/zhangwusheng/scripts/kafka-reassign-youpuYun.json
+
+
+#查看偏移量：
+/usr/hdp/current/kafka-broker/bin/kafka-consumer-groups-acls.sh --command-config  /usr/hdp/current/kafka-broker/config/consumer_lizw.properties --bootstrap-server  cdnlog003.ctyun.net:5044 --group ctYun-realtime-bilibili --describe
+
+#平衡leader：
+bin/kafka-preferred-replica-election.sh --zookeeper zk_host:port/chroot
+
+#不限group消费授权：
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=192.168.254.36:12181/cdnlog-first --add --allow-principal User:edge_computing --consumer --topic evm-billing-out-bandwidth     --group '*'
+
+
+```
+
 
 
 
@@ -3952,6 +4062,9 @@ sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=3
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=192.168.2.40/24 accept'
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=58.62.0.226 accept'
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.26 accept'
+
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 port port=6667 protocol=tcp  accept'
 sudo firewall-cmd --reload
 sudo firewall-cmd --list-all
 
@@ -3999,6 +4112,8 @@ sudo firewall-cmd --list-all
 
 # 29.Spark-Shell
 
+## 1.shell
+
 ```scala
 val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
@@ -4041,6 +4156,44 @@ addauth digest kafka:Kafka0701@2019
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper hbase36.ecloud.com:2181/kafka-no-auth2  --topic zwstest    --partitions 1 --replication-factor 1
 
 
+```
+
+## 2.thriftserver
+
+```bash
+metastore.catalog.default
+默认为spark，需要修改为hive
+
+#注意，后面的principal要是thriftserver所在的机器的
+
+/usr/hdp/current/spark2-client/bin/beeline -u "jdbc:hive2://cdnlog029.ctyun.net:10016/;principal=spark/cdnlog029.ctyun.net@CTYUN.NET"
+
+----spark sql能跑通
+select count(*) from (select cast(cast(substring(timestamp,1,11) as int)/300 as int)*300 as ttt,channel,source_ip,cast(region/100 as int)*100 as rrr
+ from  cdn_log_origin
+where dateminute>='2020-07-30-16-30'
+and  dateminute<='2020-07-30-16-40'
+group by ttt,channel,source_ip,rrr
+) aaa
+
+----hive
+select count(1) from (
+SELECT ttt,channel,source_ip,rrr 
+FROM(
+SELECT
+cast( cast( substring( `TIMESTAMP`, 1, 11 ) AS INT )/ 300 AS INT )* 300 AS ttt,
+ channel,
+source_ip,
+cast( region / 100 AS INT )* 100 AS rrr 
+FROM
+cdn_log_origin 
+ WHERE
+dateminute >= '2020-07-29-21-30' 
+AND dateminute <= '2020-07-29-21-40' 
+and vendorcode=1
+) aaa
+group by ttt,channel,source_ip,rrr 
+) bbb
 ```
 
 
@@ -5304,6 +5457,9 @@ curl -X GET -H "Accept: application/vnd.kafka.v1+json, application/vnd.kafka+jso
 
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044    --topic oss-vod-capacity --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-oss-vod-capacity
 
+#生产系统03主机使用debugtopic用户读取最后的数据
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044    --topic ctYun --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-oy-ctyun
+
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
 
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${userName} --topic  oss-vod-transcode   --operation Read
@@ -5935,6 +6091,9 @@ ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/start-clus
 ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/start-cluster-data-server  -O /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-data-server"
 
 
+ssh -p 9000 192.168.254.21 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/druid.keytab kylin/cdnlog003.ctyun.net"'
+
+
 ####
 cat druid_jaas.conf 
 KafkaClient {
@@ -6014,6 +6173,10 @@ https://repo1.maven.org/maven2/org/apache/druid/extensions/contrib/ambari-metric
 
 #修改代码，处理
 druid.segmentCache.locationSelectorStrategy=mostAvailableSize
+
+#建立tmp目录
+java.io.tmpdir=/data1/druid_18/tmp
+#启动logrotate
 ```
 
 
@@ -6142,6 +6305,17 @@ from druid_202005 where proc_time='202005010000'
 2. cache的目录配置
 
 否则很容易引起磁盘满的问题！！！
+
+
+
+```bash
+
+DSQL:
+./dsql --host http://ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:18888 --execute "SELECT  clientId,protocolType,productCode,channel,province,city,county,ispCode from \"cdn-log-analysis-realtime-dev-rollup\" WHERE \"eventTime\" = 1594456260"
+
+```
+
+
 
 # 54.手工修改Hive元数据
 
@@ -6277,7 +6451,9 @@ enable the tools:
 source /opt/rh/devtoolset-8/enable 
 ```
 
-# 56.Kafka死锁排查以及升级
+# 56.Kafka死锁排查
+
+- 死锁排查
 
 ```bash
 ps -ef|grep 'kafka.Kafka'
@@ -6289,6 +6465,10 @@ jstack -F 4800 > /home/zhangwusheng/data/4800.kafka.jstack
 ls -al /home/zhangwusheng/data/4800.kafka.jstack
 sz -bye   /home/zhangwusheng/data/4800.kafka.jstack
 
+```
+- 成都环境升级
+
+```
 
 int-chengdu-loganalysis-125-ecloud.com:2181
 
@@ -6296,6 +6476,10 @@ int-chengdu-loganalysis-125-ecloud.com:2181
 topicName=zws-upgrade-test
 ZK_CONN="int-chengdu-loganalysis-125-ecloud.com:2181"
 KAFKA_USER="zws-upgrade-test"
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list int-chengdu-loganalysis-125-ecloud.com:6667  --topic ${topicName} < /data2/zhangwusheng/messages
+
+nohup /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server int-chengdu-loganalysis-125-ecloud.com:6667  --topic ${topicName} --from-beginning --group grp5-${KAFKA_USER} > /data2/zhangwusheng/messages5.log &
 
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
 
@@ -6322,6 +6506,305 @@ KAFKA_USER="zws-upgrade-test"
 #/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
 
 ```
+
+- 开发环境升级
+
+```bash
+#第一步
+新增自定义变量，可以尝试重启一下kafka，看看是否正常
+inter.broker.protocol.version
+设置为2.0
+
+#第二步
+#每台机器操作
+下载新版本2.2.2
+wget http://192.168.2.40:17080/soft/kafka_2.11-2.2.2.tgz -O /home/zhangwusheng/soft/kafka_2.11-2.2.2.tgz
+
+#停掉kafka，然后
+tar zxvf /home/zhangwusheng/soft/kafka_2.11-2.2.2.tgz -C  /home/zhangwusheng/soft
+cp -R /home/zhangwusheng/soft/kafka_2.11-2.2.2/libs /usr/hdp/3.1.0.0-78/kafka/libs-2.2.2
+mv /usr/hdp/3.1.0.0-78/kafka/libs /usr/hdp/3.1.0.0-78/kafka/libs-2.0.0
+ln -fs /usr/hdp/3.1.0.0-78/kafka/libs-2.2.2 /usr/hdp/3.1.0.0-78/kafka/libs
+ls -al /usr/hdp/3.1.0.0-78/kafka
+
+grep version /usr/hdp/current/kafka-broker/conf/server.properties
+
+tail -f /data10/var/log/kafka/server.log
+
+#第三步
+inter.broker.protocol.version
+设置为2.2
+```
+
+# 57.Kafka升级
+
+## 1.问题
+
+线上最近Kafka频繁出问题，原因是因为CLOSE_WAIT过高，在解决的过程中发现了有可能是Kafka的BUG引起来的，而线上采用直连kafka的方式，随着直连的机器越来越过（目前1200台左右），后续引发问题的可能性更大，因此决定首先针对此BUG进行版本升级。
+
+## 2.版本选择：
+
+https://issues.apache.org/jira/browse/KAFKA-7697      Possible deadlock in kafka.cluster.Partition
+
+https://issues.apache.org/jira/browse/KAFKA-7538      Improve locking model used to update ISRs and HW
+
+后查到2.1.0和2.1.1继续有BUG
+
+![img](/img/N2DWD_POSZ4E87XZ67DGY%W.png)
+
+
+
+![image-20200730092031276](/img/image-20200730092031276.png)
+
+2.2.0的RELEASE LOG里面
+
+![image-20200730092222447](/img/image-20200730092222447.png)
+
+说明BUG可能仍然未得到解决，查看2.2.1和2.2.2的RELEASE LOG，发现2.2.2解决的BUG比2.2.1少，说明此时版本相对比较稳定，因此选择2.2.2版本进行升级
+
+
+
+## 3.参考文档以及步骤
+
+https://kafka.apache.org/22/documentation.html#upgrade
+
+主要参考如下步骤
+
+> ### [1.5 Upgrading From Previous Versions](https://kafka.apache.org/22/documentation.html#upgrade)
+>
+> #### [Upgrading from 0.8.x, 0.9.x, 0.10.0.x, 0.10.1.x, 0.10.2.x, 0.11.0.x, 1.0.x, 1.1.x, 2.0.x or 2.1.x to 2.2.0](https://kafka.apache.org/22/documentation.html#upgrade_2_2_0)
+>
+> **If you are upgrading from a version prior to 2.1.x, please see the note below about the change to the schema used to store consumer  offsets.    Once you have changed the inter.broker.protocol.version to the  latest version, it will not be possible to downgrade to a version prior  to 2.1.**
+>
+> **For a rolling upgrade:**
+>
+> 1.  Update server.properties on all brokers and add the following  properties. CURRENT_KAFKA_VERSION refers to the version you        are upgrading from. CURRENT_MESSAGE_FORMAT_VERSION refers to the message format version currently in use. If you have previously        overridden the message format version, you should keep its  current value. Alternatively, if you are upgrading from a version prior        to 0.11.0.x, then CURRENT_MESSAGE_FORMAT_VERSION should be set  to match CURRENT_KAFKA_VERSION.        
+>
+>    - inter.broker.protocol.version=CURRENT_KAFKA_VERSION (e.g. 0.8.2, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 1.0, 1.1).
+>    - log.message.format.version=CURRENT_MESSAGE_FORMAT_VERSION  (See [potential performance impact                 following the upgrade](https://kafka.apache.org/22/documentation.html#upgrade_10_performance_impact) for the details on what this configuration does.)
+>
+>    ​        If you are upgrading from 0.11.0.x, 1.0.x, 1.1.x, or 2.0.x and  you have not overridden the message format, then you only need to  override        the inter-broker protocol version.        
+>
+>    - inter.broker.protocol.version=CURRENT_KAFKA_VERSION (0.11.0, 1.0, 1.1, 2.0).
+>
+> 2.  Upgrade the brokers one at a time: shut down the broker, update the code, and restart it. Once you have done so, the        brokers will be running the latest version and you can verify  that the cluster's behavior and performance meets expectations.        It is still possible to downgrade at this point if there are any problems.    
+>
+> 3.  Once the cluster's behavior and performance has been verified, bump the protocol version by editing        `inter.broker.protocol.version` and setting it to 2.2.    
+>
+> 4.  Restart the brokers one by one for the new protocol version to take effect. Once the brokers begin using the latest        protocol version, it will no longer be possible to downgrade the cluster to an older version.    
+>
+> 5.  If you have overridden the message format version as instructed above, then you need to do one more rolling restart to        upgrade it to its latest version. Once all (or most) consumers have been upgraded to 0.11.0 or later,        change log.message.format.version to 2.2 on each broker and restart them one by one. Note that the older Scala clients,        which are no longer maintained, do not support the message format introduced in 0.11, so to avoid conversion costs        (or to take advantage of [exactly once semantics](https://kafka.apache.org/22/documentation.html#upgrade_11_exactly_once_semantics)),        the newer Java clients must be used.    
+>
+> ##### [Notable changes in 2.2.1](https://kafka.apache.org/22/documentation.html#upgrade_221_notable)
+>
+> - Kafka Streams 2.2.1 requires 0.11 message format or higher and does not work with older message format.
+>
+> ##### [Notable changes in 2.2.0](https://kafka.apache.org/22/documentation.html#upgrade_220_notable)
+>
+> - The default consumer group id has been changed from the empty string (`""`) to `null`. Consumers who use the new default group id will not be able to  subscribe to topics,        and fetch or commit offsets. The empty string as consumer group  id is deprecated but will be supported until a future major release. Old clients that rely on the empty string group id will now        have to explicitly provide it as part of their consumer config.  For more information see        [KIP-289](https://cwiki.apache.org/confluence/display/KAFKA/KIP-289%3A+Improve+the+default+group+id+behavior+in+KafkaConsumer).
+> - The `bin/kafka-topics.sh` command line tool is now able to connect directly to brokers with `--bootstrap-server` instead of zookeeper. The old `--zookeeper`        option is still available for now. Please read [KIP-377](https://cwiki.apache.org/confluence/display/KAFKA/KIP-377%3A+TopicCommand+to+use+AdminClient) for more information.
+> - Kafka Streams depends on a newer version of RocksDBs that requires MacOS 10.13 or higher.
+
+
+
+## 4.测试环境实施过程
+
+1. 新建一个topic，使用console-producer写入一批数据，测试使用
+2. 下载kafka新版程序包    https://www.apache.org/dyn/closer.cgi?path=/kafka/2.2.2/kafka_2.11-2.2.2.tgz
+3. 将kafka_2.11-2.2.2.tgz解压后，将libs目录拷贝到/usr/hdp/3.1.0.0-78/kafka，命名为libs-2.2.2
+4. 通过Ambari新增参数inter.broker.protocol.version为2.0
+5. 停掉单台Kafka Broker
+6. 将/usr/hdp/3.1.0.0-78/kafka/libs重命名为/usr/hdp/3.1.0.0-78/kafka/libs-2.0.0
+7. 将/usr/hdp/3.1.0.0-78/kafka/libs-2.2.2软链到/usr/hdp/3.1.0.0-78/kafka/libs
+8. 启动单台kafka broker，查看启动日志是否正常
+9. 使用console-producer和console-consumer验证是否读写数据正常
+10. 循环5-9，直到所有的broker全部重启完毕。开发
+12. 循环5-9，直到所有的broker全部重启完毕。
+
+
+
+## 5.需要继续验证的步骤
+
+1. 验证升级期间，streaming是否能够正常工作
+2. 验证升级期间，外部客户的数据写入是否会受到影响
+3. 高并发写入，查看是否会出现CLOSE_WAIT的情况
+4. 验证回滚情况（重要）
+
+
+
+# 58.Fluentd Docker操作
+
+- 准备基础镜像：
+
+```bash
+开发40机器：(需要login，赞煌有权限)
+
+docker pull registry.ctzcdn.com/log/fluentd:v2.2.2
+
+docker tag registry.ctzcdn.com/log/fluentd:v2.2.2  harbor.ctyuncdn.cn/cdn-log-fluentd/fluentd:v2.2.2
+
+docker login harbor.ctyuncdn.cn
+
+docker push harbor.ctyuncdn.cn/cdn-log-fluentd/fluentd:v2.2.2
+```
+
+- 西安测试环境：
+
+```bash
+增加nginx.fluent-xian-test-env.conf，修改kafka连接串
+增加三个文件
+fluentd-xian-test-env.conf  
+nginx.fluent-xian-test-env.conf  
+start-xian-test-env.sh
+从各自的文件进行Copy。
+
+yum -y install docker
+systemctl start docker
+
+#开发环境构建镜像
+cd /home/zhangwusheng/soft/fluentd/2020-07-13/xian-test-env
+docker build -t harbor.ctyuncdn.cn/cdn-log-fluentd/cdn-fluentd-collect:xian-test-v20200804-1 .
+#导出到本地，便于上传到其他环境的机器
+docker save c9738d74b998 > fluentd_xian.tar
+gzip fluentd_xian.tar
+
+#西安环境，导入镜像
+上传fluentd_xian.tar.gz到西安环境，然后
+gunzip fluentd_xian.tar.gz
+#load it to images
+docker load < fluentd_xian.tar
+#tag it
+docker tag c9738d74b998 fluentd/xian:v20200804
+
+#HOSTNAME=`hostname -f`
+mkdir /home/zhangwusheng/nginx-logs
+touch /home/zhangwusheng/nginx-logs/nginx.log
+
+#-p 192.168.254.100:$HOST_PORT:8585 \
+#-v /etc/security/keytabs/tsdb.keytab:/etc/security/keytabs/tsdb.keytab \
+
+sudo docker run -dit \
+-v /home/zhangwusheng/nginx-logs/nginx.log:/fluentd/nginx/access.log \
+-v /etc/hosts:/etc/hosts \
+-e HOST_NAME=$HOSTNAME \
+--cpus=4 \
+-m 2G \
+--name="$HOSTNAME" \
+fluentd/xian:v20200804
+
+docker ps -a
+
+docker exec -it 76c4af8ccae2 /bin/sh
+ls -al /fluentd/nginx/access.log
+ 
+ 
+firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=172.17.0.2/16 accept' 
+firewall-cmd --reload
+
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list  ecm-b254-011.ctyunxian.cn:6667  --topic ctYun 
+
+
+#########
+echo '[12/May/2020:14:50:36 +0800]"8999999999999999999999999"200"1589266236.415"0.002"0.000"0.000"0.002"0"172.17.0.2"80"172.17.0.1"48482"GET"http"www.fakeclient.com"http://www.fakeclient.com/4K.file"HTTP/1.1"168"4096"4421"4096"172.17.0.4:8886"200"0.000"-"-"-"-"-"application/octet-stream"-"curl/7.58.0"-"-"-"-"-"-"-"haobai88888"' >> /home/zhangwusheng/nginx-logs/nginx.log
+
+##########
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ecm-b254-011.ctyunxian.cn:6667    --topic ctYun --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-ctyun 
+
+##########
+for i in `seq 1 10000`
+do
+for j in `seq 1 5`
+do
+echo '[12/May/2020:14:50:36 +0800]"8999999999999999999999999"200"1589266236.415"0.002"0.000"0.000"0.002"0"172.17.0.2"80"172.17.0.1"48482"GET"http"www.fakeclient.com"http://www.fakeclient.com/4K.file"HTTP/1.1"168"4096"4421"4096"172.17.0.4:8886"200"0.000"-"-"-"-"-"application/octet-stream"-"curl/7.58.0"-"-"-"-"-"-"-"haobai88888"' >> /home/zhangwusheng/nginx-logs/nginx.log
+done
+done
+```
+
+
+
+# 59.知识分享点(积跬步,成千里)
+
+有能够 运行的代码demo,有基本的原理说明,每次分享10-15分钟
+
+1. kafka常用基本命令
+2. kafka mirror的测试过程
+3. parquet文件格式
+4. orc文件格式
+5. hdfs存储策略以及验证方式
+6. JDK threadlocal的实现
+7. curator recipe知识分享
+8. JDK 并发包源码分享（太笼统？）
+9. Guice基础使用分享(multibinder)
+10. docker基本命令分享
+11. 跳表分享
+12.  一致性hash分享
+13. 布隆过滤器分享
+14. awk常用技巧分享
+15. sed常用技巧分享
+16. guice aop分享
+17. spring aop分享
+18. protobuf使用以及service分享
+19. TriTree分享
+20. ambari插件编写和安装,调试
+21. hbase表备份和恢复(全量和增量)
+22. Hbase表迁移
+23. hyperloglog分享
+24. thrift编写service
+25. roaringbitmap
+26. hashwheeltimer
+27. jmeter使用
+28. jmh使用
+29. clickhouse分布式表的使用
+30. kafkaproxy的使用,原理介绍
+31. java常用jdk工具jstack,jconsole,jmap，jstat,eclipse memory analysizer常用负载过高和内存过高
+32. 开源组件的自带性能测试工具(hbase,kafka,hadoop)
+33. mysql binlog、主从搭建，基于gtid的复制
+34. netty编写基本网络程序（网络基本参数的设置，主动断开，被动断开，断开重连，主动发起多个连接的处理）
+35. netty解析mysql binlog等
+36. canal binlog接入
+37. tungsent 如何处理binlog数据？（hive sql）
+38. flume的使用（详细一点）
+39. springboot相关（不好拆分？）
+40. druid命令行解析（类似git命令组io.airlift.airline）
+41. lua基础知识分享
+42. 均匀分布的随机数分享
+43. 测试相关（需要细分）？
+44. livy提交管理spark？
+45. hbase rit处理
+46. ES相关？（需要细分）
+47. devops相关（那张图，工具链？）
+48. Kerberos相关原理.以及备份和恢复
+49. postgresql的复制
+50. jmxterm？
+51. Guice scope？
+
+
+
+# 60.开发规范
+
+1. web程序使用springboot
+2. json使用jackson
+3. gitlab目录按照功能架构来组织
+4. 命令行程序使用依赖注入框架(spring/guice)
+5. zk使用curator框架
+6. webserver使用jetty不用tomcat
+7. 代码规范使用sonar+阿里p3c扫描
+8. 新提交的代码测试覆盖率必须达到A以上
+9. 文档必须有changelog，里面包含：1需求连接，2改动点3关联的版本号
+10. 系统gitlab版本号，程序运行版本号，制品版本号，三者必须统一
+11. hadoop等开源组件的配置文件，严禁copy到应用程序目录（docker除外）
+12. 各个程序目录结构必须统一，包含bin,conf,logs等常见目录
+13. 配置统一使用配置中心，配置中心地址通过环境变量进行共享
+14. 接口统一使用yapi进行管理
+15. 开发流程管理使用giflow
+16. codereview首先由各领域开发小组进行，必须包含这一步
+17. 所有组件的安全管理通过ldap进行
+18. 开发必须就自己的程序完成一轮性能测试，查询接口要求每秒不少于1000次，调度型接口必须有限流功能
+19. 后台程序测试必须支持一次性处理10亿级别的数据
+20. 所有的程序必须考虑容灾
 
 
 
