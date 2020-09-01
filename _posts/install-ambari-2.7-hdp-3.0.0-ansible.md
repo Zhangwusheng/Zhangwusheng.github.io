@@ -6306,6 +6306,9 @@ KAFKA_USER="zws-upgrade-test"
 
 /usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list int-chengdu-loganalysis-125-ecloud.com:6667  --topic ${topicName} 
 
+#------------------------------------------------------------------------
+#成都的按时没有加上授权
+#
 #授权
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
 
