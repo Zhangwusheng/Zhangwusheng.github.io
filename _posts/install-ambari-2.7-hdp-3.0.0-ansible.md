@@ -1804,6 +1804,35 @@ krb5_use_kdcinfo = false
 
 systemctl restart sssd
 
+
+
+## 14.spark kerberos7天的问题
+
+https://docs.cloudera.com/documentation/enterprise/5-3-x/topics/cm_sg_yarn_long_jobs.html
+
+Yarn配置：
+
+```
+<property> 
+<name>yarn.resourcemanager.proxy-user-privileges.enabled</name>
+<value>true</value>
+</property>
+```
+
+HDFS配置
+
+```
+<property> 
+<name>hadoop.proxyuser.yarn.hosts</name>
+<value>*</value>
+</property>
+
+<property>
+<name>hadoop.proxyuser.yarn.groups</name>
+<value>*</value>
+</property>
+```
+
 # 11.启用Hadoop和Spark Basic认证
 
 废弃，参见Windows下Kerberos小节
@@ -2312,6 +2341,10 @@ spark.executor.extraJavaOptions  -XX:+UseNUMA  -XX:OnOutOfMemoryError="rm -f /da
 
  hbase.client.scanner.timeout.period 增加到2分钟
 hbase.client.scanner.caching  改成了1000条
+
+
+
+
 
 # 14.设置集群队列
 
@@ -6782,32 +6815,54 @@ done
 
 # 60.开发规范
 
-1. web程序使用springboot
-2. json使用jackson
-3. gitlab目录按照功能架构来组织
-4. 命令行程序使用依赖注入框架(spring/guice)
-5. zk使用curator框架
-6. webserver使用jetty不用tomcat
-7. 代码规范使用sonar+阿里p3c扫描
-8. 新提交的代码测试覆盖率必须达到A以上
-9. 文档必须有changelog，里面包含：1需求连接，2改动点3关联的版本号
-10. 系统gitlab版本号，程序运行版本号，制品版本号，三者必须统一
-11. hadoop等开源组件的配置文件，严禁copy到应用程序目录（docker除外）
-12. 各个程序目录结构必须统一，包含bin,conf,logs等常见目录
-13. 配置统一使用配置中心，配置中心地址通过环境变量进行共享
-14. 接口统一使用yapi进行管理
-15. 开发流程管理使用giflow
+## 1.框架选型：
+
+1. web后台程序使用springboot
+2. webserver使用jetty不用tomcat
+3. json使用jackson
+5. 命令行程序使用依赖注入框架(spring/guice)
+6. zk使用curator框架
+
+## 2.代码管理：
+
+主要代码规范参考《阿里巴巴java开发手册1.6-泰山版.pdf》
+6. gitlab目录按照***<u>功能架构</u>***来组织
+7. 提交的代码，必须通过sonar+阿里p3c扫描
+8. 开发流程管理使用giflow
+9. 新提交的代码测试覆盖率必须达到A以上
+10. 文档必须有changelog，里面包含：1需求连接，2改动点 3关联的版本号
+11. 各个程序目录结构必须统一，包含bin,conf,logs等常见目录
+12. 系统gitlab版本号，程序运行版本号，制品版本号，三者必须统一
+13. hadoop等开源组件的配置文件，严禁copy到应用程序目录（docker除外）
+14. 配置统一使用配置中心，配置中心地址通过环境变量进行共享
+15. 接口统一使用yapi进行管理
 16. codereview首先由各领域开发小组进行，必须包含这一步
-17. 所有组件的安全管理通过ldap进行
-18. 开发必须就自己的程序完成一轮性能测试，查询接口要求每秒不少于1000次，调度型接口必须有限流功能
-19. 后台程序测试必须支持一次性处理10亿级别的数据
-20. 所有的程序必须考虑容灾
+
+## 3.非功能性要求
+
+17. 所有的程序必须考虑容灾
+
+18. 类命名不得与已有的开源类重名，比如自己写的类叫KafkaProducer
+
+19. 所有组件的安全管理通过ldap进行
+
+20. 开发必须就自己的程序完成一轮性能测试，查询接口要求每秒不少于1000次，调度型接口必须有限流功能
+
+21. 后台程序测试必须支持一次性处理10亿级别的数据
+
+22. 测试具备自动化测试
+
+## 4.gitflow规范  
+
+详见 https://www.cnblogs.com/jeffery-zou/p/10280167.html
+
+## 5. 数据库设计规范
+
+ 详见 https://developer.aliyun.com/article/709387  
 
 
 
-
-
-# 44.CMDB
+44.CMDB
 
 
 
