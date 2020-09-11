@@ -4933,6 +4933,22 @@ val df = spark.read.parquet("/tmp/zws-parquet-4")
 
 
 
+spark-sql
+
+生产
+
+```bash
+修改配置：metastore.catalog.default  spark 改成 hive
+
+/usr/hdp/current/spark2-client/bin/beeline -u "jdbc:hive2://cdnlog029.ctyun.net:10016/;principal=spark/cdnlog029.ctyun.net@CTYUN.NET"
+```
+
+
+
+
+
+
+
 # 42.恢复Hbase元数据
 
 ## 42.1 恢复整个集群
@@ -6859,6 +6875,14 @@ done
 ## 5. 数据库设计规范
 
  详见 https://developer.aliyun.com/article/709387  
+
+
+
+# 61.DataX改造
+
+1.查看了资料，DataX关于单表的性能感觉足够了
+
+2.分布式
 
 
 
