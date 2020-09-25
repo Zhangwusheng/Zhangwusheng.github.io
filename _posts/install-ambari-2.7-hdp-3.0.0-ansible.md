@@ -4148,23 +4148,219 @@ sudo firewall-cmd --list-all
 ## 1.shell
 
 ```scala
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=10 --conf spark.executor.memory=2G --conf spark.driver.memory=2G 
+
 val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
 val parquetFile = sqlContext.parquetFile("/apps/cdn/log/2019-10-10/2019-10-10-13/minute=2019-10-10-13-50")
+val parquetFile = sqlContext.parquetFile("/apps/cdn/tmp/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+val parquetFile = sqlContext.parquetFile("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/part-00141-77793485-3f72-42f4-9bcf-bd5f07920029-c000.snappy.parquet")
+
+
+val tt2 = sqlContext.parquetFile("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/")
 
 parquetFile.toDF().registerTempTable("test")
 val hiveContext = new org.apache.spark.sql.hive.HiveContext(sc)
 val aa=hiveContext.sql("select * from test limit 10")
 aa.show()
 
+val df = parquetFile.toDF()
 
- import sqlContext.implicits._
-    val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-03-15/2020-03-15-12/minute=2020-03-15-12-30")
-    parquetFile.registerTempTable("logs")
+import sqlContext.implicits._
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+parquetFile.registerTempTable("logs")
 
+val aa=spark.sql("select channel from logs limit 10")
+
+import sqlContext.implicits._
+import org.apache.spark.sql.functions._
+
+
+var ppp:Int =0
+val ff = spark.udf.register("getPart",(channel:String)=>{
+    if(channel=="v95-dy.ixigua.com") 
+    {ppp+=1
+    ppp
+    }
+    else 
+    1
+})
+
+val bb=aa.withColumn("part",col("channel"))
+
+val updatedDf = df.withColumn("part", regexp_replace(col("part"), "v95-dy.ixigua.com", "1"))
+
+val updatedDf = bb.withColumn("part", ff(col("channel"))
+                              
+SparkSession spark = SparkSession
+		             .builder()
+		             .appName("spark-job")
+		             .getOrCreate();
+                              
+import org.apache.spark.sql.RuntimeConfig
+import org.apache.spark.sql._
+val conf:RuntimeConfig = spark.conf();
+// text compress
+conf.set("mapreduce.output.fileoutputformat.compress", "true");
+conf.set("mapreduce.output.fileoutputformat.compress.type", SequenceFile.CompressionType.BLOCK.toString());
+conf.set("mapreduce.output.fileoutputformat.compress.codec", "org.apache.hadoop.io.compress.GzipCodec");
+conf.set("mapreduce.map.output.compress", "true");
+conf.set("mapreduce.map.output.compress.codec", "org.apache.hadoop.io.compress.GzipCodec");                              
+                              .write()
+    .format("text")
+    .mode(SaveMode.Overwrite)
+    .save("hdfs://bbbb");
+updatedDf.write.format("gz").partitionBy("part").save("/tmp/zws-test2")
+updatedDf.write.format("text").mode(SaveMode.Overwrite).option("compression", "gzip").save("/tmp/zws-test4")
+
+ updatedDf.write.format("parquet").partitionBy("part").save("/tmp/zws-test1")
+
+
+tt2.rdd.getNumPartitions
+
+    val newDF = df.mapPartitions(
+      iterator => {
+        val result = iterator.map(row=> 
+                                   {
+                                       val channel=row.getString("channel")
+                                       if( channel == "v95-dy.ixigua.com" )
+                                       if (data.get(data.fieldIndex("part")))
+                                   }
+                                 
+                                 ).toList
+        //return transformed data
+        result.iterator
+        //now convert back to df
+      }
+
+).toDF()
+
+
+
+    val buffer: mutable.Buffer[Object] = Row.unapplySeq(row).get.map(_.asInstanceOf[Object]).toBuffer
+              buffer.append(要加的字段) 
+              val schema: StructType = row.schema.add("aaa", StringType).add("bbb", StringType).add("ccc", StringType)
+              val new_row = new GenericRowWithSchema(buffer.toArray, schema)
 ```
 
 
+
+## 2.spark shell生产跑数据
+
+```bash
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=3 --conf spark.executor.memory=2G --conf spark.driver.memory=2G
+
+import org.apache.spark.sql.RuntimeConfig
+import org.apache.spark.sql._
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+
+import sqlContext.implicits._
+import java.lang.Double
+import java.util.Date
+import java.text.SimpleDateFormat
+
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/part-00141-77793485-3f72-42f4-9bcf-bd5f07920029-c000.snappy.parquet")
+
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+
+parquetFile.printSchema
+
+parquetFile.registerTempTable("logs")
+
+val aa=spark.sql("select eventTime, channel, serverIp,timestamp,uri,source_ip,sendBytes,recvBytes,country,province,city,clientId,type from logs ")
+
+val bb=aa.withColumn("part",col("channel"))
+
+
+var ppp_ixigua:Int =0
+var ppp_ixigua_2:Int =0
+var ppp_ltssjy:Int =0
+var ppp_other:Int =0
+
+
+val ff = spark.udf.register("getPart",(channel:String,eventtime:String)=>{
+    val simpleDateFormat: SimpleDateFormat  = new SimpleDateFormat("yyyy-MM-dd-HH-mm")
+    val procTimeStr="2020-09-08-21-00"
+    val  procDateTime: Date = simpleDateFormat.parse(procTimeStr)
+    val ddd1 = procDateTime.getTime()
+
+    val evtime_d=eventtime.toDouble * 1000
+    val evtime_l=evtime_d.asInstanceOf[Number].longValue
+    val intervals=ddd1-evtime_l
+    
+    if(channel=="v95-dy.ixigua.com"   ) {
+        ppp_ixigua+=1
+        if( intervals<= 300000 ){
+           "v95-dy-"+(ppp_ixigua % 5)}
+        else 
+           {"v95-dy-other"}
+    }
+    else if(channel=="v95-dy-a.ixigua.com" ) {
+        ppp_ixigua_2+=1
+        if( intervals<= 300000 ){
+           "v95-dy-a-"+(ppp_ixigua_2 % 5)
+        }
+        else{
+            "v95-dy-a-other"
+        }
+    }
+    else if(channel=="ltssjy.qq.com"  ) {
+        ppp_ltssjy+=1
+        if( intervals<= 300000 ){
+       "ltssjy-"+(ppp_ltssjy % 5)}
+       else{
+        "ltssjy-other"
+       }
+    }
+    else if(channel=="ugcsjy.qq.com" ) {
+        "ugcsjy-0"
+    }
+    else{ 
+        ppp_other+=1
+        "other-"+(ppp_other % 10)
+    }
+})
+
+val updatedDf = bb.withColumn("part", ff(col("channel"),col("timestamp")))
+
+val parted = updatedDf.repartitionByRange(col("part"))
+parted.registerTempTable("parted")
+val cc = spark.sql("select * from parted limit 10")
+
+#val parted = updatedDf.repartition(6,col("part"))
+System.currentTimeMillis
+parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test9")
+#updatedDf.coalesce(3).write.mode(SaveMode.Overwrite).partitionBy("part").csv("/tmp/zws-test6")
+#updatedDf.write.mode(SaveMode.Overwrite).csv("/tmp/zws-test5")
+updatedDf.rdd.getNumPartitions
+
+
+------------------------------------------------------------------
+
+select sum(req_cnt),event_time,proc_time,client_id,channel
+from CDN_LOG_BASE_V01 
+where event_time=1599570000
+group by event_time,proc_time,client_id,channel
+order by 1 desc
+------------------------------------------------------------------
+parquetFile.rdd.mapPartitionsWithIndex(
+      (x,iterator) => {
+        val result = iterator.map(row=> 
+                                   {
+                                       val channel=row.getString("channel")
+                                       if( channel == "v95-dy.ixigua.com" )
+                                       if (data.get(data.fieldIndex("part")))
+                                   }
+                                 
+                                 ).toList
+        //return transformed data
+        result.iterator
+        //now convert back to df
+      }
+
+```
 
 
 
@@ -4191,7 +4387,7 @@ addauth digest kafka:Kafka0701@2019
 
 ```
 
-## 2.thriftserver
+## 3.thriftserver
 
 ```bash
 metastore.catalog.default
