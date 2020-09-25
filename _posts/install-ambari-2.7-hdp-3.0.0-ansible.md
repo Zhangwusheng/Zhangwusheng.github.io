@@ -6735,7 +6735,7 @@ done
 
 8. JDK 并发包源码分享
 
-9.Guice基础使用分享(multibinder)
+9. Guice基础使用分享(multibinder)/scope
 
 10. docker基本命令分享
 
