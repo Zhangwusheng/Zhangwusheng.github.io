@@ -1804,6 +1804,35 @@ krb5_use_kdcinfo = false
 
 systemctl restart sssd
 
+
+
+## 14.spark kerberos7天的问题
+
+https://docs.cloudera.com/documentation/enterprise/5-3-x/topics/cm_sg_yarn_long_jobs.html
+
+Yarn配置：
+
+```
+<property> 
+<name>yarn.resourcemanager.proxy-user-privileges.enabled</name>
+<value>true</value>
+</property>
+```
+
+HDFS配置
+
+```
+<property> 
+<name>hadoop.proxyuser.yarn.hosts</name>
+<value>*</value>
+</property>
+
+<property>
+<name>hadoop.proxyuser.yarn.groups</name>
+<value>*</value>
+</property>
+```
+
 # 11.启用Hadoop和Spark Basic认证
 
 废弃，参见Windows下Kerberos小节
@@ -2312,6 +2341,10 @@ spark.executor.extraJavaOptions  -XX:+UseNUMA  -XX:OnOutOfMemoryError="rm -f /da
 
  hbase.client.scanner.timeout.period 增加到2分钟
 hbase.client.scanner.caching  改成了1000条
+
+
+
+
 
 # 14.设置集群队列
 
@@ -4115,23 +4148,219 @@ sudo firewall-cmd --list-all
 ## 1.shell
 
 ```scala
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=10 --conf spark.executor.memory=2G --conf spark.driver.memory=2G 
+
 val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
 val parquetFile = sqlContext.parquetFile("/apps/cdn/log/2019-10-10/2019-10-10-13/minute=2019-10-10-13-50")
+val parquetFile = sqlContext.parquetFile("/apps/cdn/tmp/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+val parquetFile = sqlContext.parquetFile("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/part-00141-77793485-3f72-42f4-9bcf-bd5f07920029-c000.snappy.parquet")
+
+
+val tt2 = sqlContext.parquetFile("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/")
 
 parquetFile.toDF().registerTempTable("test")
 val hiveContext = new org.apache.spark.sql.hive.HiveContext(sc)
 val aa=hiveContext.sql("select * from test limit 10")
 aa.show()
 
+val df = parquetFile.toDF()
 
- import sqlContext.implicits._
-    val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-03-15/2020-03-15-12/minute=2020-03-15-12-30")
-    parquetFile.registerTempTable("logs")
+import sqlContext.implicits._
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+parquetFile.registerTempTable("logs")
 
+val aa=spark.sql("select channel from logs limit 10")
+
+import sqlContext.implicits._
+import org.apache.spark.sql.functions._
+
+
+var ppp:Int =0
+val ff = spark.udf.register("getPart",(channel:String)=>{
+    if(channel=="v95-dy.ixigua.com") 
+    {ppp+=1
+    ppp
+    }
+    else 
+    1
+})
+
+val bb=aa.withColumn("part",col("channel"))
+
+val updatedDf = df.withColumn("part", regexp_replace(col("part"), "v95-dy.ixigua.com", "1"))
+
+val updatedDf = bb.withColumn("part", ff(col("channel"))
+                              
+SparkSession spark = SparkSession
+		             .builder()
+		             .appName("spark-job")
+		             .getOrCreate();
+                              
+import org.apache.spark.sql.RuntimeConfig
+import org.apache.spark.sql._
+val conf:RuntimeConfig = spark.conf();
+// text compress
+conf.set("mapreduce.output.fileoutputformat.compress", "true");
+conf.set("mapreduce.output.fileoutputformat.compress.type", SequenceFile.CompressionType.BLOCK.toString());
+conf.set("mapreduce.output.fileoutputformat.compress.codec", "org.apache.hadoop.io.compress.GzipCodec");
+conf.set("mapreduce.map.output.compress", "true");
+conf.set("mapreduce.map.output.compress.codec", "org.apache.hadoop.io.compress.GzipCodec");                              
+                              .write()
+    .format("text")
+    .mode(SaveMode.Overwrite)
+    .save("hdfs://bbbb");
+updatedDf.write.format("gz").partitionBy("part").save("/tmp/zws-test2")
+updatedDf.write.format("text").mode(SaveMode.Overwrite).option("compression", "gzip").save("/tmp/zws-test4")
+
+ updatedDf.write.format("parquet").partitionBy("part").save("/tmp/zws-test1")
+
+
+tt2.rdd.getNumPartitions
+
+    val newDF = df.mapPartitions(
+      iterator => {
+        val result = iterator.map(row=> 
+                                   {
+                                       val channel=row.getString("channel")
+                                       if( channel == "v95-dy.ixigua.com" )
+                                       if (data.get(data.fieldIndex("part")))
+                                   }
+                                 
+                                 ).toList
+        //return transformed data
+        result.iterator
+        //now convert back to df
+      }
+
+).toDF()
+
+
+
+    val buffer: mutable.Buffer[Object] = Row.unapplySeq(row).get.map(_.asInstanceOf[Object]).toBuffer
+              buffer.append(要加的字段) 
+              val schema: StructType = row.schema.add("aaa", StringType).add("bbb", StringType).add("ccc", StringType)
+              val new_row = new GenericRowWithSchema(buffer.toArray, schema)
 ```
 
 
+
+## 2.spark shell生产跑数据
+
+```bash
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=3 --conf spark.executor.memory=2G --conf spark.driver.memory=2G
+
+import org.apache.spark.sql.RuntimeConfig
+import org.apache.spark.sql._
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+
+import sqlContext.implicits._
+import java.lang.Double
+import java.util.Date
+import java.text.SimpleDateFormat
+
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/part-00141-77793485-3f72-42f4-9bcf-bd5f07920029-c000.snappy.parquet")
+
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+
+parquetFile.printSchema
+
+parquetFile.registerTempTable("logs")
+
+val aa=spark.sql("select eventTime, channel, serverIp,timestamp,uri,source_ip,sendBytes,recvBytes,country,province,city,clientId,type from logs ")
+
+val bb=aa.withColumn("part",col("channel"))
+
+
+var ppp_ixigua:Int =0
+var ppp_ixigua_2:Int =0
+var ppp_ltssjy:Int =0
+var ppp_other:Int =0
+
+
+val ff = spark.udf.register("getPart",(channel:String,eventtime:String)=>{
+    val simpleDateFormat: SimpleDateFormat  = new SimpleDateFormat("yyyy-MM-dd-HH-mm")
+    val procTimeStr="2020-09-08-21-00"
+    val  procDateTime: Date = simpleDateFormat.parse(procTimeStr)
+    val ddd1 = procDateTime.getTime()
+
+    val evtime_d=eventtime.toDouble * 1000
+    val evtime_l=evtime_d.asInstanceOf[Number].longValue
+    val intervals=ddd1-evtime_l
+    
+    if(channel=="v95-dy.ixigua.com"   ) {
+        ppp_ixigua+=1
+        if( intervals<= 300000 ){
+           "v95-dy-"+(ppp_ixigua % 5)}
+        else 
+           {"v95-dy-other"}
+    }
+    else if(channel=="v95-dy-a.ixigua.com" ) {
+        ppp_ixigua_2+=1
+        if( intervals<= 300000 ){
+           "v95-dy-a-"+(ppp_ixigua_2 % 5)
+        }
+        else{
+            "v95-dy-a-other"
+        }
+    }
+    else if(channel=="ltssjy.qq.com"  ) {
+        ppp_ltssjy+=1
+        if( intervals<= 300000 ){
+       "ltssjy-"+(ppp_ltssjy % 5)}
+       else{
+        "ltssjy-other"
+       }
+    }
+    else if(channel=="ugcsjy.qq.com" ) {
+        "ugcsjy-0"
+    }
+    else{ 
+        ppp_other+=1
+        "other-"+(ppp_other % 10)
+    }
+})
+
+val updatedDf = bb.withColumn("part", ff(col("channel"),col("timestamp")))
+
+val parted = updatedDf.repartitionByRange(col("part"))
+parted.registerTempTable("parted")
+val cc = spark.sql("select * from parted limit 10")
+
+#val parted = updatedDf.repartition(6,col("part"))
+System.currentTimeMillis
+parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test9")
+#updatedDf.coalesce(3).write.mode(SaveMode.Overwrite).partitionBy("part").csv("/tmp/zws-test6")
+#updatedDf.write.mode(SaveMode.Overwrite).csv("/tmp/zws-test5")
+updatedDf.rdd.getNumPartitions
+
+
+------------------------------------------------------------------
+
+select sum(req_cnt),event_time,proc_time,client_id,channel
+from CDN_LOG_BASE_V01 
+where event_time=1599570000
+group by event_time,proc_time,client_id,channel
+order by 1 desc
+------------------------------------------------------------------
+parquetFile.rdd.mapPartitionsWithIndex(
+      (x,iterator) => {
+        val result = iterator.map(row=> 
+                                   {
+                                       val channel=row.getString("channel")
+                                       if( channel == "v95-dy.ixigua.com" )
+                                       if (data.get(data.fieldIndex("part")))
+                                   }
+                                 
+                                 ).toList
+        //return transformed data
+        result.iterator
+        //now convert back to df
+      }
+
+```
 
 
 
@@ -4158,7 +4387,7 @@ addauth digest kafka:Kafka0701@2019
 
 ```
 
-## 2.thriftserver
+## 3.thriftserver
 
 ```bash
 metastore.catalog.default
@@ -4897,6 +5126,22 @@ val df = spark.read.parquet("/tmp/zws-parquet-4")
 
 
 ```
+
+
+
+spark-sql
+
+生产
+
+```bash
+修改配置：metastore.catalog.default  spark 改成 hive
+
+/usr/hdp/current/spark2-client/bin/beeline -u "jdbc:hive2://cdnlog029.ctyun.net:10016/;principal=spark/cdnlog029.ctyun.net@CTYUN.NET"
+```
+
+
+
+
 
 
 
@@ -6091,6 +6336,9 @@ ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/start-clus
 ansible cdnlog -m shell -a "wget http://192.168.2.40:17080/soft/druid/start-cluster-data-server  -O /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-data-server"
 
 
+ssh -p 9000 192.168.254.21 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q "xst -k /etc/security/keytabs/druid.keytab kylin/cdnlog003.ctyun.net"'
+
+
 ####
 cat druid_jaas.conf 
 KafkaClient {
@@ -6170,6 +6418,10 @@ https://repo1.maven.org/maven2/org/apache/druid/extensions/contrib/ambari-metric
 
 #修改代码，处理
 druid.segmentCache.locationSelectorStrategy=mostAvailableSize
+
+#建立tmp目录
+java.io.tmpdir=/data1/druid_18/tmp
+#启动logrotate
 ```
 
 
@@ -6720,37 +6972,25 @@ done
 有能够 运行的代码demo,有基本的原理说明,每次分享10-15分钟
 
 1. kafka常用基本命令
-
 2. kafka mirror的测试过程
-
 3. parquet文件格式
-
 4. orc文件格式
+5. hdfs存储策略以及验证方式
+6. JDK threadlocal的
 
-5.hdfs存储策略以及验证方式
-
-6. JDK threadlocal的实现
-
-7.curator recipe知识分享
+  7.curator recipe知识分享
 
 8. JDK 并发包源码分享
 
-9. Guice基础使用分享(multibinder)/scope
+9. Guice基础使用分享(multibinder)/scop
 
 10. docker基本命令分享
-
-11.跳表分享
-
-12. 一致性hash分享
-
-13.  布隆过滤器分享
-
+11. 跳表分享
+12.  一致性hash分享
+13. 布隆过滤器分享
 14. awk常用技巧分享
-
 15. sed常用技巧分享
-
 16. guice aop分享
-
 17. spring aop分享
 18. protobuf使用以及service分享
 19. TriTree分享
@@ -6765,16 +7005,88 @@ done
 28. jmh使用
 29. clickhouse分布式表的使用
 30. kafkaproxy的使用,原理介绍
-31. java
-32. 常用jdk工具jstack,jconsole,jmap常用负载过高和内存过高
+31. java常用jdk工具jstack,jconsole,jmap，jstat,eclipse memory analysizer常用负载过高和内存过高
+32. 开源组件的自带性能测试工具(hbase,kafka,hadoop)
+33. mysql binlog、主从搭建，基于gtid的复制
+34. netty编写基本网络程序（网络基本参数的设置，主动断开，被动断开，断开重连，主动发起多个连接的处理）
+35. netty解析mysql binlog等
+36. canal binlog接入
+37. tungsent 如何处理binlog数据？（hive sql）
+38. flume的使用（详细一点）
+39. springboot相关（不好拆分？）
+40. druid命令行解析（类似git命令组io.airlift.airline）
+41. lua基础知识分享
+42. 均匀分布的随机数分享
+43. 测试相关（需要细分）？
+44. livy提交管理spark？
+45. hbase rit处理
+46. ES相关？（需要细分）
+47. devops相关（那张图，工具链？）
+48. Kerberos相关原理.以及备份和恢复
+49. postgresql的复制
+50. jmxterm？
+51. Guice scope？
 
 
 
+# 60.开发规范
+
+## 1.框架选型：
+
+1. web后台程序使用springboot
+2. webserver使用jetty不用tomcat
+3. json使用jackson
+5. 命令行程序使用依赖注入框架(spring/guice)
+6. zk使用curator框架
+
+## 2.代码管理：
+
+主要代码规范参考《阿里巴巴java开发手册1.6-泰山版.pdf》
+6. gitlab目录按照***<u>功能架构</u>***来组织
+7. 提交的代码，必须通过sonar+阿里p3c扫描
+8. 开发流程管理使用giflow
+9. 新提交的代码测试覆盖率必须达到A以上
+10. 文档必须有changelog，里面包含：1需求连接，2改动点 3关联的版本号
+11. 各个程序目录结构必须统一，包含bin,conf,logs等常见目录
+12. 系统gitlab版本号，程序运行版本号，制品版本号，三者必须统一
+13. hadoop等开源组件的配置文件，严禁copy到应用程序目录（docker除外）
+14. 配置统一使用配置中心，配置中心地址通过环境变量进行共享
+15. 接口统一使用yapi进行管理
+16. codereview首先由各领域开发小组进行，必须包含这一步
+
+## 3.非功能性要求
+
+17. 所有的程序必须考虑容灾
+
+18. 类命名不得与已有的开源类重名，比如自己写的类叫KafkaProducer
+
+19. 所有组件的安全管理通过ldap进行
+
+20. 开发必须就自己的程序完成一轮性能测试，查询接口要求每秒不少于1000次，调度型接口必须有限流功能
+
+21. 后台程序测试必须支持一次性处理10亿级别的数据
+
+22. 测试具备自动化测试
+
+## 4.gitflow规范  
+
+详见 https://www.cnblogs.com/jeffery-zou/p/10280167.html
+
+## 5. 数据库设计规范
+
+ 详见 https://developer.aliyun.com/article/709387  
 
 
 
+# 61.DataX改造
 
-# 44.CMDB
+1.查看了资料，DataX关于单表的性能感觉足够了
+
+2.分布式
+
+
+
+44.CMDB
 
 
 
