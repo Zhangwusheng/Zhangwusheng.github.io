@@ -4148,7 +4148,11 @@ sudo firewall-cmd --list-all
 ## 1.shell
 
 ```scala
-spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=10 --conf spark.executor.memory=2G --conf spark.driver.memory=2G 
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/part-00141-77793485-3f72-42f4-9bcf-bd5f07920029-c000.snappy.parquet")
+
+
+
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=30 --conf spark.executor.memory=10G --conf spark.driver.memory=10G 
 
 val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
@@ -4239,6 +4243,7 @@ tt2.rdd.getNumPartitions
 
     val buffer: mutable.Buffer[Object] = Row.unapplySeq(row).get.map(_.asInstanceOf[Object]).toBuffer
               buffer.append(要加的字段) 
+                              
               val schema: StructType = row.schema.add("aaa", StringType).add("bbb", StringType).add("ccc", StringType)
               val new_row = new GenericRowWithSchema(buffer.toArray, schema)
 ```
@@ -4248,7 +4253,7 @@ tt2.rdd.getNumPartitions
 ## 2.spark shell生产跑数据
 
 ```bash
-spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=3 --conf spark.executor.memory=2G --conf spark.driver.memory=2G
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=40 --conf spark.executor.memory=5G --conf spark.driver.memory=3G
 
 import org.apache.spark.sql.RuntimeConfig
 import org.apache.spark.sql._
@@ -4260,16 +4265,22 @@ import sqlContext.implicits._
 import java.lang.Double
 import java.util.Date
 import java.text.SimpleDateFormat
+import org.apache.spark.Partitioner
+import org.apache.spark.api.java.function.PairFlatMapFunction
+import java.util.ArrayList
+import org.apache.spark.api.java.JavaPairRDD
 
-val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/part-00141-77793485-3f72-42f4-9bcf-bd5f07920029-c000.snappy.parquet")
+val schemaStr="serverIp string,timestamp string,respondTime long,httpCode integer,eventTime string,clientIp string,clientPort integer,method string,protocol string,channel string,url string,httpVersion string,bodyBytes long,destIp string,destPort integer,status string,full_status string,referer string,Ua string,fileType string,host_name string,source_ip string,source_id string,source_old string,type string,range string,vendorCode byte,genericsChannel string,clientId integer,keyFlag byte,productType byte,hostingType byte,uri string,url_param string,requestBytes long,body_sent long,proxyIp string,via string,sent_http_content_length long,http_range string,sent_http_content_range string,http_tt_request_traceid string,liveProtocol,currentTime string,requestTime string,command string,connTag string,appName string,stream string,sendBytes string,recvBytes  string"
 
-val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+
+#val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
 
 parquetFile.printSchema
 
 parquetFile.registerTempTable("logs")
 
-val aa=spark.sql("select eventTime, channel, serverIp,timestamp,uri,source_ip,sendBytes,recvBytes,country,province,city,clientId,type from logs ")
+val aa=spark.sql("select serverIp,timestamp,respondTime,httpCode,eventTime,clientIp,clientPort,method,protocol,channel,url,httpVersion,bodyBytes,destIp,destPort,status,full_status,referer,Ua,fileType,host_name,source_ip,source_id,source_old,type,range,vendorCode,genericsChannel,clientId,keyFlag,productType,hostingType,uri,url_param,requestBytes,body_sent,proxyIp,via,sent_http_content_length,http_range,sent_http_content_range,http_tt_request_traceid,liveProtocol,currentTime,requestTime,command,connTag,appName,stream,sendBytes,recvBytes from logs ")
 
 val bb=aa.withColumn("part",col("channel"))
 
@@ -4277,29 +4288,30 @@ val bb=aa.withColumn("part",col("channel"))
 var ppp_ixigua:Int =0
 var ppp_ixigua_2:Int =0
 var ppp_ltssjy:Int =0
+var ppp_ltssjy2:Int =0
+var ppp_ltssjy_other:Int =0
 var ppp_other:Int =0
 
-
+val simpleDateFormat: SimpleDateFormat  = new SimpleDateFormat("yyyy-MM-dd-HH-mm")
+val procTimeStr="2020-09-08-21-00"
+val  procDateTime: Date = simpleDateFormat.parse(procTimeStr)
+val ddd1 = procDateTime.getTime()
+    
 val ff = spark.udf.register("getPart",(channel:String,eventtime:String)=>{
-    val simpleDateFormat: SimpleDateFormat  = new SimpleDateFormat("yyyy-MM-dd-HH-mm")
-    val procTimeStr="2020-09-08-21-00"
-    val  procDateTime: Date = simpleDateFormat.parse(procTimeStr)
-    val ddd1 = procDateTime.getTime()
-
     val evtime_d=eventtime.toDouble * 1000
     val evtime_l=evtime_d.asInstanceOf[Number].longValue
     val intervals=ddd1-evtime_l
     
     if(channel=="v95-dy.ixigua.com"   ) {
-        ppp_ixigua+=1
         if( intervals<= 300000 ){
+           ppp_ixigua+=1
            "v95-dy-"+(ppp_ixigua % 5)}
         else 
            {"v95-dy-other"}
     }
     else if(channel=="v95-dy-a.ixigua.com" ) {
-        ppp_ixigua_2+=1
         if( intervals<= 300000 ){
+           ppp_ixigua_2+=1
            "v95-dy-a-"+(ppp_ixigua_2 % 5)
         }
         else{
@@ -4307,11 +4319,16 @@ val ff = spark.udf.register("getPart",(channel:String,eventtime:String)=>{
         }
     }
     else if(channel=="ltssjy.qq.com"  ) {
-        ppp_ltssjy+=1
-        if( intervals<= 300000 ){
-       "ltssjy-"+(ppp_ltssjy % 5)}
+      if( intervals<= 300000 ){
+          ppp_ltssjy+=1
+          "ltssjy-"+(ppp_ltssjy % 5)}
+       else if( intervals<= 600000 ){
+       ppp_ltssjy2+=1
+       "ltssjy-sec"
+       }
        else{
-        "ltssjy-other"
+          ppp_ltssjy_other+=1
+          "ltssjy-other-"+(ppp_ltssjy_other % 5)
        }
     }
     else if(channel=="ugcsjy.qq.com" ) {
@@ -4323,14 +4340,115 @@ val ff = spark.udf.register("getPart",(channel:String,eventtime:String)=>{
     }
 })
 
+class CustomPartitioner() extends Partitioner{
+  override def numPartitions: Int = 35
+
+  override def getPartition(key: Any): Int = {
+    val keyStr = key.toString
+    if( keyStr == "v95-dy-0") {
+         0
+    } else if( keyStr == "v95-dy-1") {
+         1
+    } else   if( keyStr == "v95-dy-2") {
+         2
+    } else   if( keyStr == "v95-dy-3") {
+         3
+    } else   if( keyStr == "v95-dy-4") {
+         4
+    } else   if( keyStr == "v95-dy-other") {
+         5
+    } else   if( keyStr == "v95-dy-a-0") {
+         6
+    } else   if( keyStr == "v95-dy-a-1") {
+         7
+    } else   if( keyStr == "v95-dy-a-2") {
+         8
+    } else   if( keyStr == "v95-dy-a-3") {
+         9
+    } else   if( keyStr == "v95-dy-a-4") {
+         10
+    } else   if( keyStr == "v95-dy-a-other") {
+         11
+    } else   if( keyStr == "ltssjy-0") {
+         12
+    } else   if( keyStr == "ltssjy-1") {
+         13
+    } else   if( keyStr == "ltssjy-2") {
+         14
+    } else if( keyStr == "ltssjy-3") {
+         15
+    } else  if( keyStr == "ltssjy-4") {
+         16
+    } else if( keyStr == "ltssjy-sec") {
+         17
+    } else  if( keyStr == "ltssjy-other-0") {
+         18
+    } else  if( keyStr == "ltssjy-other-1") {
+         19
+    } else  if( keyStr == "ltssjy-other-2") {
+         20
+    } else  if( keyStr == "ltssjy-other-3") {
+         21
+    } else  if( keyStr == "ltssjy-other-4") {
+         22
+    } else if( keyStr == "ugcsjy-0") {
+         23
+    } else if( keyStr == "other-0") {
+         24
+    }else  if( keyStr == "other-1") {
+         25
+    } else if( keyStr == "other-2") {
+         26
+    } else  if( keyStr == "other-3") {
+         27
+    } else  if( keyStr == "other-4") {
+         28
+    } else  if( keyStr == "other-5") {
+         29
+    } else  if( keyStr == "other-6") {
+         30
+    }  else if( keyStr == "other-7") {
+         31
+    }  else if( keyStr == "other-8") {
+         32
+    } else  if( keyStr == "other-9") {
+         33
+    }else
+       34               
+  }
+}
+
+val myhash:CustomPartitioner = new CustomPartitioner
+
+val FlatMapData: PairFlatMapFunction[java.util.Iterator[Row], String, Row] = new PairFlatMapFunction[java.util.Iterator[Row], String, Row]() {
+    override def call(x: java.util.Iterator[Row]) = {
+        import java.util
+        val tuple = new util.ArrayList[Tuple2[String, Row]]
+        while(x.hasNext ){
+           val r = x.next
+           val part:String = r.getString(r.fieldIndex("part"))
+           tuple.add(Tuple2(part, r))
+        }
+        tuple.iterator()
+    }
+}
+
+val wordPairRDD:JavaPairRDD[String, Row] = updatedDf.toJavaRDD.mapPartitionsToPair(FlatMapData)
+val hashedrdd =wordPairRDD.partitionBy(myhash)
+
 val updatedDf = bb.withColumn("part", ff(col("channel"),col("timestamp")))
 
+#测试1，直接测试partitionBy
+
+#
 val parted = updatedDf.repartitionByRange(col("part"))
 parted.registerTempTable("parted")
 val cc = spark.sql("select * from parted limit 10")
 
 #val parted = updatedDf.repartition(6,col("part"))
-System.currentTimeMillis
+
+parted.write.mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test9")
+
 parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test9")
 #updatedDf.coalesce(3).write.mode(SaveMode.Overwrite).partitionBy("part").csv("/tmp/zws-test6")
 #updatedDf.write.mode(SaveMode.Overwrite).csv("/tmp/zws-test5")
