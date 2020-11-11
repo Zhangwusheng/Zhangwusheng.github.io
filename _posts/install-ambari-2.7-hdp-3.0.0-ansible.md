@@ -915,6 +915,16 @@ select *from ambari.hosts where host_name='ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.
 
 
 
+## 6.4 删除过期binlog数据
+
+```bash
+cd  /var/lib/pgsql/archieve
++表示2日之前，-表示2日之内
+find . -type f -mtime +2 -exec rm -f {} \;
+```
+
+
+
 
 
 # 7.安装配置部署HDP集群
@@ -3116,6 +3126,7 @@ zk上需要建立/kafka-manager目录
 ```
 nohup /data2/kafka-manager-2.0.0.2/bin/kafka-manager -Dconfig.file=/data2/kafka-manager-2.0.0.2/conf/application.conf -Dhttp.port=19090  -Dapplication.home=/data2/kafka-manager/kafka-manager-2.0.0.2 &
 
+生产系统：
 
 nohup /data2/kafka-manager/kafka-manager-2.0.0.2/bin/kafka-manager -Dconfig.file=/data2/kafka-manager/kafka-manager-2.0.0.2/conf/application.conf -Dhttp.port=19090  -Dapplication.home=/data2/kafka-manager/kafka-manager-2.0.0.2 &
 ```
@@ -5982,6 +5993,7 @@ curl -X GET -H "Accept: application/vnd.kafka.v1+json, application/vnd.kafka+jso
 #使用admin的账号
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044    --topic oss-vod-capacity --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning   --group grp-oss-vod-capacity
 
+#从指定partition的最后面读数据
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044    --topic oss-vod-capacity --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-oss-vod-capacity
 
 #生产系统03主机使用debugtopic用户读取最后的数据
@@ -6486,6 +6498,8 @@ ansible tsdbhbase -m shell -a "ln -fs /usr/hdp/3.1.0.0-78/hbase/lib/hbase-server
 
 # 53.Druid
 
+## 安装
+
 ```bash
 192.168.2.40:3306
 easyscheduler/KLETUadgj1!
@@ -6840,6 +6854,16 @@ from druid_202005 where proc_time='202005010000'
 DSQL:
 ./dsql --host http://ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:18888 --execute "SELECT  clientId,protocolType,productCode,channel,province,city,county,ispCode from \"cdn-log-analysis-realtime-dev-rollup\" WHERE \"eventTime\" = 1594456260"
 
+```
+
+
+
+## 每日查询
+
+```bash
+SELECT TIME_FLOOR("__time", 'PT5M'), SUM("upFlow")
+FROM "cdn-log-tencent"
+WHERE "__time" >= CURRENT_TIMESTAMP - INTERVAL '1' DAY GROUP BY TIME_FLOOR("__time", 'PT5M') ORDER BY TIME_FLOOR("__time", 'PT5M') DESC
 ```
 
 
@@ -7426,6 +7450,12 @@ rpm -qf /bin/iostat
 
 rpm -ql
 
+
+
+ yumdownloader --resolve clickhouse
+
+
+
 # 65.负载过高
 
 https://blog.csdn.net/u011183653/article/details/19489603?utm_medium=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.channel_param&depth_1-utm_source=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.channel_param
@@ -7463,12 +7493,85 @@ procs
 
 
 - free -ml
-
 - ps -ajxf 
+
+
+
+Kafka检查：
+
+grep 'Scheduling' server.log|grep 'for deletion'|awk '{print $1"-" $2}'|awk -F',' '{print $1;}'|sort -u
+[2020-11-02-10:22:01
+
+首先查出删除日志的时间点
+[2020-11-02-12:02:01
+[2020-11-02-12:02:02
+[2020-11-02-12:12:01
+[2020-11-02-12:22:01
+[2020-11-02-12:22:02
+[2020-11-02-12:32:01
+[2020-11-02-12:32:02
+[2020-11-02-12:42:01
+[2020-11-02-12:42:02
+[2020-11-02-12:52:01
+
+然后检查监控系统，12:22附近比较高，所以检查12:22时间左右的具体日志：
+
+
+
+
+
+# 66.spark优化经验
+
+- 写kafka基本只需要调整batch.size即可（bug死循环，导致网卡跑满，kafka写入很猛）
+- spark的json效率确实不太高，自己用stringbuilder效率最好
+- 所有的逻辑在mapPartition里面，减少RDD的次数，确实能提高很多
+- 如果能把write的action在mapPartition里面完成，可以减少job数，从而减少计算次数
+- 45s的一分钟优化到8s，五分钟的效果有待验证（尚未完成开发）
+- 数据旁路貌似可以在mapPartition里面去实现了
+- 尽量不要cache，如果出现cache，应该整合rdd的计算逻辑
+
+
+
+
+
+# 67.fsck
+
+
+
+| **选项**          | **含义**                                                   |
+| ----------------- | ---------------------------------------------------------- |
+| -a                | 自动修复文件系统，不询问任何问题                           |
+| -A                | 按照/etc/fstab配置文件的内容，检查文件内所列的全部文件系统 |
+| -N                | 不执行命令，仅列出实际执行会进行的动作                     |
+| -P                | 当搭配-A选项使用时，则会同时检查/目录的文件系统            |
+| -r                | 采用交互模式，在执行修复时询问，让用户确认并决定处理方式   |
+| -R                | 当使用-A选项检查所有文件系统的时候，跳过/目录的文件系统    |
+| -t <文件系统类型> | 指定要检查的文件系统类型                                   |
+| -C                | 显示完整的检查进度                                         |
+| -y                | 关闭互动模式                                               |
+| -c                | 检查坏块，并将它们添加到坏块列表                           |
+| -p                | 自动修复文件系统错误                                       |
+| -f                | 强制检查，即使文件系统被标记干净                           |
 
 ----------------------------------------------------
 
-44.CMDB
+# 68.ClickHouse
+
+```
+sudo yum install yum-utils
+sudo rpm --import https://repo.clickhouse.tech/CLICKHOUSE-KEY.GPG
+sudo yum-config-manager --add-repo https://repo.clickhouse.tech/rpm/clickhouse.repo
+sudo yum install clickhouse-server clickhouse-client
+
+sudo yum install  --downloadonly --downloaddir=/root clickhouse-server clickhouse-client
+```
+
+
+
+
+
+
+
 
 
 
