@@ -6863,6 +6863,10 @@ done
 
  详见 https://developer.aliyun.com/article/709387  
 
+## 6.上线规范
+
+上线评审过配置文件的修改，从git上对比上次上线到目前需要上线的时间的各种变化
+
 
 
 44.CMDB
