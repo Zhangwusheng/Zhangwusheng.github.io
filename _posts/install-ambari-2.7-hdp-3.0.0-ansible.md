@@ -229,8 +229,6 @@ root       soft    nproc     unlimited
 ansible ${THISBATCH} -m shell -a 'sysctl -w vm.max_map_count=262144'
 ansible ${THISBATCH} -m shell -a 'sysctl -p'
 
-
-
 ```
 ### 2.6设置通用环境变量
 
@@ -913,6 +911,16 @@ SELECT * FROM information_schema.tables where table_schema='ambari';
 
 # 
 select *from ambari.hosts where host_name='ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net';
+```
+
+
+
+## 6.4 删除过期binlog数据
+
+```bash
+cd  /var/lib/pgsql/archieve
++表示2日之前，-表示2日之内
+find . -type f -mtime +2 -exec rm -f {} \;
 ```
 
 
@@ -3118,6 +3126,7 @@ zk上需要建立/kafka-manager目录
 ```
 nohup /data2/kafka-manager-2.0.0.2/bin/kafka-manager -Dconfig.file=/data2/kafka-manager-2.0.0.2/conf/application.conf -Dhttp.port=19090  -Dapplication.home=/data2/kafka-manager/kafka-manager-2.0.0.2 &
 
+生产系统：
 
 nohup /data2/kafka-manager/kafka-manager-2.0.0.2/bin/kafka-manager -Dconfig.file=/data2/kafka-manager/kafka-manager-2.0.0.2/conf/application.conf -Dhttp.port=19090  -Dapplication.home=/data2/kafka-manager/kafka-manager-2.0.0.2 &
 ```
@@ -4148,23 +4157,503 @@ sudo firewall-cmd --list-all
 ## 1.shell
 
 ```scala
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/part-00141-77793485-3f72-42f4-9bcf-bd5f07920029-c000.snappy.parquet")
+
+
+
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=30 --conf spark.executor.memory=10G --conf spark.driver.memory=10G 
+
 val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
 val parquetFile = sqlContext.parquetFile("/apps/cdn/log/2019-10-10/2019-10-10-13/minute=2019-10-10-13-50")
+val parquetFile = sqlContext.parquetFile("/apps/cdn/tmp/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+val parquetFile = sqlContext.parquetFile("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/part-00141-77793485-3f72-42f4-9bcf-bd5f07920029-c000.snappy.parquet")
+
+
+val tt2 = sqlContext.parquetFile("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/")
 
 parquetFile.toDF().registerTempTable("test")
 val hiveContext = new org.apache.spark.sql.hive.HiveContext(sc)
 val aa=hiveContext.sql("select * from test limit 10")
 aa.show()
 
+val df = parquetFile.toDF()
 
- import sqlContext.implicits._
-    val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-03-15/2020-03-15-12/minute=2020-03-15-12-30")
-    parquetFile.registerTempTable("logs")
+import sqlContext.implicits._
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+parquetFile.registerTempTable("logs")
+
+val aa=spark.sql("select channel from logs limit 10")
+
+import sqlContext.implicits._
+import org.apache.spark.sql.functions._
+
+
+var ppp:Int =0
+val ff = spark.udf.register("getPart",(channel:String)=>{
+    if(channel=="v95-dy.ixigua.com") 
+    {ppp+=1
+    ppp
+    }
+    else 
+    1
+})
+
+val bb=aa.withColumn("part",col("channel"))
+
+val updatedDf = df.withColumn("part", regexp_replace(col("part"), "v95-dy.ixigua.com", "1"))
+
+val updatedDf = bb.withColumn("part", ff(col("channel"))
+                              
+SparkSession spark = SparkSession
+		             .builder()
+		             .appName("spark-job")
+		             .getOrCreate();
+                              
+import org.apache.spark.sql.RuntimeConfig
+import org.apache.spark.sql._
+val conf:RuntimeConfig = spark.conf();
+// text compress
+conf.set("mapreduce.output.fileoutputformat.compress", "true");
+conf.set("mapreduce.output.fileoutputformat.compress.type", SequenceFile.CompressionType.BLOCK.toString());
+conf.set("mapreduce.output.fileoutputformat.compress.codec", "org.apache.hadoop.io.compress.GzipCodec");
+conf.set("mapreduce.map.output.compress", "true");
+conf.set("mapreduce.map.output.compress.codec", "org.apache.hadoop.io.compress.GzipCodec");                              
+                              .write()
+    .format("text")
+    .mode(SaveMode.Overwrite)
+    .save("hdfs://bbbb");
+updatedDf.write.format("gz").partitionBy("part").save("/tmp/zws-test2")
+updatedDf.write.format("text").mode(SaveMode.Overwrite).option("compression", "gzip").save("/tmp/zws-test4")
+
+ updatedDf.write.format("parquet").partitionBy("part").save("/tmp/zws-test1")
+
+
+tt2.rdd.getNumPartitions
+
+    val newDF = df.mapPartitions(
+      iterator => {
+        val result = iterator.map(row=> 
+                                   {
+                                       val channel=row.getString("channel")
+                                       if( channel == "v95-dy.ixigua.com" )
+                                       if (data.get(data.fieldIndex("part")))
+                                   }
+                                 
+                                 ).toList
+        //return transformed data
+        result.iterator
+        //now convert back to df
+      }
+
+).toDF()
+
+
+
+    val buffer: mutable.Buffer[Object] = Row.unapplySeq(row).get.map(_.asInstanceOf[Object]).toBuffer
+              buffer.append(要加的字段) 
+                              
+              val schema: StructType = row.schema.add("aaa", StringType).add("bbb", StringType).add("ccc", StringType)
+              val new_row = new GenericRowWithSchema(buffer.toArray, schema)
+```
+
+
+
+## 2.spark shell生产跑数据
+
+```bash
+spark-shell --conf spark.executor.memoryOverhead=2G --conf spark.executor.instances=40 --conf spark.executor.memory=8G --conf spark.driver.memory=3G --conf spark.yarn.queue=batch --conf spark.executor.cores=4
+
+import org.apache.spark.sql.RuntimeConfig
+import org.apache.spark.sql._
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+
+import sqlContext.implicits._
+import java.lang.Double
+import java.util.Date
+import java.text.SimpleDateFormat
+import org.apache.spark.Partitioner
+import org.apache.spark.api.java.function.PairFlatMapFunction
+import java.util.ArrayList
+import org.apache.spark.api.java.JavaPairRDD
+
+val schemaStr="serverIp string,timestamp string,respondTime long,httpCode integer,eventTime string,clientIp string,clientPort integer,method string,protocol string,channel string,url string,httpVersion string,bodyBytes long,destIp string,destPort integer,status string,full_status string,referer string,Ua string,fileType string,host_name string,source_ip string,source_id string,source_old string,type string,range string,vendorCode byte,genericsChannel string,clientId integer,keyFlag byte,productType byte,hostingType byte,uri string,url_param string,requestBytes long,body_sent long,proxyIp string,via string,sent_http_content_length long,http_range string,sent_http_content_range string,http_tt_request_traceid string,liveProtocol string,currentTime string,requestTime string,command string,connTag string,appName string,stream string,sendBytes string,recvBytes  string"
+
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-00","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-05","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-10","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-15","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-20","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-25","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-30","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-35"),"/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-40","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-45","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-50","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-55")
+
+#val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+
+parquetFile.printSchema
+
+parquetFile.registerTempTable("logs")
+
+val aa=spark.sql("select serverIp,timestamp,respondTime,httpCode,eventTime,clientIp,clientPort,method,protocol,channel,url,httpVersion,bodyBytes,destIp,destPort,status,full_status,referer,Ua,fileType,host_name,source_ip,source_id,source_old,type,range,vendorCode,genericsChannel,clientId,keyFlag,productType,hostingType,uri,url_param,requestBytes,body_sent,proxyIp,via,sent_http_content_length,http_range,sent_http_content_range,http_tt_request_traceid,liveProtocol,currentTime,requestTime,command,connTag,appName,stream,sendBytes,recvBytes from logs ")
+
+val bb=aa.withColumn("part",col("channel"))
+
+
+var ppp_ixigua:Int =0
+var ppp_ixigua_2:Int =0
+var ppp_ltssjy:Int =0
+var ppp_ltssjy2:Int =0
+var ppp_ltssjy_other:Int =0
+var ppp_ugcsjy:Int = 0
+var ppp_other:Int =0
+
+val simpleDateFormat: SimpleDateFormat  = new SimpleDateFormat("yyyy-MM-dd-HH-mm")
+val procTimeStr="2020-09-08-21-00"
+val  procDateTime: Date = simpleDateFormat.parse(procTimeStr)
+val ddd1 = procDateTime.getTime()
+ 
+val ff = spark.udf.register("getPart",(channel:String,eventtime:String)=>{
+    val evtime_d=eventtime.toDouble * 1000
+    val evtime_l=evtime_d.asInstanceOf[Number].longValue
+    val intervals=ddd1-evtime_l
+    val batch_ixigua=90
+    val batch_ltssjy=20
+    val batch_other=40
+   if(channel=="v95-dy.ixigua.com") {
+      if( intervals<= 300000 ){
+      ppp_ixigua+=1
+         "v95-dy-"+(ppp_ixigua % batch_ixigua)}
+      else 
+         {"v95-dy-other"}
+    }
+    else if(channel=="v95-dy-a.ixigua.com" ) {
+        if( intervals<= 300000 ){
+        ppp_ixigua_2+=1
+           "v95-dy-a-"+(ppp_ixigua_2 % batch_ixigua)
+        }
+        else{
+            "v95-dy-a-other"
+        }
+    }
+    else if(channel=="ltssjy.qq.com"  ) {
+        if( intervals<= 300000 ){
+          ppp_ltssjy+=1
+         "ltssjy-"+(ppp_ltssjy % batch_ltssjy)}
+       else if( intervals<= 600000 ){
+         ppp_ltssjy2+=1
+         "ltssjy-sec"
+       }
+       else{
+       ppp_ltssjy_other+=1
+        "ltssjy-other-"+(ppp_ltssjy_other % batch_ltssjy)
+       }
+    }
+    else if(channel=="ugcsjy.qq.com" ) {
+      ppp_ugcsjy+=1
+        "ugcsjy-"+(ppp_ugcsjy % batch_ltssjy)
+    }
+    else{ 
+        ppp_other+=1
+        "other-"+(ppp_other % batch_other)
+    }
+})
+val updatedDf = bb.withColumn("part", ff(col("channel"),col("timestamp"))) 
+ 
+
+class CustomPartitioner() extends Partitioner{
+  override def numPartitions: Int = 35
+
+  override def getPartition(key: Any): Int = {
+    val keyStr = key.toString
+    if( keyStr == "v95-dy-0") {
+         0
+    } else if( keyStr == "v95-dy-1") {
+         1
+    } else   if( keyStr == "v95-dy-2") {
+         2
+    } else   if( keyStr == "v95-dy-3") {
+         3
+    } else   if( keyStr == "v95-dy-4") {
+         4
+    } else   if( keyStr == "v95-dy-other") {
+         5
+    } else   if( keyStr == "v95-dy-a-0") {
+         6
+    } else   if( keyStr == "v95-dy-a-1") {
+         7
+    } else   if( keyStr == "v95-dy-a-2") {
+         8
+    } else   if( keyStr == "v95-dy-a-3") {
+         9
+    } else   if( keyStr == "v95-dy-a-4") {
+         10
+    } else   if( keyStr == "v95-dy-a-other") {
+         11
+    } else   if( keyStr == "ltssjy-0") {
+         12
+    } else   if( keyStr == "ltssjy-1") {
+         13
+    } else   if( keyStr == "ltssjy-2") {
+         14
+    } else if( keyStr == "ltssjy-3") {
+         15
+    } else  if( keyStr == "ltssjy-4") {
+         16
+    } else if( keyStr == "ltssjy-sec") {
+         17
+    } else  if( keyStr == "ltssjy-other-0") {
+         18
+    } else  if( keyStr == "ltssjy-other-1") {
+         19
+    } else  if( keyStr == "ltssjy-other-2") {
+         20
+    } else  if( keyStr == "ltssjy-other-3") {
+         21
+    } else  if( keyStr == "ltssjy-other-4") {
+         22
+    } else if( keyStr == "ugcsjy-0") {
+         23
+    } else if( keyStr == "other-0") {
+         24
+    }else  if( keyStr == "other-1") {
+         25
+    } else if( keyStr == "other-2") {
+         26
+    } else  if( keyStr == "other-3") {
+         27
+    } else  if( keyStr == "other-4") {
+         28
+    } else  if( keyStr == "other-5") {
+         29
+    } else  if( keyStr == "other-6") {
+         30
+    }  else if( keyStr == "other-7") {
+         31
+    }  else if( keyStr == "other-8") {
+         32
+    } else  if( keyStr == "other-9") {
+         33
+    }else
+       34               
+  }
+}
+
+val myhash:CustomPartitioner = new CustomPartitioner
+
+val FlatMapData: PairFlatMapFunction[java.util.Iterator[Row], String, Row] = new PairFlatMapFunction[java.util.Iterator[Row], String, Row]() {
+    override def call(x: java.util.Iterator[Row]) = {
+        import java.util
+        val tuple = new util.ArrayList[Tuple2[String, Row]]
+        while(x.hasNext ){
+           val r = x.next
+           val part:String = r.getString(r.fieldIndex("part"))
+           tuple.add(Tuple2(part, r))
+        }
+        tuple.iterator()
+    }
+}
+
+#val wordPairRDD:JavaPairRDD[String, Row] = updatedDf.toJavaRDD.mapPartitionsToPair(FlatMapData)
+#val hashedrdd =wordPairRDD.partitionBy(myhash)
+
+#val updatedDf = bb.withColumn("part", ff(col("channel"),col("timestamp")))
+```
+
+```bash
+#测试1，直接测试partitionBy
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test1")
+```
+
+分区数：
+updatedDf.rdd.getNumPartitions
+211
+共产生文件：
+
+hdfs dfs -ls /tmp/zws-test1/*|grep -v Found|wc -l
+4246
+
+耗时1.9分钟：
+
+```bash
+#测试2，直接测试repartition
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.repartition(col("part")).write.mode(SaveMode.Overwrite).option("compression", "gzip").option("delimiter", "#").csv("/tmp/zws-test2")
+
+效果：有数据写在一起的现象
+
+v95-dy-0
+v95-dy-4
+```
+
+
+共产生文件：
+
+hdfs dfs -ls /tmp/zws-test2/*|grep -v Found|wc -l
+31
+
+耗时3.8分钟
+
+有数据倾斜，跑两次，第一次3.8分钟，第二次4.8分钟
+
+zcat part-00002-24a746e3-30b4-486b-8cb3-85907bcaa008-c000.csv.gz |rev|awk -F'#' '{print $1;}'|sort -u|rev
+
+
+
+```bash
+#测试3，直接测试repartition，然后write的时候partitionBy
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.repartition(col("part")).write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").option("delimiter", "#").csv("/tmp/zws-test3")
+
+效果：4.5分钟，35个文件，可以把文件分开，有shuffle
+```
+
+
+
+```bash
+#测试4，使用coalesce和输出partitionBy
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.coalesce(6).write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").option("delimiter", "#").csv("/tmp/zws-test4")
+
+有spill ，10G内存，2.9G spill到disk，只有6个executor工作，太慢，7.9分钟，有小文件,每个part有5个小文件
+```
+
+
+
+改启动命令：（10个executor，40G内存）
+
+```bash
+#测试5，10个executor，40G内存，用coalesce
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.coalesce(6).write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").option("delimiter", "#").csv("/tmp/zws-test5")
+
+input花了3.2分多钟，只有6个executor，共花了8.9分钟，有小文件,每个part有5个小文件，没有spill，没有shuffle
+```
+
+
+
+```bash
+#测试6，40个executor，10G内存，使用自定义partitioner
+
+import org.apache.hadoop.io.compress.GzipCodec
+
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+val wordPairRDD:JavaPairRDD[String, Row] = updatedDf.toJavaRDD.mapPartitionsToPair(FlatMapData)
+val hashedrdd =wordPairRDD.partitionBy(myhash)
+hashedrdd.saveAsTextFile("/tmp/zws-test6",classOf[GzipCodec])
+
+（1.7+4.2）5.9分钟，35个文件，shuffle了19G
+```
+
+
+
+```bash
+#测试7，测试两个批次的
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00","/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-05")
+
+......
+
+
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.repartition(col("part")).write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").option("delimiter", "#").csv("/tmp/zws-test7")
+```
+
+
+
+```bash
+#测试8 
+val parted = updatedDf.repartitionByRange(col("part"))
+parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test8")
+```
+
+
+
+```bash
+#测试9 两个批次
+val parted = updatedDf.repartitionByRange(col("part"))
+parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test9")
+```
+
+
+
+```bash
+#测试10 三个批次
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00","/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-05","/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-10")
+
+parquetFile.registerTempTable("logs")
+val aa=spark.sql("select serverIp,timestamp,respondTime,httpCode,eventTime,clientIp,clientPort,method,protocol,channel,url,httpVersion,bodyBytes,destIp,destPort,status,full_status,referer,Ua,fileType,host_name,source_ip,source_id,source_old,type,range,vendorCode,genericsChannel,clientId,keyFlag,productType,hostingType,uri,url_param,requestBytes,body_sent,proxyIp,via,sent_http_content_length,http_range,sent_http_content_range,http_tt_request_traceid,liveProtocol,currentTime,requestTime,command,connTag,appName,stream,sendBytes,recvBytes from logs ")
+
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+
+val parted = updatedDf.repartitionByRange(col("part"))
+parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test10")
+
+#测试11 半个小时的批次
 
 ```
 
 
+
+```bash
+#测试12：一个小时的数据
+
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-00","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-05","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-10","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-15","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-20","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-25","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-30","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-35","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-40","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-45","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-50","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-55")
+
+parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test12")
+不到8分钟
+
+#测试13 ，使用6个core（spark出错了）
+spark-shell --conf spark.executor.memoryOverhead=2G --conf spark.executor.instances=40 --conf spark.executor.memory=8G --conf spark.driver.memory=3G --conf spark.yarn.queue=batch --conf spark.executor.cores=4
+
+这个时间点腾讯的数据是没有的（量切走了）。ixigua的数据都是1G的，所以可以适当增大ixigua的分区数
+
+    val batch_ixigua=90
+    val batch_ltssjy=40
+    val batch_other=40
+    
+    parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test13")
+```
+
+
+
+
+
+
+```
+#
+val parted = updatedDf.repartitionByRange(col("part"))
+parted.registerTempTable("parted")
+val cc = spark.sql("select * from parted limit 10")
+
+#val parted = updatedDf.repartition(6,col("part"))
+
+parted.write.mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test9")
+
+parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test9")
+#updatedDf.coalesce(3).write.mode(SaveMode.Overwrite).partitionBy("part").csv("/tmp/zws-test6")
+#updatedDf.write.mode(SaveMode.Overwrite).csv("/tmp/zws-test5")
+updatedDf.rdd.getNumPartitions
+
+
+------------------------------------------------------------------
+
+select sum(req_cnt),event_time,proc_time,client_id,channel
+from CDN_LOG_BASE_V01 
+where event_time=1599570000
+group by event_time,proc_time,client_id,channel
+order by 1 desc
+------------------------------------------------------------------
+parquetFile.rdd.mapPartitionsWithIndex(
+      (x,iterator) => {
+        val result = iterator.map(row=> 
+                                   {
+                                       val channel=row.getString("channel")
+                                       if( channel == "v95-dy.ixigua.com" )
+                                       if (data.get(data.fieldIndex("part")))
+                                   }
+                                 
+                                 ).toList
+        //return transformed data
+        result.iterator
+        //now convert back to df
+      }
+
+```
 
 
 
@@ -4191,7 +4680,7 @@ addauth digest kafka:Kafka0701@2019
 
 ```
 
-## 2.thriftserver
+## 3.thriftserver
 
 ```bash
 metastore.catalog.default
@@ -4933,6 +5422,22 @@ val df = spark.read.parquet("/tmp/zws-parquet-4")
 
 
 
+spark-sql
+
+生产
+
+```bash
+修改配置：metastore.catalog.default  spark 改成 hive
+
+/usr/hdp/current/spark2-client/bin/beeline -u "jdbc:hive2://cdnlog029.ctyun.net:10016/;principal=spark/cdnlog029.ctyun.net@CTYUN.NET"
+```
+
+见 29.
+
+
+
+
+
 # 42.恢复Hbase元数据
 
 ## 42.1 恢复整个集群
@@ -5488,6 +5993,7 @@ curl -X GET -H "Accept: application/vnd.kafka.v1+json, application/vnd.kafka+jso
 #使用admin的账号
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044    --topic oss-vod-capacity --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning   --group grp-oss-vod-capacity
 
+#从指定partition的最后面读数据
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044    --topic oss-vod-capacity --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-oss-vod-capacity
 
 #生产系统03主机使用debugtopic用户读取最后的数据
@@ -5992,6 +6498,8 @@ ansible tsdbhbase -m shell -a "ln -fs /usr/hdp/3.1.0.0-78/hbase/lib/hbase-server
 
 # 53.Druid
 
+## 安装
+
 ```bash
 192.168.2.40:3306
 easyscheduler/KLETUadgj1!
@@ -6346,6 +6854,16 @@ from druid_202005 where proc_time='202005010000'
 DSQL:
 ./dsql --host http://ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:18888 --execute "SELECT  clientId,protocolType,productCode,channel,province,city,county,ispCode from \"cdn-log-analysis-realtime-dev-rollup\" WHERE \"eventTime\" = 1594456260"
 
+```
+
+
+
+## 每日查询
+
+```bash
+SELECT TIME_FLOOR("__time", 'PT5M'), SUM("upFlow")
+FROM "cdn-log-tencent"
+WHERE "__time" >= CURRENT_TIMESTAMP - INTERVAL '1' DAY GROUP BY TIME_FLOOR("__time", 'PT5M') ORDER BY TIME_FLOOR("__time", 'PT5M') DESC
 ```
 
 
@@ -6869,7 +7387,198 @@ done
 
 
 
-44.CMDB
+# 61.DataX改造
+
+1.查看了资料，DataX关于单表的性能感觉足够了
+
+2.分布式
+
+
+
+
+
+# 62.部署canal admin
+
+
+
+## 1.下载软件
+
+https://github.com/alibaba/canal/releases/download/canal-1.1.5-alpha-2/canal.adapter-1.1.5-SNAPSHOT.tar.gz
+
+
+
+https://github.com/alibaba/canal/releases/download/canal-1.1.5-alpha-2/canal.admin-1.1.5-SNAPSHOT.tar.gz
+
+
+
+https://github.com/alibaba/canal/releases/download/canal-1.1.5-alpha-2/canal.deployer-1.1.5-SNAPSHOT.tar.gz
+
+
+
+https://github.com/alibaba/canal/releases/download/canal-1.1.5-alpha-2/canal.example-1.1.5-SNAPSHOT.tar.gz
+
+
+
+## 2.安装CanalAdmin
+
+mkdir -p /data1/zhangwusheng/canal/canal.admin
+
+tar zxvf  canal.admin-1.1.5-SNAPSHOT.tar.gz -C  /data1/zhangwusheng/canal/canal.admin
+
+
+
+
+
+# 63.Kafka常用命令
+
+## 生产
+
+```bash
+
+```
+
+
+
+
+
+## 开发
+
+
+
+
+
+# 64.rpm相关命令
+
+查看 属于哪个包
+
+rpm -qf /bin/iostat
+
+查看某个包有哪些文件
+
+rpm -ql
+
+
+
+ yumdownloader --resolve clickhouse
+
+
+
+# 65.负载过高
+
+https://blog.csdn.net/u011183653/article/details/19489603?utm_medium=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.channel_param&depth_1-utm_source=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.channel_param
+
+- yum -y install sysstat
+
+查看磁盘情况
+
+iostat -x 1 30
+
+查看cpu情况
+
+- vmstat
+
+
+
+procs 
+ r 列表示运行和等待cpu时间片的进程数，如果长期大于1，说明cpu不足，需要增加cpu。 
+ b 列表示在等待资源的进程数，比如正在等待I/O、或者内存交换等。 
+
+
+
+ cpu 表示cpu的使用状态
+ us 列显示了用户方式下所花费 CPU 时间的百分比。us的值比较高时，说明用户进程消耗的cpu时间多，但是如果长期大于50%，需要考虑优化用户的程序。
+ sy 列显示了内核进程所花费的cpu时间的百分比。这里us + sy的参考值为80%，如果us+sy 大于 80%说明可能存在CPU不足。
+ wa 列显示了IO等待所占用的CPU时间的百分比。这里wa的参考值为30%，如果wa超过30%，说明IO等待严重，这可能是磁盘大量随机访问造成的，也可能磁盘或者磁盘访问控制器的带宽瓶颈造成的(主要是块操作)。
+ id 列显示了cpu处在空闲状态的时间百分比
+
+- iostat
+
+如果 %util 接近 100%，说明产生的I/O请求太多，I/O系统已经满负荷，该磁盘
+ 可能存在瓶颈。
+ idle小于70% IO压力就较大了,一般读取速度有较多的wait.
+
+
+
+- free -ml
+- ps -ajxf 
+
+
+
+Kafka检查：
+
+grep 'Scheduling' server.log|grep 'for deletion'|awk '{print $1"-" $2}'|awk -F',' '{print $1;}'|sort -u
+[2020-11-02-10:22:01
+
+首先查出删除日志的时间点
+[2020-11-02-12:02:01
+[2020-11-02-12:02:02
+[2020-11-02-12:12:01
+[2020-11-02-12:22:01
+[2020-11-02-12:22:02
+[2020-11-02-12:32:01
+[2020-11-02-12:32:02
+[2020-11-02-12:42:01
+[2020-11-02-12:42:02
+[2020-11-02-12:52:01
+
+然后检查监控系统，12:22附近比较高，所以检查12:22时间左右的具体日志：
+
+
+
+
+
+# 66.spark优化经验
+
+- 写kafka基本只需要调整batch.size即可（bug死循环，导致网卡跑满，kafka写入很猛）
+- spark的json效率确实不太高，自己用stringbuilder效率最好
+- 所有的逻辑在mapPartition里面，减少RDD的次数，确实能提高很多
+- 如果能把write的action在mapPartition里面完成，可以减少job数，从而减少计算次数
+- 45s的一分钟优化到8s，五分钟的效果有待验证（尚未完成开发）
+- 数据旁路貌似可以在mapPartition里面去实现了
+- 尽量不要cache，如果出现cache，应该整合rdd的计算逻辑
+
+
+
+
+
+# 67.fsck
+
+
+
+| **选项**          | **含义**                                                   |
+| ----------------- | ---------------------------------------------------------- |
+| -a                | 自动修复文件系统，不询问任何问题                           |
+| -A                | 按照/etc/fstab配置文件的内容，检查文件内所列的全部文件系统 |
+| -N                | 不执行命令，仅列出实际执行会进行的动作                     |
+| -P                | 当搭配-A选项使用时，则会同时检查/目录的文件系统            |
+| -r                | 采用交互模式，在执行修复时询问，让用户确认并决定处理方式   |
+| -R                | 当使用-A选项检查所有文件系统的时候，跳过/目录的文件系统    |
+| -t <文件系统类型> | 指定要检查的文件系统类型                                   |
+| -C                | 显示完整的检查进度                                         |
+| -y                | 关闭互动模式                                               |
+| -c                | 检查坏块，并将它们添加到坏块列表                           |
+| -p                | 自动修复文件系统错误                                       |
+| -f                | 强制检查，即使文件系统被标记干净                           |
+
+----------------------------------------------------
+
+# 68.ClickHouse
+
+```
+sudo yum install yum-utils
+sudo rpm --import https://repo.clickhouse.tech/CLICKHOUSE-KEY.GPG
+sudo yum-config-manager --add-repo https://repo.clickhouse.tech/rpm/clickhouse.repo
+sudo yum install clickhouse-server clickhouse-client
+
+sudo yum install  --downloadonly --downloaddir=/root clickhouse-server clickhouse-client
+```
+
+
+
+
+
+
+
 
 
 
