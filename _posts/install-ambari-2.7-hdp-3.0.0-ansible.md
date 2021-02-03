@@ -1134,7 +1134,7 @@ select *from ambari.hosts where host_name='ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.
 
 ```bash
 cd  /var/lib/pgsql/archieve
-+表示2日之前，-表示2日之内
+# +2 2 day before，-2 in two days
 find . -type f -mtime +2 -exec rm -f {} \;
 
 ```
@@ -2615,6 +2615,8 @@ kylin.job.lock=org.apache.kylin.storage.hbase.util.ZookeeperJobLock
 ```
 org.apache.kylin.rest.security.PasswordPlaceholderConfigurer
 工程：kylin-server-base
+
+Usage: ${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.rest.security.PasswordPlaceholderConfigurer <EncryptMethod> <your_password>"
 ```
 
 vi  /data1/apache-kylin-2.6.1-bin-hadoop3/tomcat/webapps/kylin/WEB-INF/classes/kylinSecurity.xml 
@@ -3312,6 +3314,13 @@ userName="DebugTopic"
 ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 /usr/hdp/current/kafka-broker/bin/kafka-topics  --delete --zookeeper ${ZK_CONN}  --topic Kafka_Rest_Test2
 
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name ctYun --describe
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name ctYun_agg_shanghai --describe
+
 ```
 
 ## 6.Topic级别配置修改
@@ -3423,6 +3432,36 @@ bin/kafka-preferred-replica-election.sh --zookeeper zk_host:port/chroot
 
 ```
 
+## 7.压测
+
+
+
+```bash
+/usr/hdp/current/kafka-broker/bin/kafka-producer-perf-test.sh  --topic rsyslog-dev-30   --throughput 500000 --num-records 10000000 --record-size 1000 --producer-props bootstrap.servers=SASL_PLAINTEXT://ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  security.protocol=SASL_PLAINTEXT   sasl.mechanism=PLAIN 
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1  --entity-type topics --entity-name CapTest  --alter --add-config retention.ms=7200000
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1  --entity-type topics --entity-name rsyslog-dev-30  --alter --add-config retention.ms=7200000
+
+结论
+1. 10个分区，1000字节，20W每秒，2000个字节，10W每秒
+2. 30个分区，1000字节，40W每秒，2000个字节，20W每秒
+3. 
+```
+
+
+
+## 8.__consumer_offsets 
+
+```bash
+https://support.huaweicloud.com/intl/en-us/trouble-mrs/mrs_03_0202.html
+exclude.internal.topics = false
+
+kafka-console-consumer.sh --topic __consumer_offsets --zookeeper 10.5.144.2:2181/kafka --formatter "kafka.coordinator.group.GroupMetadataManager\$OffsetsMessageFormatter" --consumer.config ../config/consumer.properties --from-beginning
+
+```
+
 
 
 
@@ -3483,6 +3522,26 @@ SASL Mechanism:PLAIN
 JAAS:
 KafkaClient { org.apache.kafka.common.security.plain.PlainLoginModule required  username="admin" password="admin-sec" ; };
 ```
+
+
+
+## Kafka连接排查
+
+```bash
+
+netstat -anp|grep 5044|grep -v 192.168.254|awk '{print $5;}'|awk -F':' '{print $1;}'|sort |uniq -c|sort -n -k1,1 > /home/zhangwusheng/ip.kafka.20201208
+
+#统计外网连接清单
+netstat -anp|grep 5044|grep -v 192.168.254|awk '{print $5;}'|awk -F':' '{print $1;}'|sort |uniq -c|sort -n -k1,1 > /home/zhangwusheng/kafka.${HOSTNAME}.`date +%Y%m%d`.txt
+
+#统计每个连接的总机器数
+netstat -anp|grep 5044|grep -v 192.168.254|awk '{print $5;}'|awk -F':' '{print $1;}'|sort |uniq -c|sort -n -k1,1|awk '{a[$1]++;}END{for(i in a){printf("%d = %d\n",i,a[i]);}}'|sort -n -k1,1
+
+```
+
+
+
+
 
 
 
@@ -7252,6 +7311,34 @@ FROM "cdn-log-tencent"
 WHERE "__time" >= CURRENT_TIMESTAMP - INTERVAL '1' DAY GROUP BY TIME_FLOOR("__time", 'PT5M') ORDER BY TIME_FLOOR("__time", 'PT5M') DESC
 ```
 
+手工compact
+
+```bash
+覃国幸(365099489)  16:17:17
+{
+    "type": "compact",
+    "dataSource": "cdn-log-uv",
+
+
+     "interval" : "2020-11-23T00:00:00.000Z/2020-12-01T00:00:00.000Z" }
+
+覃国幸(365099489)  16:17:31
+http://cdnlog002.ctyun.net:28081/druid/indexer/v1/task
+
+覃国幸(365099489)  16:17:34
+post方法
+
+覃国幸(365099489)  16:18:01
+uv时间间隔可以长一点，common因为量比较大，我之前是一天一天提交的
+
+覃国幸(365099489)  16:18:36
+之前提交一个月的失败了
+
+
+```
+
+
+
 
 
 # 54.手工修改Hive元数据
@@ -7952,6 +8039,10 @@ sudo yum-config-manager --add-repo https://repo.clickhouse.tech/rpm/clickhouse.r
 sudo yum install clickhouse-server clickhouse-client
 
 sudo yum install  --downloadonly --downloaddir=/root clickhouse-server clickhouse-client
+
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/clickhouse.tar.gz   dest=/home/zhangwusheng/soft  owner=zhangwusheng group=zhangwusheng" 
+
 ```
 
 
@@ -8163,7 +8254,335 @@ info
 get
 ```
 
+# 71.贵州Kafka Mirror
 
+
+
+```bash
+
+ansible -i /home/zhangwusheng/cdnlog.guiyang.hosts mirror -m copy -b -a "src=/home/zhangwusheng/kafka-mirror-maker.sh dest=/usr/hdp/current/kafka-broker/bin backup=yes"
+
+ansible -i /home/zhangwusheng/cdnlog.guiyang.hosts mirror -m copy -b -a "src=/home/zhangwusheng/mirror-producer.properties dest=/usr/hdp/current/kafka-broker/conf backup=yes"
+
+ansible -i /home/zhangwusheng/cdnlog.guiyang.hosts kafka -m copy -b -a "src=/home/zhangwusheng/mirror-consumer.properties dest=/usr/hdp/current/kafka-broker/conf backup=yes"
+
+ansible -i /home/zhangwusheng/cdnlog.guiyang.hosts kafka -m copy -b -a "src=/home/zhangwusheng/tools-log4j.properties dest=/usr/hdp/current/kafka-broker/conf backup=yes"
+
+/usr/hdp/current/kafka-broker/bin/kafka-mirror-maker.sh --whitelist cdn-log-analysis-realtime  --consumer.config /usr/hdp/current/kafka-broker/conf/mirror-consumer.properties --producer.config /usr/hdp/current/kafka-broker/conf/mirror-producer.properties --offset.commit.interval.ms 2000 --num.streams 10 >> ./kafka-mirror-maker-2.log 2>&1 &
+
+ps -ef|grep Mirror|grep -v 'grep'|awk '{print "kill "$2;}'
+
+ps -ef|grep Mirror|grep cdn-log-analysis-realtime|grep -v 'grep'|awk '{print "kill "$2;}'|xargs kill 
+
+cd /ssd1/kafka;nohup /usr/hdp/current/kafka-broker/bin/kafka-mirror-maker.sh --whitelist cdn-log-analysis-realtime  --consumer.config /usr/hdp/current/kafka-broker/conf/mirror-consumer.properties --producer.config /usr/hdp/current/kafka-broker/conf/mirror-producer.properties --offset.commit.interval.ms 10000 --num.streams 4 > /ssd1/kafka/kafka-mirror-maker-test2.log 2>&1 &
+
+ansible -i /home/zhangwusheng/cdnlog.guiyang.hosts kafka -m copy -b -a "src=/home/zhangwusheng/kafka_2.12-2.5.0.tgz dest=/home/zhangwusheng backup=yes"
+
+
+
+
+
+/ssd1/kafka-2.5.0/kafka_2.12-2.5.0/bin/kafka-mirror-maker.sh --whitelist cdn-log-analysis-realtime  --consumer.config /ssd1/kafka-2.5.0/kafka_2.12-2.5.0/config/mirror-consumer.properties --producer.config /ssd1/kafka-2.5.0/kafka_2.12-2.5.0/config/mirror-producer.properties --offset.commit.interval.ms 2000 --num.streams 1 >> ./kafka-mirror-maker-2.log 2>&1 &
+
+#经验1：调整参数
+bootstrap.servers=cdnlog013.ctyun.net:5044,cdnlog014.ctyun.net:5044
+
+ 
+#如果使用旧版Consumer，则使用zookeeper.connect
+#zookeeper.connect=
+#这个没变
+request.timeout.ms=900000
+  
+#这个调整小一点，防止rebalance
+heartbeat.interval.ms=2000
+   
+#这个设置大一点
+session.timeout.ms=300000
+#consumer group id
+group.id=cdn_mirror_nm2gy_realtime-test1
+partition.assignment.strategy=org.apache.kafka.clients.consumer.RoundRobinAssignor
+#这个不能太大，1000应该足够了
+max.poll.records=1000
+#这个不能太小
+max.poll.interval.ms=10000
+#set receive buffer from default 64kB to 512kb
+receive.buffer.bytes=4221440
+   
+#set max amount of data per partition to override default 1048576
+max.partition.fetch.bytes=5248576
+
+key.deserializer=org.apache.kafka.common.serialization.ByteArrayDeserializer
+value.deserializer=org.apache.kafka.common.serialization.ByteArrayDeserializer
+
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="CtYiofnwk@269Mn";
+
+
+
+#######################################
+
+#prod
+bootstrap.servers=sct-gz-guiyang1-loganalysis-10.in.ctcdn.cn:5044,sct-gz-guiyang1-loganalysis-11.in.ctcdn.cn:5044
+
+# name of the partitioner class for partitioning events; default partition spreads data randomly
+#partitioner.class=
+  
+# 必须是异步
+producer.type=async
+   
+# specify the compression codec for all data generated: none, gzip, snappy, lz4.
+# the old config values work as well: 0, 1, 2, 3 for none, gzip, snappy, lz4, respectively
+compression.type=lz4
+# message encoder
+#serializer.class=kafka.serializer.DefaultEncoder
+
+#batch.size=16384
+#key.serializer=org.apache.kafka.common.serialization.StringSerializer
+key.serializer=org.apache.kafka.common.serialization.ByteArraySerializer
+#value.serializer=org.apache.kafka.common.serialization.StringSerializer
+value.serializer=org.apache.kafka.common.serialization.ByteArraySerializer
+#retries=3
+#linger.ms=100
+#buffer.memory=33554432
+
+#enable.idempotence=true
+
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="CtYiofnwk@269Mn";
+
+#max.in.flight.requests.per.connection=50
+acks=1
+#这个不能太大
+batch.size=163840
+send.buffer.bytes=4221440
+receive.buffer.bytes=4221440
+#####################################
+
+##注意consumer和producer的数据量要匹配起来
+#内蒙到贵阳，一个consumer一秒10万，一个producer一秒接近100W
+/usr/hdp/current/kafka-broker/bin/kafka-mirror-maker.sh --whitelist cdn-log-analysis-realtime  --consumer.config /usr/hdp/current/kafka-broker/conf/mirror-consumer.properties --producer.config /usr/hdp/current/kafka-broker/conf/mirror-producer.properties --offset.commit.interval.ms 2000 --num.streams 3 > ./kafka-mirror-maker-debug.log 2>&1 &
+```
+
+# 72. g++多版本冲突
+
+```bash
+删掉有冲突的版本
+```
+
+
+
+# 73. rsyslog
+
+```bash
+
+yum -y install libuuid-devel
+yum install -y libgcrypt-devel
+yum search libcurl
+yum install -y libcurl-devel.x86_64
+yum install -y libcurl-devel.x86_64
+yum search rdkafka
+yum -y install librdkafka-devel.x86_64
+yum -y install g++
+yum -y install gcc-c++
+yum update -y libstdc++.x86_64
+yum install libstdc++.i686
+yum -y install gcc-c++
+yum -y install libstdc++-4.8.5-39.el7.i686
+yum -y install gcc-c++
+yum -y install libstdc++-4.8.5-44.el7.x86_64
+yum remove -y libstdc++-4.8.5-39.el7.i686
+yum -y install gcc-c++
+yum -y install libsasl2
+yum -y install yacc
+yum search yacc
+yum -y install byacc
+yum -y install flex
+
+libgrok-dev libgrok1 libtokyocabinet-dev
+yum -y install tokyocabinet-devel.x86_64
+
+
+autoreconf --install
+
+安装liblognorm-2.0.6
+
+LIBFASTJSON_CFLAGS="-I/usr/include/libfastjson"  LIBFASTJSON_LIBS="-L/usr/lib -lfastjson" LIBRDKAFKA_CFLAGS="-I/usr/local/include" LIBRDKAFKA_LIBS="-L/usr/local/lib -lrdkafka" LIBLOGNORM_CFLAGS="-I/usr/local/include/" LIBLOGNORM_LIBS="-L/usr/local/lib -llognorm" ./configure  --prefix=/home/zhangwusheng/usr/local/  --enable-omkafka --enable-imkafka  --enable-regexp --enable-gssapi-krb5 --enable-uuid --enable-openssl --enable-mmnormalize  --enable-mmjsonparse --enable-mmgrok --enable-mmaudit --enable-mmcount --enable-mmsequence --enable-mmfields  --enable-imfile  --enable-pmnormalize  --enable-omruleset 
+#--enable-imjournal --enable-omjournal
+
+#压测kafka幂等的信息 22秒257W
+[root@sct-gz-guiyang1-loganalysis-01 librdkafka-1.5.3]# date;./examples/idempotent_producer sct-gz-guiyang1-loganalysis-10.in.ctcdn.cn:5044  cdn-live-test;date
+Wed Jan 27 12:58:04 CST 2021
+% Running producer loop. Press Ctrl-C to exit
+% Failed to produce to topic cdn-live-test: Local: Queue full
+% Failed to produce to topic cdn-live-test: Local: Queue full
+1611723485:662687  100000
+1611723486:239844  200000
+1611723487:157673  300000
+1611723488:57540  400000
+1611723488:869915  500000
+1611723489:699757  600000
+1611723490:514558  700000
+1611723491:395811  800000
+1611723492:195446  900000
+1611723493:24598  1000000
+1611723493:846798  1100000
+1611723494:675041  1200000
+1611723495:502797  1300000
+1611723496:320813  1400000
+1611723497:159584  1500000
+1611723497:980876  1600000
+1611723498:803654  1700000
+1611723499:634289  1800000
+1611723500:470975  1900000
+1611723501:298566  2000000
+1611723502:121867  2100000
+1611723502:937373  2200000
+1611723503:751043  2300000
+1611723504:573546  2400000
+1611723505:390845  2500000
+^C% Flushing outstanding messages..
+% 2578850 message(s) produced, 2578850 delivered, 0 failed
+Wed Jan 27 12:58:26 CST 2021
+
+
+#调试rsyslogd 
+export RSYSLOG_DEBUG="DebugOnDemand NoStdOut"
+export RSYSLOG_DEBUGLOG=/home/zhangwusheng/var/log/rsyslogd-debug.log
+/home/zhangwusheng/usr/local/sbin/rsyslogd -n -f /home/zhangwusheng/etc/rsyslog.conf -i /home/zhangwusheng/var/run/rsyslog.pid
+
+kill -USR1 `cat /home/zhangwusheng/var/run/rsyslog.pid`
+kill  `cat /home/zhangwusheng/var/run/rsyslog.pid`
+
+logger -n 192.168.189.24 -P 58085 -p local7.info "a&b&c"
+
+ps -ef|grep rsyslog|grep zhangwusheng|awk '{print $2;}'|xargs kill
+
+curl 'http://192.168.189.24:58080/?a&b&c'
+ab -n 10000 -c 30 'http://192.168.189.24:58080/qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq'
+
+https://my.oschina.net/MrYx3en/blog/525803
+
+https://www.liblognorm.com/files/manual/index.html
+
+
+rule=A: %date:char-to:\x20% %time:time-24hr% [%level:char-to:\x5D%] %f1:char-to::%: %f2:char-to:\x20% %errmsg:char-to:,%, client: %client:ipv4%, server: %server:rest%"
+
+#B和C不能同时存在一个rulebase文件中，否则会导致误解析。
+rule=B: %date:char-to:\x20% %time:time-24hr% [%level:char-to:\x5D%] %f1:char-to::%: %f2:char-to:\x20% %errmsg:char-to:,%, client: %client:ipv4%, server: %server:char-to:,%, request: "%verb:word% %urlpath:char-to:\x3F%?%urlparam:char-to:\x20% HTTP/%httpversion:char-to:\x22%", upstream: %upstream:char-to:,%, host: %host:rest%
+
+rule=C: %date:char-to:\x20% %time:time-24hr% [%level:char-to:\x5D%] %f1:char-to::%: %f2:char-to:\x20% %errmsg:char-to:,%, client: %client:ipv4%, server: %server:char-to:,%, request: "%verb:word% %urlpath:char-to:\x20% HTTP/%httpversion:char-to:\x22%", upstream: %upstream:char-to:\x2C%, host: %host:rest%
+
+rule=D: %date:char-to:\x20% %time:time-24hr% [%level:char-to:\x5D%] %f1:char-to::%: %f2:char-to:\x20% %errmsg:char-to:,%, client: %client:ipv4%, server: %server:char-to:,%, request: "%verb:word% %urlpath:char-to:\x3F%?%urlparam:char-to:\x20% HTTP/%httpversion:char-to:\x22%", host: %host:rest%
+
+rule=F: %errmsg:rest%
+
+cat ra.rb
+rule=ra:%AA:char-to:&%&%BB:char-to:&%&%c:rest%
+lognormalizer -r ra.rb   < a.txt > a.json
+lognormalizer -r nginxerr.rulebase -e json -T < test0.log > normalized.log
+
+
+the first thing to do is to test your ruleset
+
+create a template:
+$template raw,"%rawmsg%\n"
+
+/var/log/testing;raw
+
+then you can do
+head -1 raw |/usr/lib/lognorm/lognormalizer -r /etc/rsyslog.rb -v -e json -T
+
+and look at the output that you receive.
+
+one obvious problem that I see is that the rawmsg is going to contain the
+priority info (facility/severity), so before the timestamp there is going to be
+<number> so your rules aren't going to match
+
+but by logging the rawmsg to a file, you will see exactly what is being passed
+to the parser, and can test the parser from the command line.
+
+
+
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  sct-gz-guiyang1-loganalysis-10.in.ctcdn.cn:5044    --topic cdn-log-analysis-batch-perf-test --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-rsyslog-test 
+```
+
+
+
+74. FIO
+
+    ```bash
+    顺序写：
+    /usr/local/bin/fio --name=sequence-write --ioengine=posixaio --rw=write --bs=4k --size=4g --numjobs=1 --runtime=60 --time_based --end_fsync=1 --filename=/home/zhangwusheng/fio_test.dat
+    顺序读：
+    /usr/local/bin/fio -filename=/home/zhangwusheng/fio_test_read.dat -direct=1 -iodepth 1 -thread -rw=read -ioengine=psync -bs=16k -size=2G -numjobs=1 -runtime=60 -group_reporting -name=sequence-read
+    
+    posixaio
+    ```
+
+    
+
+75. iperf
+
+iperf3 -p 50475 -B 113.125.219.24 -s 
+"GZ-GY-4L&401-J04&45U-DW-RG6220-03
+GZ-GY-4L&401-J05&45U-DW-RG6220-04
+GZ-GY-4L&401-J04&41U-JR-RGS5750-02"
+
+iperf3 -c 113.125.219.24 -P 100 -p 50475 -B 150.223.254.2  -b 400M -R
+[SUM]   0.00-10.00  sec  12.6 GBytes  10.8 Gbits/sec  16520             sender
+[SUM]   0.00-10.00  sec  12.4 GBytes  10.6 Gbits/sec                  receiver
+
+iperf3 -p 50475 -B 113.125.219.41 -s 
+"GZ-GY-4L&401-J06&45U-DW-RG6220-05
+GZ-GY-4L&401-J07&45U-DW-RG6220-06
+GZ-GY-4L&401-J04&41U-JR-RGS5750-02"
+
+iperf3 -c 113.125.219.41 -P 100 -p 50475 -B 150.223.254.2  -b 400M -R
+
+[SUM]   0.00-10.00  sec  17.1 GBytes  14.7 Gbits/sec  14723             sender
+[SUM]   0.00-10.00  sec  16.9 GBytes  14.5 Gbits/sec                  receiver
+
+iperf3 -c 113.125.219.41 -P 100 -p 50475 -B 150.223.254.2  -b 800M -R
+
+[SUM]   0.00-10.00  sec  18.6 GBytes  16.0 Gbits/sec  12678             sender
+[SUM]   0.00-10.00  sec  18.4 GBytes  15.8 Gbits/sec                  receiver
+
+ iperf3 -p 50475 -B 113.125.219.56 -s
+ "GZ-GY-4L&401-J06&45U-DW-RG6220-07
+GZ-GY-4L&401-J07&45U-DW-RG6220-08
+GZ-GY-4L&401-J08&41U-JR-RGS5750-03"
+
+ iperf3 -c 113.125.219.56 -P 100 -p 50475 -B 150.223.254.2  -b 800M -R
+ [SUM]   0.00-10.00  sec  12.6 GBytes  10.8 Gbits/sec  13760             sender
+[SUM]   0.00-10.00  sec  12.3 GBytes  10.6 Gbits/sec                  receiver
+
+
+ iperf3 -p 50475 -B 113.125.219.75 -s
+GZ-GY-4L&401-J10&45U-DW-RG6220-09
+GZ-GY-4L&401-J11&45U-DW-RG6220-10
+GZ-GY-4L&401-J08&41U-JR-RGS5750-03
+ iperf3 -c 113.125.219.75 -P 100 -p 50475 -B 150.223.254.2  -b 800M -R
+
+ [SUM]   0.00-10.00  sec  13.8 GBytes  11.9 Gbits/sec  12763             sender
+[SUM]   0.00-10.00  sec  13.6 GBytes  11.7 Gbits/sec                  receiver
+
+ 
+
+
+  iperf3 -c 113.125.219.75 -P 100 -p 50475 -B 150.223.254.21  -b 800M -R
+ Eth-Trunk12
+ [SUM]   0.00-10.00  sec  14.8 GBytes  12.7 Gbits/sec  9110             sender
+[SUM]   0.00-10.00  sec  14.5 GBytes  12.5 Gbits/sec                  receiver
+
+
+
+   iperf3 -c 113.125.219.56 -P 100 -p 50475 -B 150.223.254.21  -b 1000M -R
+[SUM]   0.00-10.00  sec  12.5 GBytes  10.7 Gbits/sec  23271             sender
+[SUM]   0.00-10.00  sec  12.3 GBytes  10.5 Gbits/sec                  receiver
 
 
 
@@ -8351,22 +8770,11 @@ textFile .count()
 
 
 mv /usr/bin/spark-class /usr/bin/spark-class-nono
-
 mv /usr/bin/sparkR /usr/bin/sparkR-nono
-
 mv /usr/bin/spark-script-wrapper.sh /usr/bin/spark-script-wrapper.sh-nono
-
 mv /usr/bin/spark-shell /usr/bin/spark-shell-nono
-
 mv /usr/bin/spark-sql /usr/bin/spark-sql-nono
-
 mv /usr/bin/spark-submit /usr/bin/spark-submit-nono
-
-
-
-
-
-
 
 
 
@@ -8402,11 +8810,6 @@ vi /usr/hdp/current/hive-client/bin/hive.distro
   else
       $TORUN "$@"
   fi
-
-
-
-
-
 
 
 
