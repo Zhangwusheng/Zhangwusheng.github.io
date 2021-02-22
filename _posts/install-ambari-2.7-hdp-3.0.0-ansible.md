@@ -546,6 +546,30 @@ firewall-cmd --list-all
 
 ```
 
+### 2.11 验证端口连通性
+
+```bash
+nc -zw 2  {{ item }} 5044
+
+
+for ip in `cat /home/zhangwusheng/etc/ansible/vivo.kafka.local`
+do
+   nc -zw 2 ${ip} 5044
+   if [ $? -ne 0 ]
+   then
+      echo ${ip} 5044 failed
+   else
+      echo ${ip} 5044 success
+   fi	  
+	  
+done
+
+```
+
+
+
+
+
 
 
 # 3.配置YUM离线源
@@ -3460,6 +3484,8 @@ exclude.internal.topics = false
 
 kafka-console-consumer.sh --topic __consumer_offsets --zookeeper 10.5.144.2:2181/kafka --formatter "kafka.coordinator.group.GroupMetadataManager\$OffsetsMessageFormatter" --consumer.config ../config/consumer.properties --from-beginning
 
+
+GetOffsetShell kafka-run-class kafka.tools.GetOffsetShell  --broker-list $  kafka-console-consumer is a consumer command line that: read data from a Kafka topic and write it to standard output (console). Articles Related Example Command line Print key and value kafka-console-consumer.sh \ --bootstrap-server localhost:9092 \ --topic mytopic \ --from-beginning \ --formatter kafka.tools.DefaultMessageFormatter \ --property print.key=true \ --property print.value=true
 ```
 
 
@@ -7339,6 +7365,16 @@ uv时间间隔可以长一点，common因为量比较大，我之前是一天一
 
 
 
+## 扩容
+
+```bash
+1. 修改 ulimit 
+
+/etc/security/limits.d/20-nproc.conf
+```
+
+
+
 
 
 # 54.手工修改Hive元数据
@@ -8376,6 +8412,9 @@ receive.buffer.bytes=4221440
 
 ```bash
 删掉有冲突的版本
+
+i686的版本删除掉
+yum remove glibc-2.17-322.el7_9.i686
 ```
 
 
@@ -8407,10 +8446,18 @@ yum search yacc
 yum -y install byacc
 yum -y install flex
 
+#grok的安装，不同机器不同
+centos
 libgrok-dev libgrok1 libtokyocabinet-dev
 yum -y install tokyocabinet-devel.x86_64
 
+
 git clone https://github.com/civetweb/civetweb
+
+https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/semicomplete/grok-1.20110708.1.tar.gz
+https://github.com/jordansissel/grok.git
+https://github.com/maiha/tokyocabinet.git
+
 autoreconf --install
 
 安装liblognorm-2.0.6
@@ -8515,24 +8562,32 @@ to the parser, and can test the parser from the command line.
 
 
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  sct-gz-guiyang1-loganalysis-10.in.ctcdn.cn:5044    --topic cdn-log-analysis-batch-perf-test --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-rsyslog-test 
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server        edge-js-yangzhou3-loganalysis-01.in.ctcdn.cn:5044 --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --topic rsyslog-lizw --group grp-rsyslog-test 
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server        edge-js-yangzhou3-loganalysis-01.in.ctcdn.cn:5044 --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --topic rsyslog-lizw --group grp-rsyslog-test 
+
+
 ```
 
 
 
-74. FIO
+# 74. FIO
 
-    ```bash
-    顺序写：
-    /usr/local/bin/fio --name=sequence-write --ioengine=posixaio --rw=write --bs=4k --size=4g --numjobs=1 --runtime=60 --time_based --end_fsync=1 --filename=/home/zhangwusheng/fio_test.dat
-    顺序读：
-    /usr/local/bin/fio -filename=/home/zhangwusheng/fio_test_read.dat -direct=1 -iodepth 1 -thread -rw=read -ioengine=psync -bs=16k -size=2G -numjobs=1 -runtime=60 -group_reporting -name=sequence-read
-    
-    posixaio
-    ```
+```bash
+顺序写：
+/usr/local/bin/fio --name=sequence-write --ioengine=posixaio --rw=write --bs=4k --size=4g --numjobs=1 --runtime=60 --time_based --end_fsync=1 --filename=/home/zhangwusheng/fio_test.dat
+顺序读：
+/usr/local/bin/fio -filename=/home/zhangwusheng/fio_test_read.dat -direct=1 -iodepth 1 -thread -rw=read -ioengine=psync -bs=16k -size=2G -numjobs=1 -runtime=60 -group_reporting -name=sequence-read
 
-    
+posixaio
+```
 
-75. iperf
+
+
+# 75. iperf
 
 iperf3 -p 50475 -B 113.125.219.24 -s 
 "GZ-GY-4L&401-J04&45U-DW-RG6220-03
@@ -8593,6 +8648,129 @@ GZ-GY-4L&401-J08&41U-JR-RGS5750-03
 
 
 
+# 76. 扬州三线Kafka
+
+```bash
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  file  -b -a "dest=/home/zhangwusheng/usr/bin  owner=zhangwusheng group=zhangwusheng state=directory recurse=yes" 
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/fstab.sh   dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng" 
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/fstab.py   dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m shell  -b -a "bash /home/zhangwusheng/usr/bin/fstab.sh"
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m shell  -b -a "cat /etc/fstab"
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/jdk-8u211-linux-x64.tar.gz dest=/home/zhangwusheng/usr/bin  owner=root group=root" 
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/jce_policy-8.zip dest=/home/zhangwusheng/usr/bin  owner=zhangwusheng group=zhangwusheng" 
+
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/java-env.sh   dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng" 
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m shell  -b -a "bash /home/zhangwusheng/usr/bin/java-env.sh"
+
+```
+
+# 76. VIVO
+
+```bash
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  file  -b -a "dest=/home/zhangwusheng/usr/bin  owner=zhangwusheng group=zhangwusheng state=directory recurse=yes" 
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  file  -b -a "dest=/home/zhangwusheng/etc/security  owner=zhangwusheng group=zhangwusheng state=directory recurse=yes" 
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/mkfs.vivo     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng" 
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/get_hosts_lan.sh     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng" 
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/local/jmx-exporter    dest=/home/zhangwusheng/usr/local/  owner=zhangwusheng group=zhangwusheng" 
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/vivo.mount     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng" 
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "mkfs.xfs /dev/sdb" 
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "mkdir /data1 /data2 /data3 /data4 /data5 /data6 /data7 /data8 /data9 /data10" 
+
+
+nohup bash /home/zhangwusheng/usr/bin/mkfs.vivo &
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/vivo.mkfs.sh     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng" 
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host10 -m  shell  -b -a "bash /home/zhangwusheng/usr/bin/vivo.mkfs.sh" 
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host7 -m  shell  -b -a "bash /home/zhangwusheng/usr/bin/vivo.mount" 
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data1" 
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data1" |grep 'sdb'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data2" |grep 'sdc'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data3" |grep 'sdd'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data4" |grep 'sde'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data5" |grep 'sdf'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data6" |grep 'sdg'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data7" |grep 'sdh'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data8" |grep 'sdi'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data9" |grep 'sdj'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data10" |grep 'sdk'|wc -l
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/fstab.sh     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng" 
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/fstab.py     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng" 
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m shell  -b -a "bash /home/zhangwusheng/usr/bin/fstab.sh"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host1 -m shell  -b -a "cat /etc/fstab"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/jce_policy-8.zip dest=/home/zhangwusheng/usr/bin  owner=zhangwusheng group=zhangwusheng" 
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/jdk-8u211-linux-x64.tar.gz dest=/home/zhangwusheng/usr/bin  owner=zhangwusheng group=zhangwusheng" 
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/java-env.sh   dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng" 
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/ulimit.sh   dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng" 
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m shell  -b -a "bash /home/zhangwusheng/usr/bin/java-env.sh"
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host1 -m shell  -b -a "ulimit -a"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host1 -m shell  -b -a "bash /home/zhangwusheng/usr/bin/ulimit.sh"
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host1 -m shell  -b -a "ulimit -a"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/etc/security/limits.d/20-nproc.conf   dest=/etc/security/limits.d  owner=root group=root" 
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/etc/yum.repos.d/ambari-hdp-1.repo   dest=/etc/yum.repos.d  owner=root group=root" 
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/etc/yum.repos.d/ambari.repo   dest=/etc/yum.repos.d  owner=root group=root" 
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/.bash_profile   dest=/home/zhangwusheng/  owner=zhangwusheng group=zhangwusheng" 
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host1 -m  shell  -b -a "yum -y install ambari-agent" 
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "sed -i 's/hostname=localhost/hostname=192.168.254.40/g'  /etc/ambari-agent/conf/ambari-agent.ini  " 
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "date " 
+
+
+```
+
+网关配置：
+
+route add -net 192.168.189.0/24 gw 192.168.254.254
+/etc/sysconfig/static-routes 
+
+any net  192.168.189.0/24 gw 192.168.254.254
+
+这个可以重启的时候生效
+
+反向的话也是一样，在那边添加：
+route add -net 192.168.254.0/24 gw 192.168.189.1
+
+
+
 
 redis.conf
 port 16379
@@ -8631,6 +8809,12 @@ init.py
 
 cmdb/cmdb_apiserver/init_db.sh
 修改8080为18282
+
+
+
+
+
+
 
 
 # 44.问题：
