@@ -8410,7 +8410,7 @@ yum -y install flex
 libgrok-dev libgrok1 libtokyocabinet-dev
 yum -y install tokyocabinet-devel.x86_64
 
-
+git clone https://github.com/civetweb/civetweb
 autoreconf --install
 
 安装liblognorm-2.0.6
