@@ -8457,6 +8457,7 @@ git clone https://github.com/civetweb/civetweb
 https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/semicomplete/grok-1.20110708.1.tar.gz
 https://github.com/jordansissel/grok.git
 https://github.com/maiha/tokyocabinet.git
+https://github.com/thkukuk/rpcsvc-proto.git
 
 autoreconf --install
 
