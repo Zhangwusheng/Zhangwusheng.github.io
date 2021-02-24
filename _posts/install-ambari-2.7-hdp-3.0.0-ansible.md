@@ -4248,7 +4248,7 @@ tt2.rdd.getNumPartitions
 ## 2.spark shell生产跑数据
 
 ```bash
-spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=3 --conf spark.executor.memory=2G --conf spark.driver.memory=2G
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=3 --conf spark.executor.memory=2G --conf spark.driver.memory=2G --jars 
 
 import org.apache.spark.sql.RuntimeConfig
 import org.apache.spark.sql._
@@ -4263,12 +4263,32 @@ import java.text.SimpleDateFormat
 
 val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/part-00141-77793485-3f72-42f4-9bcf-bd5f07920029-c000.snappy.parquet")
 
-val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-09/2020-09-09-17/minute=2020-09-09-17-20/part-00040-efc48350-f9e6-4f72-adb1-69d7caefccb5-c000.snappy.parquet")
 
+
+ab.write.mode(SaveMode.Append).format("jdbc").option("driver","com.github.housepower.jdbc.ClickHouseDriver").option("url", "jdbc:clickhouse://192.168.2.40:18000").option("user", "default").option("password", "").option("dbtable", "default.t_cdnlog_analysis_c").option("batchsize", 10000).option("isolationLevel", "NONE").save
+  
 parquetFile.printSchema
 
 parquetFile.registerTempTable("logs")
 
+ |-- serverIp: string (nullable = true)
+ |-- timestamp: string (nullable = true)
+ |-- respondTime: long (nullable = true)
+ |-- httpCode: integer (nullable = true)
+ |-- eventTime: string (nullable = true)
+ |-- clientIp: string (nullable = true)
+ |-- clientPort: integer (nullable = true)
+ |-- : string (nullable = true)
+ |-- protocol: string (nullable = true)
+ |-- channel: string (nullable = true)
+ |-- url: string (nullable = true)
+ |-- httpVersion: string (nullable = true)
+ |-- bodyBytes: long (nullable = true)
+ |-- destIp: string (nullable = true)
+ |-- destPort: integer (nullable = true)
+
+val ab = spark.sql("select serverIp,timestamp,respondTime,httpCode,eventTime,clientIp,clientPort,method,protocol,channel,url,httpVersion,bodyBytes,destIp,destPort from logs")
 val aa=spark.sql("select eventTime, channel, serverIp,timestamp,uri,source_ip,sendBytes,recvBytes,country,province,city,clientId,type from logs ")
 
 val bb=aa.withColumn("part",col("channel"))
