@@ -31,7 +31,7 @@ https://www.cnblogs.com/zhang-ke/p/8944240.html
 - [ ] 下载页面：
 
 - ambari2.7.0.0下载页面:
-  https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/ambari_repositories.html 
+  https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/ambari_repositories.html
 
 - hdp-3.0.0下载页面:
   https://docs.hortonworks.com/HDPDocuments/Ambari-2.7.0.0/bk_ambari-installation/content/hdp_30_repositories.html
@@ -83,7 +83,7 @@ wget -c 'http://public-repo-1.hortonworks.com/HDP-UTILS-1.1.0.22/repos/ubuntu18/
 
 wget -c 'http://public-repo-1.hortonworks.com/HDP-GPL/ubuntu18/3.x/updates/3.1.0.0/HDP-GPL-3.1.0.0-ubuntu18-gpl.tar.gz'
 
-- [ ] 
+- [ ]
 
 # 2.环境准备
 
@@ -93,9 +93,51 @@ wget -c 'http://public-repo-1.hortonworks.com/HDP-GPL/ubuntu18/3.x/updates/3.1.0
 
 软件所在目录：/var/www/html/soft
 
-主机：192.168.254.40 
+主机：192.168.254.40
 
 端口： 8181
+
+### 2.0检查CPU信息
+
+```bash
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/scripts/get-cpu-info.sh   dest=/home/zhangwusheng/scripts  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  shell  -b -a "bash  /home/zhangwusheng/scripts/get-cpu-info.sh"
+```
+
+
+
+### 2.0首先增加必要的用户
+
+```bash
+groupadd cdnlog
+useradd cdnlog -g cdnlog
+useradd cdnlogop -g cdnlog
+
+useradd kylin -g cdnlog
+usermod -G hadoop kylin
+echo 'cdnlogop   ALL=(ALL)       NOPASSWD: ALL' >> /etc/sudoers
+
+su - cdnlogop
+
+ssh-keygen -t rsa
+cd ~/.ssh
+echo 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDLli5xWfX86hIrUchgnl6hyrmDkpAw73LvcOicmyaASfSks+GYv+IORshuJhcrr635xR1FqLOwnXqgQy6R2D7JixZI9cTfwPhKN/bpKpQRfrDTqYN4rHgxIZ42gXMsEm9w/gBS9/8po9PYbIK37RmHr12xaYR5KUB7BMF8IvCOSG6SMs2u5HHydJVxl0JJUaNB5wTKx0/BSjOvTGDg9uD/PoCk6anRA0jWKqJUtYvX5Z+D/XomTDB2MNnE8Qkn0EXAGmVEzj/1KVmKn4ATdK6MDgHKsRIoYQSZK+S4n4kjUPpROFgWZuuvb3jNTVvrKR+Ee1sxs09PzEMugLjpin+53tz6e/F42SaXWsUNK0CPQboSSiOCht1n0YJHKRLKoZhFWkECQ+GxrrmVv4C3+xxiHB0rkgE84d8oU6ksFPeuIP1frB5MZoHma60QmsYt8J7qsXam/CgkYOgWB8DG9MaDWCpdyFNrUE/DR+YrEUHNZAMvSbTWqPX26ASupm4n9Yc= cdnlogop@sct-gz-guiyang1-loganalysis-01.in.ctcdn.cn' > ~/.ssh/authorized_keys
+chmod 644  ~/.ssh/authorized_keys
+
+
+userdel cdnlogop
+rm -rf /home/cdnlogop/
+sed -i '/cdnlogop/d'  /etc/sudoers
+
+113.125.219.24
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" port port="9091" protocol="tcp" accept'
+
+firewall-cmd --permanent --add-rich-rule 'rule family="ipv4" source address="113.125.219.24" port port="8181" protocol="tcp" accept'
+firewall-cmd --reload
+```
+
+
 
 ### 2.0首先设置免密登录！
 
@@ -177,17 +219,17 @@ ansible ${THISBATCH} -m shell -a 'mkdir /data1 /data2 /data3 /data4 /data5 /data
 ;
 #挂盘
 #ssd，注意一定要检查脚本，把那个数字改一下，有的是960，有的是959
-ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/ssd.sh -O /home/zhangwusheng/scripts/third/ssd.sh' 
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/ssd.sh -O /home/zhangwusheng/scripts/third/ssd.sh'
 ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/ssd.sh'
 #sata，注意一定要检查脚本，把那个数字改一下，有的是6001，有的是6000.9
-ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/sata.sh -O /home/zhangwusheng/scripts/third/sata.sh' 
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/sata.sh -O /home/zhangwusheng/scripts/third/sata.sh'
 ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/sata.sh'
 #检查挂载是否成功
 ansible ${THISBATCH} -m shell -a 'df -h'
 
 #挂载fstab
 ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/fstab.py -O /home/zhangwusheng/scripts/third/fstab.py'
-ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/fstab.sh -O /home/zhangwusheng/scripts/third/fstab.sh' 
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/fstab.sh -O /home/zhangwusheng/scripts/third/fstab.sh'
 #检查fstab
 ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/fstab.sh'
 ansible  ${THISBATCH}  -m shell -a 'python /home/zhangwusheng/scripts/third/fstab.py --action=check'
@@ -198,15 +240,44 @@ ansible  ${THISBATCH}  -m shell -a 'python /home/zhangwusheng/scripts/third/fsta
 ```bash
 export THISBATCH=thirdnew
 #安装java
-ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/soft/jdk-8u211-linux-x64.tar.gz -O /home/zhangwusheng/soft/jdk-8u211-linux-x64.tar.gz' 
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/soft/jdk-8u211-linux-x64.tar.gz -O /home/zhangwusheng/soft/jdk-8u211-linux-x64.tar.gz'
 
-ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/soft/jce_policy-8.zip -O /home/zhangwusheng/soft/jce_policy-8.zip' 
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/soft/jce_policy-8.zip -O /home/zhangwusheng/soft/jce_policy-8.zip'
+
+#===================java-env.sh
+tar zxf /home/zhangwusheng/soft/jdk-8u211-linux-x64.tar.gz -C /usr/local/
+
+rm -f /usr/local/jdk
+ln -fs /usr/local/jdk1.8.0_211 /usr/local/jdk
+
+unzip -o -j -q /home/zhangwusheng/soft/jce_policy-8.zip -d /usr/local/jdk/jre/lib/security/
+
+echo 'export SPARK_HOME=/usr/hdp/3.1.0.0-78/spark2' > /etc/profile.d/spark.sh
+echo 'export PATH=$PATH:$SPARK_HOME/bin' >> /etc/profile.d/spark.sh
+echo 'export JAVA_HOME=/usr/local/jdk' > /etc/profile.d/java.sh
+echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile.d/java.sh
+#====================================
+
 
 #安装jdk
-ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/java-env.sh -O /home/zhangwusheng/scripts/third/java-env.sh' 
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/java-env.sh -O /home/zhangwusheng/scripts/third/java-env.sh'
 ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/java-env.sh'
 
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "mkdir -p /home/zhangwusheng/soft"
 
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/jdk-8u211-linux-x64.tar.gz   dest=/home/zhangwusheng/soft  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/jce_policy-8.zip   dest=/home/zhangwusheng/soft  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/scripts/java-env.sh   dest=/home/zhangwusheng/scripts  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  file  -b -a "path=/home/zhangwusheng/scripts state=directory owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "bash /home/zhangwusheng/scripts/java-env.sh"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "java -version"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "unzip -o -j -q /home/zhangwusheng/soft/jce_policy-8.zip -d /usr/local/jdk/jre/lib/security/"
 
 ```
 
@@ -214,23 +285,34 @@ ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/java-env
 
 ```bash
 export THISBATCH=thirdnew
-ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/ulimit.sh -O /home/zhangwusheng/scripts/third/ulimit.sh' 
-ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/ulimit.sh' 
-ansible ${THISBATCH} -m shell -a ' cat /etc/security/limits.conf' 
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/ulimit.sh -O /home/zhangwusheng/scripts/third/ulimit.sh'
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/ulimit.sh'
+ansible ${THISBATCH} -m shell -a ' cat /etc/security/limits.conf'
 ################
 #有的时候root不能su 其他用户，需要修改这里
-vi /etc/security/limits.d/20-nproc.conf 
+vi /etc/security/limits.d/20-nproc.conf
 #*          soft    nproc     4096
 *          soft    nproc     65536
 root       soft    nproc     unlimited
 默认的4096不行
 
-#for es 
-ansible ${THISBATCH} -m shell -a 'sysctl -w vm.max_map_count=262144'
+#for es
+ansible ${THISBATCH} -m shell -a 'sysctl -w vm.max_map_count=262144;sysctl -p'
 ansible ${THISBATCH} -m shell -a 'sysctl -p'
 
 
+#==================ulimit.sh
+cat /etc/security/limits.conf|grep -v nofile|grep -v nproc|grep -v 'soft core' > ${TEMPFILE}
+echo '* soft nofile 65536' >> ${TEMPFILE}
+echo '* hard nofile 65536' >> ${TEMPFILE}
+echo '* soft nproc 131072' >> ${TEMPFILE}
+echo '* hard nproc 131072' >> ${TEMPFILE}
+echo '* soft core unlimited' >> ${TEMPFILE}
 
+mv /etc/security/limits.conf /etc/security/limits.conf.`date +%s`
+mv -f ${TEMPFILE} /etc/security/limits.conf
+#======================
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/scripts/ulimit.sh   dest=/home/zhangwusheng/scripts  owner=zhangwusheng group=zhangwusheng"
 ```
 ### 2.6设置通用环境变量
 
@@ -240,8 +322,39 @@ ansible ${THISBATCH} -m shell -a 'sysctl -p'
 #禁止ipv6
 #设置core文件位置
 export THISBATCH=thirdnew
-ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/misc-env.sh -O /home/zhangwusheng/scripts/third/misc-env.sh' 
-ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/misc-env.sh' 
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/misc-env.sh -O /home/zhangwusheng/scripts/third/misc-env.sh'
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/scripts/misc-env.sh   dest=/home/zhangwusheng/scripts  owner=zhangwusheng group=zhangwusheng"
+
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/misc-env.sh'
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  shell  -b -a "bash /home/zhangwusheng/scripts/misc-env.sh"
+
+#+=============================
+#lang
+echo 'LANG=en_US.UTF-8' > /etc/locale.conf
+
+#swappiness
+echo '1' > /proc/sys/vm/swappiness
+#sed -i 's/vm.swappiness=10/vm.swappiness=1/g' /etc/sysctl.conf
+sed -i '/vm.swappiness/d' /etc/sysctl.conf
+echo 'vm.swappiness=1' >> /etc/sysctl.conf
+
+
+#core file
+mkdir -p /data2/core_files
+echo '/data2/core_files/core-%e-%p-%t' > /proc/sys/kernel/core_pattern
+
+#disable ipv6
+echo 1> /proc/sys/net/ipv6/conf/all/disable_ipv6
+echo 1> /proc/sys/net/ipv6/conf/default/disable_ipv6
+
+sed -i '/disable_ipv6/d' /etc/sysctl.conf
+echo 'net.ipv6.conf.all.disable_ipv6=1' >> /etc/sysctl.conf
+#cat /etc/sysctl.conf
+sysctl  -p
+#=============================================
+
 ```
 
 >  *core_pattern的参数说明*
@@ -252,15 +365,15 @@ ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/misc-env
 > ​          *%s - insert signal that caused the coredump into the filename 添加导致产生core的信号*
 > ​          *%t - insert UNIX time that the coredump occurred into filename 添加core文件生成的unix时间*
 > ​          *%h - insert hostname where the coredump happened into filename 添加主机名*
-> ​          %e - insert coredumping executable name into filename 添加命令名*  
+> ​          %e - insert coredumping executable name into filename 添加命令名*
 
 ### 2.7修改hostname
 
 ```bash
 #这个每个批次机器都设置好了，要改的也不一样，这个脚本并不是通用的，每次要根据实际情况修改
 export THISBATCH=thirdnew
-ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/hostname-1.sh -O /home/zhangwusheng/scripts/third/hostname-1.sh' 
-ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/hostname-1.sh' 
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/hostname-1.sh -O /home/zhangwusheng/scripts/third/hostname-1.sh'
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/hostname-1.sh'
 ```
 
 
@@ -270,17 +383,52 @@ ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/hostname
 ```bash
 export THISBATCH=XX
 #获取所有的hostname
-ansible ${THISBATCH} -m shell -a 'hostname' 
+ansible ${THISBATCH} -m shell -a 'hostname'
 #发布,HOSTS文件需要全网发布
 ansible cdnlog -m shell -a 'mkdir -p /home/zhangwusheng/scripts/third'
 #下发host文件
-ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/hosts -O /home/zhangwusheng/scripts/third/hosts' 
+ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/hosts -O /home/zhangwusheng/scripts/third/hosts'
 #下发host脚本
-ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/hosts.sh -O /home/zhangwusheng/scripts/third/hosts.sh' 
+ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/hosts.sh -O /home/zhangwusheng/scripts/third/hosts.sh'
 #执行host脚本
-ansible cdnlog -m shell -a 'bash /home/zhangwusheng/scripts/third/hosts.sh' 
+ansible cdnlog -m shell -a 'bash /home/zhangwusheng/scripts/third/hosts.sh'
 #检查hosts文件
-ansible cdnlog -m shell -a 'cat /etc/hosts' 
+ansible cdnlog -m shell -a 'cat /etc/hosts'
+
+
+function generate_hosts_wlan_guizhou()
+{
+	local wlan=` ip addr|grep 113.125|awk '{print $2;}'|awk -F'/' '{print $1;}'`
+	echo "$wlan     $HOSTNAME"
+}
+
+function generate_hosts_wlan_guizhou()
+{
+	local wlan=` ip addr|grep 192.168|awk '{print $2;}'|awk -F'/' '{print $1;}'`
+	echo "$wlan     $HOSTNAME"
+}
+
+function generate_hosts_wlan_neimeng()
+{
+	local wlan=`ip addr|grep -e'150.223' -e'182.42.'|awk '{print $2;}'|awk -F'/' '{print $1;}'`
+	echo "$wlan     $HOSTNAME"
+}
+
+generate_hosts_wlan_neimeng
+
+#内蒙
+ansible cdnlog -m  copy  -b -a "src=/var/www/html/scripts/third/generate-hosts.sh   dest=/home/zhangwusheng/scripts/third  owner=root group=root"
+ansible cdnlog -m  shell  -b -a "bash /home/zhangwusheng/scripts/third/generate-hosts.sh"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/scripts/generate-hosts.sh   dest=/home/zhangwusheng/scripts  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  shell  -b -a "bash /home/zhangwusheng/scripts/generate-hosts.sh"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/scripts/hosts   dest=/home/zhangwusheng/scripts  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  shell  -b -a "cp /etc"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m copy -b -a "src=/home/zhangwusheng/scripts/hosts  dest=/etc/ backup=yes"
 ```
 
 
@@ -303,8 +451,8 @@ restrict 192.168.0.201 mask 255.255.255.0
 server  127.127.1.0     # local clock
 fudge   127.127.1.0 stratum 2
 
-systemctl start ntpd.service 
-systemctl enable ntpd.service 
+systemctl start ntpd.service
+systemctl enable ntpd.service
 
 #36.111.140.40的配置：
 restrict default kod nomodify notrap nopeer noquery
@@ -349,9 +497,9 @@ SELINUX=enforcing 改为 SELINUX=disabled
 ```bash
 export THISBATCH=thirdnew
 #下发host脚本
-ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/useradd.sh -O /home/zhangwusheng/scripts/third/useradd.sh' 
+ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/useradd.sh -O /home/zhangwusheng/scripts/third/useradd.sh'
 #执行host脚本
-ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/useradd.sh' 
+ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/useradd.sh'
 
 #安装集群完毕后再安装！
 需要把kylin -G到hadoop组
@@ -373,14 +521,14 @@ chmod a+r /etc/security/keytabs/tsdb.keytab
 
 ```bash
 export THISBATCH=tsdb
-ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/firewall-cluster-visit-tsdb.sh -O /home/zhangwusheng/scripts/third/firewall-cluster-visit-tsdb.sh' 
+ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/firewall-cluster-visit-tsdb.sh -O /home/zhangwusheng/scripts/third/firewall-cluster-visit-tsdb.sh'
 
-ansible cdnlog -m shell -a 'bash /home/zhangwusheng/scripts/third/firewall-cluster-visit-tsdb.sh' 
+ansible cdnlog -m shell -a 'bash /home/zhangwusheng/scripts/third/firewall-cluster-visit-tsdb.sh'
 
 
-ansible tsdb -m shell -a 'wget http://192.168.254.40:8181/scripts/third/firewall-tsdb-visit-cluster.sh -O /home/zhangwusheng/scripts/third/firewall-tsdb-visit-cluster.sh' 
-ansible tsdb -m shell -a 'bash /home/zhangwusheng/scripts/third/firewall-tsdb-visit-cluster.sh' 
-ansible tsdb -m shell -a 'firewall-cmd --list-all' 
+ansible tsdb -m shell -a 'wget http://192.168.254.40:8181/scripts/third/firewall-tsdb-visit-cluster.sh -O /home/zhangwusheng/scripts/third/firewall-tsdb-visit-cluster.sh'
+ansible tsdb -m shell -a 'bash /home/zhangwusheng/scripts/third/firewall-tsdb-visit-cluster.sh'
+ansible tsdb -m shell -a 'firewall-cmd --list-all'
 
 
 
@@ -398,6 +546,30 @@ firewall-cmd --list-all
 
 ```
 
+### 2.11 验证端口连通性
+
+```bash
+nc -zw 2  {{ item }} 5044
+
+
+for ip in `cat /home/zhangwusheng/etc/ansible/vivo.kafka.local`
+do
+   nc -zw 2 ${ip} 5044
+   if [ $? -ne 0 ]
+   then
+      echo ${ip} 5044 failed
+   else
+      echo ${ip} 5044 success
+   fi
+
+done
+
+```
+
+
+
+
+
 
 
 # 3.配置YUM离线源
@@ -407,12 +579,16 @@ firewall-cmd --list-all
 - 安装httpd并且修改端口
 
 ```bash
+sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.26 accept'
+sudo firewall-cmd --permanent --remove-rich-rule 'rule family=ipv4 source address=36.111.140.26 accept'
+
+
 #安装httpd
 yum -y install httpd
 #修改默认端口
-sed -i 's/Listen 80/Listen 18181/g' /etc/httpd/conf/httpd.conf 
+sed -i 's/Listen 80/Listen 18181/g' /etc/httpd/conf/httpd.conf
 #启动服务
-systemctl restart httpd 
+systemctl restart httpd
 #检查启动情况：
 netstat -anp|grep 18181
 ```
@@ -444,7 +620,7 @@ sudo  tar zxvf HDP-GPL-3.1.0.0-ubuntu18-gpl.tar.gz -C /var/www/html/ambari
 
 ```bash
 #baseurl改成自己的ambariserver在的机器
-cat > /etc/yum.repos.d/ambari.repo<<EOF 
+cat > /etc/yum.repos.d/ambari.repo<<EOF
 [ambari-2.7.0.0]
 name=HDP Version - ambari-2.7.0.0
 baseurl=http://192.168.0.47/ambari/ambari/centos7/2.7.0.0-897/
@@ -452,7 +628,7 @@ gpgcheck=0
 EOF
 
 
-cat > /etc/yum.repos.d/ambari.repo<<EOF 
+cat > /etc/yum.repos.d/ambari.repo<<EOF
 [ambari-2.7.3.0]
 name=HDP Version - ambari-2.7.3.0
 baseurl=http://172.31.0.14:18181/ambari/ambari/centos7/2.7.3.0-139/
@@ -463,6 +639,13 @@ EOF
 yum repolist
 #yum clean all
 #yum makecache
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/scripts/generate-ambari-repo.sh   dest=/home/zhangwusheng/scripts  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  file  -b -a "path=/home/zhangwusheng/scripts state=directory owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "bash /home/zhangwusheng/scripts/generate-ambari-repo.sh"
+
 
 #出问题的话可以这样子：
 rm -rf /var/lib/rpm/__db*
@@ -477,6 +660,32 @@ echo 'client.api.port=18080' >> /etc/ambari-server/conf/ambari.properties
 grep -v 'client.api.port' /etc/ambari-server/conf/ambari.properties > /etc/ambari-server/conf/ambari.properties2
 echo 'client.api.port=18080' >> /etc/ambari-server/conf/ambari.properties2
 mv -f /etc/ambari-server/conf/ambari.properties2 /etc/ambari-server/conf/ambari.properties
+
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=192.168.189.0/25 accept'
+```
+
+
+
+安装ambari-agent
+
+```bash
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  file  -b -a "path=/home/zhangwusheng/scripts state=directory owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "yum -y install ambari-agent"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "java -version"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/scripts/install-ambari-agent.sh   dest=/home/zhangwusheng/scripts  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "sed -i 's/hostname=localhost/hostname=sct-gz-guiyang1-loganalysis-17.in.ctcdn.cn/g' /etc/ambari-agent/conf/ambari-agent.ini "
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "ambari-agent start "
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "ambari-agent status"
+
+#解决多版本保护问题
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a " yum -y install gcc --setopt=protected_multilib=false"
 ```
 
 
@@ -521,7 +730,7 @@ log-err = /usr/local/mysql/data/error.log
 
 use mysql;
 update user set password=password("root") where user="CdnLogRoot!$&";
-FLUSH PRIVILEGES; 
+FLUSH PRIVILEGES;
 
 ```
 
@@ -556,81 +765,81 @@ mysql -uroot -p
 root!@#$%^
 执行musql语句：
 
-CREATE DATABASE ambari;  
-use ambari;  
+CREATE DATABASE ambari;
+use ambari;
 drop user  'ambari';
-CREATE USER 'ambari'@'%' IDENTIFIED BY 'bigdata'; 
-GRANT ALL PRIVILEGES ON *.* TO 'ambari'@'%';  
-FLUSH PRIVILEGES; 
+CREATE USER 'ambari'@'%' IDENTIFIED BY 'bigdata';
+GRANT ALL PRIVILEGES ON *.* TO 'ambari'@'%';
+FLUSH PRIVILEGES;
 
-CREATE USER 'ambari'@'localhost' IDENTIFIED BY 'ambari';  
-GRANT ALL PRIVILEGES ON *.* TO 'ambari'@'localhost';  
+CREATE USER 'ambari'@'localhost' IDENTIFIED BY 'ambari';
+GRANT ALL PRIVILEGES ON *.* TO 'ambari'@'localhost';
 
-CREATE USER 'ambari'@'t3m1' IDENTIFIED BY 'ambari';  
-GRANT ALL PRIVILEGES ON *.* TO 'ambari'@'t3m1';  
-FLUSH PRIVILEGES;  
+CREATE USER 'ambari'@'t3m1' IDENTIFIED BY 'ambari';
+GRANT ALL PRIVILEGES ON *.* TO 'ambari'@'t3m1';
+FLUSH PRIVILEGES;
 
-source /var/lib/ambari-server/resources/Ambari-DDL-MySQL-CREATE.sql  
-show tables;  
-use mysql;  
-select Host,User,Password from user where user='ambari';  
+source /var/lib/ambari-server/resources/Ambari-DDL-MySQL-CREATE.sql
+show tables;
+use mysql;
+select Host,User,Password from user where user='ambari';
 
-CREATE DATABASE hive;  
-use hive;  
-CREATE USER 'hive'@'%' IDENTIFIED BY 'hive';  
-GRANT ALL PRIVILEGES ON *.* TO 'hive'@'%';  
-CREATE USER 'hive'@'localhost' IDENTIFIED BY 'hive';  
-GRANT ALL PRIVILEGES ON *.* TO 'hive'@'localhost';  
-CREATE USER 'hive'@'t3m1' IDENTIFIED BY 'hive';  
-GRANT ALL PRIVILEGES ON *.* TO 'hive'@'t3m1';  
-FLUSH PRIVILEGES;  
-
-
-CREATE DATABASE oozie;  
-use oozie;  
-CREATE USER 'oozie'@'%' IDENTIFIED BY 'oozie';  
-GRANT ALL PRIVILEGES ON *.* TO 'oozie'@'%';  
-CREATE USER 'oozie'@'localhost' IDENTIFIED BY 'oozie';  
-GRANT ALL PRIVILEGES ON *.* TO 'oozie'@'localhost';  
-CREATE USER 'oozie'@'t3m1' IDENTIFIED BY 'oozie';  
-GRANT ALL PRIVILEGES ON *.* TO 'oozie'@'t3m1';  
-FLUSH PRIVILEGES; 
+CREATE DATABASE hive;
+use hive;
+CREATE USER 'hive'@'%' IDENTIFIED BY 'hive';
+GRANT ALL PRIVILEGES ON *.* TO 'hive'@'%';
+CREATE USER 'hive'@'localhost' IDENTIFIED BY 'hive';
+GRANT ALL PRIVILEGES ON *.* TO 'hive'@'localhost';
+CREATE USER 'hive'@'t3m1' IDENTIFIED BY 'hive';
+GRANT ALL PRIVILEGES ON *.* TO 'hive'@'t3m1';
+FLUSH PRIVILEGES;
 
 
-CREATE DATABASE ranger;  
-use ranger;  
-CREATE USER 'rangeradmin'@'%' IDENTIFIED BY 'rangeradmin';  
-GRANT ALL PRIVILEGES ON *.* TO 'rangeradmin'@'%' WITH GRANT OPTION;  
-CREATE USER 'rangeradmin'@'localhost' IDENTIFIED BY 'rangeradmin' ;  
-GRANT ALL PRIVILEGES ON *.* TO 'rangeradmin'@'localhost' WITH GRANT OPTION;  
-CREATE USER 'rangeradmin'@'t3m1' IDENTIFIED BY 'rangeradmin';  
-GRANT ALL PRIVILEGES ON *.* TO 'rangeradmin'@'t3m1' WITH GRANT OPTION;  
-FLUSH PRIVILEGES; 
+CREATE DATABASE oozie;
+use oozie;
+CREATE USER 'oozie'@'%' IDENTIFIED BY 'oozie';
+GRANT ALL PRIVILEGES ON *.* TO 'oozie'@'%';
+CREATE USER 'oozie'@'localhost' IDENTIFIED BY 'oozie';
+GRANT ALL PRIVILEGES ON *.* TO 'oozie'@'localhost';
+CREATE USER 'oozie'@'t3m1' IDENTIFIED BY 'oozie';
+GRANT ALL PRIVILEGES ON *.* TO 'oozie'@'t3m1';
+FLUSH PRIVILEGES;
 
-CREATE DATABASE rangerkms;  
-use rangerkms;  
-CREATE USER 'rangerkms'@'%' IDENTIFIED BY 'rangerkms';  
-GRANT ALL PRIVILEGES ON *.* TO 'rangerkms'@'%' WITH GRANT OPTION;  
-CREATE USER 'rangerkms'@'localhost' IDENTIFIED BY 'rangerkms';  
-GRANT ALL PRIVILEGES ON *.* TO 'rangerkms'@'localhost';  
-CREATE USER 'rangerkms'@'t3m1' IDENTIFIED BY 'rangerkms';  
-GRANT ALL PRIVILEGES ON *.* TO 'rangerkms'@'t3m1';  
 
-CREATE USER 'rangerkms'@'t3s3.ecloud.com' IDENTIFIED BY 'rangerkms';  
-GRANT ALL PRIVILEGES ON *.* TO 'rangerkms'@'t3s3.ecloud.com' WITH GRANT OPTION;  
-FLUSH PRIVILEGES; 
+CREATE DATABASE ranger;
+use ranger;
+CREATE USER 'rangeradmin'@'%' IDENTIFIED BY 'rangeradmin';
+GRANT ALL PRIVILEGES ON *.* TO 'rangeradmin'@'%' WITH GRANT OPTION;
+CREATE USER 'rangeradmin'@'localhost' IDENTIFIED BY 'rangeradmin' ;
+GRANT ALL PRIVILEGES ON *.* TO 'rangeradmin'@'localhost' WITH GRANT OPTION;
+CREATE USER 'rangeradmin'@'t3m1' IDENTIFIED BY 'rangeradmin';
+GRANT ALL PRIVILEGES ON *.* TO 'rangeradmin'@'t3m1' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
 
-select Host,User,Password from user where user='rangerkms';  
+CREATE DATABASE rangerkms;
+use rangerkms;
+CREATE USER 'rangerkms'@'%' IDENTIFIED BY 'rangerkms';
+GRANT ALL PRIVILEGES ON *.* TO 'rangerkms'@'%' WITH GRANT OPTION;
+CREATE USER 'rangerkms'@'localhost' IDENTIFIED BY 'rangerkms';
+GRANT ALL PRIVILEGES ON *.* TO 'rangerkms'@'localhost';
+CREATE USER 'rangerkms'@'t3m1' IDENTIFIED BY 'rangerkms';
+GRANT ALL PRIVILEGES ON *.* TO 'rangerkms'@'t3m1';
 
-CREATE DATABASE druid;  
-use druid;  
-CREATE USER 'druid'@'%' IDENTIFIED BY 'druid';  
-GRANT ALL PRIVILEGES ON *.* TO 'druid'@'%' WITH GRANT OPTION;  
-CREATE USER 'druid'@'localhost' IDENTIFIED BY 'druid' ;  
-GRANT ALL PRIVILEGES ON *.* TO 'druid'@'localhost' WITH GRANT OPTION;  
-CREATE USER 'druid'@'t3m1' IDENTIFIED BY 'druid';  
-GRANT ALL PRIVILEGES ON *.* TO 'druid'@'t3m1' WITH GRANT OPTION;  
-FLUSH PRIVILEGES; 
+CREATE USER 'rangerkms'@'t3s3.ecloud.com' IDENTIFIED BY 'rangerkms';
+GRANT ALL PRIVILEGES ON *.* TO 'rangerkms'@'t3s3.ecloud.com' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
+
+select Host,User,Password from user where user='rangerkms';
+
+CREATE DATABASE druid;
+use druid;
+CREATE USER 'druid'@'%' IDENTIFIED BY 'druid';
+GRANT ALL PRIVILEGES ON *.* TO 'druid'@'%' WITH GRANT OPTION;
+CREATE USER 'druid'@'localhost' IDENTIFIED BY 'druid' ;
+GRANT ALL PRIVILEGES ON *.* TO 'druid'@'localhost' WITH GRANT OPTION;
+CREATE USER 'druid'@'t3m1' IDENTIFIED BY 'druid';
+GRANT ALL PRIVILEGES ON *.* TO 'druid'@'t3m1' WITH GRANT OPTION;
+FLUSH PRIVILEGES;
 
 
 ##################### 设置MySQLJar包
@@ -652,13 +861,15 @@ server.jdbc.driver.path=/usr/share/java/mysql-connector-java.jar
 # 设置ambari-server，在这一步修改jdk为自己的jdk
 # ambari-server setup
 
+贵州ambari：pg密码： lR5FLlMqpHjwfnfS
+
 Using python  /usr/bin/python
 Setup ambari-server
 Checking SELinux...
 SELinux status is 'enabled'
 SELinux mode is 'permissive'
 WARNING: SELinux is set to 'permissive' mode and temporarily disabled.
-OK to continue [y/n] (y)? 
+OK to continue [y/n] (y)?
 Customize user account for ambari-server daemon [y/n] (n)? y
 Enter user account for ambari-server daemon (root):ambari
 Adjusting ambari-server permissions and ownership...
@@ -693,12 +904,12 @@ Choose one of the following options:
 [7] - BDB
 ==============================================================================
 Enter choice (1): 3
-Hostname (localhost): 
-Port (3306): 
-Database name (ambari): 
-Username (ambari): 
-Enter Database Password (bigdata): 
-Re-enter password: 
+Hostname (localhost):
+Port (3306):
+Database name (ambari):
+Username (ambari):
+Enter Database Password (bigdata):
+Re-enter password:
 Configuring ambari database...
 Configuring remote database connection properties...
 WARNING: Before starting Ambari Server, you must run the following DDL against the database to create the schema: /var/lib/ambari-server/resources/Ambari-DDL-MySQL-CREATE.sql
@@ -713,7 +924,7 @@ Ambari Server 'setup' completed successfully.
 # 设置ambari-server使用mysql，跳过，使用自带的postgresql
 ambari-server setup --jdbc-db=mysql --jdbc-driver=/usr/share/java/mysql-connector-java.jar
 
-# 
+#
 # ambari-server start
 
 Using python  /usr/bin/python
@@ -754,6 +965,31 @@ Ambari Server 'start' completed successfully.
   su postgres
 
   psql
+
+    #贵阳 k0mQJUyVV9eXNR77
+
+  create user hive with password 'k0mQJUyVV9eXNR77';
+
+  ​	create database hive owner hive;
+  ​	grant all privileges on database hive to hive;
+
+
+
+
+
+  ​	create user root with password 'hive';
+
+  ​	grant all privileges on database hive to root;
+
+  ​	create user kylin with password 'hive';
+
+  ​	grant all privileges on database hive to kylin ;
+
+
+
+
+
+
 
   ​	create user hive with password 'hive';
 
@@ -805,7 +1041,7 @@ yum -y install postgresql-server
 su - postgres
 psql
 #查看数据库
-\l 
+\l
 #use db
 \c hive
 #查看表
@@ -839,7 +1075,7 @@ wal_keep_segments = 32          # in logfile segments, 16MB each; 0 disables
 replication_timeout = 60s       # in milliseconds; 0 disables
 log_connections = on
 archive_mode = on #
-archive_command = 'cp %p /var/lib/pgsql/archieve/%f' 
+archive_command = 'cp %p /var/lib/pgsql/archieve/%f'
 
 #注意，这里是*监听所有的IP
 listen_addresses="*"
@@ -866,6 +1102,7 @@ chmod 700 /var/lib/pgsql/data
 
 #备份数据
 pg_basebackup -D /var/lib/pgsql/data  -Fp -Xs -v -P -h 192.168.2.43 -U cdnrepl -p 5432
+pg_basebackup -D /var/lib/pgsql/data  -Fp -Xs -v -P -h 192.168.189.40 -U cdnrepl -p 5432
 
 cp /usr/share/pgsql/recovery.conf.sample /var/lib/pgsql/data/recovery.conf
 #修改内容
@@ -876,7 +1113,7 @@ recovery_target_timeline = 'latest'
 
 #修改：
 1.vi /var/lib/pgsql/data/postgresql.conf
-hot_standby = on 
+hot_standby = on
 
 #重启数据库
 systemctl restart postgresql
@@ -898,7 +1135,7 @@ pg_ctl promote
 ```bash
 #常用命令
  pg_controldata /var/lib/pgsql/data/
- 
+
 ```
 
 ## 6.3 常用Psql命令
@@ -911,8 +1148,19 @@ pg_ctl promote
 #show tables;
 SELECT * FROM information_schema.tables where table_schema='ambari';
 
-# 
+#
 select *from ambari.hosts where host_name='ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net';
+```
+
+
+
+## 6.4 删除过期binlog数据
+
+```bash
+cd  /var/lib/pgsql/archieve
+# +2 2 day before，-2 in two days
+find . -type f -mtime +2 -exec rm -f {} \;
+
 ```
 
 
@@ -979,7 +1227,7 @@ http://192.168.1.36:18181/ambari/HDP-UTILS/centos7/1.1.0.22/
 >             useLocalRepo: true
 >           });
 >           stack.cleanReposBaseUrls();
->         } 
+>         }
 >       });
 >     }
 >   }.observes('networkIssuesExist'),
@@ -1023,7 +1271,7 @@ cat /etc/hosts|awk '{print $2;}'
 
 ![1537717128168](/img/ambari-4-1537717128168.png)
 
-- 
+-
   第五步：选择服务
 
 
@@ -1139,6 +1387,8 @@ yum -y install krb5-server krb5-devel krb5-workstation
 rpm -qa|grep krb5
 krb5-config --version
 
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "yum -y install krb5-server krb5-devel krb5-workstation"
+
 
 ```
 > kerberos有版本要求 -37  -8  -18都可以，但是以前就遇到过-19 的不行（汪聘）
@@ -1153,7 +1403,7 @@ unzip -o -j -q /data1/jce_policy-8.zip -d $JAVA_HOME/jre/lib/security/
 for ip in `echo 2 10 28 29 37 38 `
 do
 scp -P 9000 /home/zhangwusheng/soft/jce_policy-8.zip 192.168.254.${ip}:/usr/local/jdk
-done 
+done
 
 for ip in `echo 2 10 28 29 37 38 `
 do
@@ -1180,12 +1430,12 @@ unzip -o -j -q /home/zhangwusheng/jce_policy-8.zip -d /usr/local/jdk/jre/lib/sec
   dict_file = /usr/share/dict/words
   admin_keytab = /var/kerberos/krb5kdc/kadm5.keytab
   supported_enctypes = aes256-cts:normal aes128-cts:normal des3-hmac-sha1:normal arcfour-hmac:normal camellia256-cts:normal camellia128-cts:normal des-hmac-sha1:normal des-cbc-md5:normal des-cbc-crc:normal
-  
+
   #这里要加上，否则不能renew
   max_life = 25h 0m 0s
   max_renewable_life = 3650d 0h 0m 0s
  }
- 
+
  -------------------------------------------------------------------------------
  问题处理：
 #关键；如果忘记了max_renewable_life，那么应该确保这个用户是存在的krbtgt
@@ -1213,16 +1463,16 @@ modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ct
 modprinc -maxlife 1days -maxrenewlife 7days +allow_renewable cdnlog/cdnlog040.ctyun.net
 
  see https://www.jianshu.com/p/54cd2a659698
- 
+
  #批量修改renew
  /usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "listprincs" > ker.all.txt
  #请认真检查！！
  #去除kadmin,krbtgt,kchangpw，kiprop重要账号！！
- cat ker.all.txt |awk '{print "modprinc -maxlife 25h -maxrenewlife 3650days +allow_renewable "$1;}' > ker.mod.txt 
- 
+ cat ker.all.txt |awk '{print "modprinc -maxlife 25h -maxrenewlife 3650days +allow_renewable "$1;}' > ker.mod.txt
+
  getprinc HTTP/cdnlog006.ctyun.net@CTYUN.NET
  # maxrenewlife经测试，取min(取值，7)
- 
+
 ```
 
 ## 3.修改kadm5.acl配置文件
@@ -1275,6 +1525,49 @@ includedir /etc/krb5.conf.d/
  .ecloud.com = ECLOUD.COM
  cloud.com = ECLOUD.COM
 
+
+
+#贵阳
+#File modified by ipa-client-install
+
+includedir /etc/krb5.conf.d/
+includedir /var/lib/sss/pubconf/krb5.include.d/
+
+#added section by zws 2020-11-21
+[logging]
+ default = FILE:/var/log/krb5libs.log
+ kdc = FILE:/var/log/krb5kdc.log
+ admin_server = FILE:/var/log/kadmind.log
+
+
+[libdefaults]
+  default_realm = IN.CTCDN.CN
+  #dns_lookup_realm = true
+  dns_lookup_realm = false
+  dns_lookup_kdc = false
+  rdns = false
+  #dns_canonicalize_hostname = false
+  ticket_lifetime = 24h
+  renew_lifetime = 7d
+  forwardable = true
+  udp_preference_limit = 0
+  default_ccache_name =/tmp/krb5cc_%{uid}
+  #default_ccache_name = KEYRING:persistent:%{uid}
+  pkinit_anchors = /etc/pki/tls/certs/ca-bundle.crt
+
+[realms]
+  IN.CTCDN.CN = {
+#    pkinit_anchors = FILE:/var/lib/ipa-client/pki/kdc-ca-bundle.pem
+#    pkinit_pool = FILE:/var/lib/ipa-client/pki/ca-bundle.pem
+  kdc = sct-gz-guiyang1-loganalysis-17.in.ctcdn.cn
+  admin_server = sct-gz-guiyang1-loganalysis-17.in.ctcdn.cn
+  }
+
+
+[domain_realm]
+  .in.ctcdn.cn = IN.CTCDN.CN
+  in.ctcdn.cn = IN.CTCDN.CN
+  #sct-gz-guiyang1-loganalysis-17.in.ctcdn.cn = IN.CTCDN.CN
 ```
 
 
@@ -1284,6 +1577,8 @@ includedir /etc/krb5.conf.d/
 ```bash
 kdb5_util create  -s -r CTYUN.NET
 密码:cdnlog@kdc!@#
+
+kdb5_util create  -s -r IN.CTCDN.CN
 ```
 
 ## 6.启动KDC
@@ -1368,22 +1663,22 @@ master上：
 mkdir -p /var/kerberos/backup
 cd /var/kerberos/backup
 datestr=`date +%Y%m%d`
-rm -f /var/kerberos/krb5kdc/backup.dump.${datestr} 
-kdb5_util dump /var/kerberos/krb5kdc/backup.dump.${datestr} 
-rm -f /var/kerberos/krb5kdc.${datestr}.tar.gz 
+rm -f /var/kerberos/krb5kdc/backup.dump.${datestr}
+kdb5_util dump /var/kerberos/krb5kdc/backup.dump.${datestr}
+rm -f /var/kerberos/krb5kdc.${datestr}.tar.gz
 tar zcvf /var/kerberos/krb5kdc.${datestr}.tar.gz /var/kerberos/krb5kdc/*
 
 for ip in `seq 45 50`
 do
  echo "------------${ip}"
  scp -P 9000 /var/kerberos/krb5kdc.${datestr}.tar.gz 192.168.254.${ip}:/var/kerberos
-done 
+done
 
 for ip in `echo 36 39 35 41 42` `seq 30 32` `seq 25 27` `seq 21 22` `seq 15 18` `seq 12 12` `seq 5 9`
 do
  echo "------------${ip}"
  scp -P 9000 /var/kerberos/krb5kdc.${datestr}.tar.gz 192.168.254.${ip}:/var/kerberos
-done 
+done
 
 ```
 
@@ -1391,7 +1686,7 @@ slave上：
 
 做到第五步之后（创建了数据库之后）：
 
-kdb5_util load /var/kerberos/krb5kdc/backup.dump.20190805 
+kdb5_util load /var/kerberos/krb5kdc/backup.dump.20190805
 
 最后一次备份是20200202，备份到了36和39上面
 
@@ -1406,9 +1701,9 @@ BACKUP_DIR=/var/kerberos/backup
 mkdir -p ${BACKUP_DIR}
 cd ${BACKUP_DIR}
 datestr=`date +%Y%m%d%H%M`
-#rm -f /var/kerberos/krb5kdc/backup.dump.${datestr} 
-kdb5_util dump /var/kerberos/krb5kdc/backup.dump.${datestr} 
-#rm -f /var/kerberos/krb5kdc.${datestr}.tar.gz 
+#rm -f /var/kerberos/krb5kdc/backup.dump.${datestr}
+kdb5_util dump /var/kerberos/krb5kdc/backup.dump.${datestr}
+#rm -f /var/kerberos/krb5kdc.${datestr}.tar.gz
 tar zcvf ${BACKUP_DIR}/krb5kdc.${datestr}.tar.gz /var/kerberos/krb5kdc/*
 
 scp -P 9000 ${BACKUP_DIR}/krb5kdc.${datestr}.tar.gz 192.168.254.36:/var/kerberos
@@ -1424,7 +1719,7 @@ scp -P 9000 ${BACKUP_DIR}/krb5kdc.${datestr}.tar.gz 192.168.254.39:/var/kerberos
 
 
 ```bash
-ansible master -m shell -a "mkdir -p /home/zhangwusheng/data/kdc"    
+ansible master -m shell -a "mkdir -p /home/zhangwusheng/data/kdc"
 
 ansible master -m shell -a "wget http://192.168.254.40:8181/data/krb5kdc.202004241650.tar.gz -O /home/zhangwusheng/data/kdc/krb5kdc.202004241650.tar.gz "
 ```
@@ -1433,7 +1728,7 @@ ansible master -m shell -a "wget http://192.168.254.40:8181/data/krb5kdc.2020042
 
 ## 11.KDC保活
 
-vi /usr/lib/systemd/system/krb5kdc.service 
+vi /usr/lib/systemd/system/krb5kdc.service
 
 [Service]
 Restart=on-abnormal
@@ -1463,8 +1758,8 @@ kadmin.local -q "addprinc kadmin/192.168.1.66@CDNLOG"
 
 Authenticating as principal root/admin@CDNLOG with password.
 WARNING: no policy specified for admin/admin@CDNLOG; defaulting to no policy
-Enter password for principal "admin/admin@CDNLOG": 
-Re-enter password for principal "admin/admin@CDNLOG": 
+Enter password for principal "admin/admin@CDNLOG":
+Re-enter password for principal "admin/admin@CDNLOG":
 Principal "admin/admin@CDNLOG" created.
 
 # kadmin.local -q "xst -norandkey admin/admin@CDNLOG"
@@ -1499,22 +1794,22 @@ kadmin.local:  addprinc root/admin
 cdnlog@kdc!@#
 
 WARNING: no policy specified for root/admin@CDNLOG; defaulting to no policy
-Enter password for principal "root/admin@CDNLOG": 
-Re-enter password for principal "root/admin@CDNLOG": 
+Enter password for principal "root/admin@CDNLOG":
+Re-enter password for principal "root/admin@CDNLOG":
 Principal "root/admin@CDNLOG" created.
-kadmin.local:  
+kadmin.local:
 ```
 
 
 
 
 
-- krb5.conf 
+- krb5.conf
 
 由Ambari管理！修改realm即可
 
 ```bash
-[root@hbase171 yum.repos.d]#  cat /etc/krb5.conf 
+[root@hbase171 yum.repos.d]#  cat /etc/krb5.conf
 # Configuration snippets may be placed in this directory as well
 includedir /etc/krb5.conf.d/
 
@@ -1547,7 +1842,7 @@ ecloud.com = ECLOUD.COM
 
 
 
-[root@hbase171 3.1.0.0-78]# kadmin.local 
+[root@hbase171 3.1.0.0-78]# kadmin.local
 Authenticating as principal root/admin@ECLOUD.COM with password.
 kadmin.local:  addprinc admin/admin@ECLOUD.COM
 WARNING: no policy specified for admin/admin@ECLOUD.com; defaulting to no policy
@@ -1791,14 +2086,14 @@ The global –f is made obsolete with the –sf argument for specifying a non-de
 
 ## 13.KDC共存问题
 
-cat /var/lib/sss/pubconf/kdcinfo.CTYUNCDN.NET 
+cat /var/lib/sss/pubconf/kdcinfo.CTYUNCDN.NET
 36.111.140.104
 
 
 
 /etc/sssd/sssd.conf
 
-增加sssd.conf 
+增加sssd.conf
 
 krb5_use_kdcinfo = false
 
@@ -1806,14 +2101,44 @@ systemctl restart sssd
 
 
 
+备注：
+
+在启用kerberos的时候可能Test Client不通过，这时候要全部机器都设置这个选相关，这样就可以通过了。亲测
+
+
+
 ## 14.spark kerberos7天的问题
 
 https://docs.cloudera.com/documentation/enterprise/5-3-x/topics/cm_sg_yarn_long_jobs.html
 
+
+
+https://www.pianshen.com/article/7395176073/
+
+
+
+
+
+```bash
+spark加上
+--principal <value> \
+  --keytab <value> \
+
+  ./bin/spark-submit \
+  --class <main-class> \
+  --master <master-url> \
+  --deploy-mode <deploy-mode> \
+  --conf <key>=<value> \
+  --principal <value> \
+  --keytab <value> \
+  <application-jar> \
+  [application-arguments]
+```
+
 Yarn配置：
 
 ```
-<property> 
+<property>
 <name>yarn.resourcemanager.proxy-user-privileges.enabled</name>
 <value>true</value>
 </property>
@@ -1822,7 +2147,7 @@ Yarn配置：
 HDFS配置
 
 ```
-<property> 
+<property>
 <name>hadoop.proxyuser.yarn.hosts</name>
 <value>*</value>
 </property>
@@ -1862,6 +2187,39 @@ org.apache.hadoop.security.authentication.server.MultiSchemeAuthenticationHandle
 
 
 
+## 15.kerberos互信
+
+```bash
+https://community.cloudera.com/t5/Community-Articles/Kerberos-cross-realm-trust-for-distcp/ta-p/245590
+
+https://docs.cloudera.com/documentation/enterprise/5-12-x/topics/cdh_admin_distcp_data_cluster_migrate.html#concept_fx2_t1q_3x
+
+
+
+ hadoop distcp hftp://cdh57-namenode:50070/ hdfs://CDH59-nameservice/
+
+ #上海访问武汉：
+
+
+ 1192  hadoop jar /usr/hdp/3.1.0.0-78/hadoop-mapreduce/hadoop-mapreduce-examples-3.1.1.3.1.0.0-78.jar wordcount /tmp/11.txt /tmp/wc-3
+ 1193  hdfs dfs -ls /tmp/wc-3
+ 1194  hdfs dfs -cat /tmp/wc-3/part*
+ 1195  hadoop distcp hdfs://none-hb-wuhan-cdnlog-106-ecloud.com:8020/tmp/11.txt hdfs://none-hb-wuhan-cdnlog-106-ecloud.com:8020/tmp/
+ 1196  hadoop distcp hdfs://none-hb-wuhan-cdnlog-106-ecloud.com:8020/tmp/11.txt hdfs://none-hb-wuhan-cdnlog-106-ecloud.com:8020/tmp/distcp-1
+ 1197  hadoop distcp hdfs://none-hb-wuhan-cdnlog-106-ecloud.com:8020/tmp/11.txt hdfs://none-hb-wuhan-cdnlog-106-ecloud.com:8020/tmp/distcp-1
+ 1198  hadoop distcp hdfs://none-hb-wuhan-cdnlog-106-ecloud.com:8020/tmp/11.txt hdfs://none-hb-wuhan-cdnlog-106-ecloud.com:8020/tmp/distcp-1
+
+ https://docs.cloudera.com/documentation/enterprise/latest/topics/cdh_admin_distcp_data_cluster_migrate.html#concept_fx2_t1q_3x
+
+ http://confluence.ctyuncdn.cn/pages/viewpage.action?pageId=26751129
+```
+
+
+
+
+
+
+
 
 
 # 12.Kylin安装
@@ -1889,7 +2247,7 @@ useradd cdnlog -g cdnlog
 /usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "listprincs"
 
 for ip in `cat cdn_hosts_all.txt`
-do 
+do
   echo ${ip}
   ssh -p 9000 ${ip} "klist -k /etc/security/keytabs/kylin.keytab"
 done
@@ -1914,36 +2272,36 @@ klist -k /etc/security/keytabs/kylin.keytab
 for ip in `cat cdn_hosts_nonkylin.txt`
 do
   echo "ssh -p 9000 ${ip} \"rm -f /etc/security/keytabs/kylin.keytab\""
-done> kylin.keytab.sh 
+done> kylin.keytab.sh
 
 
 for ip in `cat cdn_hosts_nonkylin.txt`
 do
   aa=`echo ${ip}|awk -F'.' '{printf("%03d",$4)}'`
   echo "ssh -p 9000 ${ip} /usr/bin/kadmin -p root/admin -w 'passwd' -q \"xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog${aa}.ctyun.net\""
-done>> kylin.keytab.sh 
+done>> kylin.keytab.sh
 
-sed -i 's/passwd/cdnlog@kdc!@#/g' kylin.keytab.sh 
+sed -i 's/passwd/cdnlog@kdc!@#/g' kylin.keytab.sh
 
 
-klist -k /etc/security/keytabs/kylin.keytab 
+klist -k /etc/security/keytabs/kylin.keytab
 mv  /etc/security/keytabs/kylin.keytab /etc/security/keytabs/kylin.keytab.20200103
 /usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog031.ctyun.net"
 
-klist -k /etc/security/keytabs/kylin.keytab 
+klist -k /etc/security/keytabs/kylin.keytab
 mv  /etc/security/keytabs/kylin.keytab /etc/security/keytabs/kylin.keytab.20200103
 /usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog032.ctyun.net"
-klist -k /etc/security/keytabs/kylin.keytab 
+klist -k /etc/security/keytabs/kylin.keytab
 
-klist -k /etc/security/keytabs/kylin.keytab 
+klist -k /etc/security/keytabs/kylin.keytab
 mv  /etc/security/keytabs/kylin.keytab /etc/security/keytabs/kylin.keytab.20200103
 /usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog041.ctyun.net"
-klist -k /etc/security/keytabs/kylin.keytab 
+klist -k /etc/security/keytabs/kylin.keytab
 
-klist -k /etc/security/keytabs/kylin.keytab 
+klist -k /etc/security/keytabs/kylin.keytab
 mv  /etc/security/keytabs/kylin.keytab /etc/security/keytabs/kylin.keytab.20200103
 /usr/bin/kadmin -p root/admin -w 'cdnlog@kdc!@#' -q "xst -k /etc/security/keytabs/kylin.keytab kylin/cdnlog042.ctyun.net"
-klist -k /etc/security/keytabs/kylin.keytab 
+klist -k /etc/security/keytabs/kylin.keytab
 
 #批量增加机器
 
@@ -1979,7 +2337,7 @@ source /etc/profile.d/spark.sh
 ## 3.修改Hive脚本(非kerberos)
 
 ```bash
-vi /usr/hdp/current/hive-client/bin/hive.distro 
+vi /usr/hdp/current/hive-client/bin/hive.distro
 
   if [ SERVICE == "cli" -o SERVICE == "beeline" ]
   then
@@ -1995,7 +2353,7 @@ vi /usr/hdp/current/hive-client/bin/hive.distro
 ```bash
 cd /data1/apache-kylin-2.6.1-bin-hadoop3/tomcat/webapps
 mkdir kylin
-unzip  ../kylin.war 
+unzip  ../kylin.war
 
 上传 F:\Soft\HDP\Kylin
 commons-configuration-1.6-zws-added.jar
@@ -2016,7 +2374,7 @@ kdestroy
 #check-port-availability.sh增加sudo
 kylin_port_in_use=`sudo netstat -tlpn | grep "\b${kylin_port}\b"`
 
-vi find-hive-dependency.sh 
+vi find-hive-dependency.sh
 #加上""否则会报错:too many arguments
 if [ -z "$hive_env" ]
 
@@ -2031,7 +2389,7 @@ kdestroy
 #check-port-availability.sh增加sudo
 kylin_port_in_use=`sudo netstat -tlpn | grep "\b${kylin_port}\b"`
 
-vi find-hive-dependency.sh 
+vi find-hive-dependency.sh
 #加上""否则会报错:too many arguments
 if [ -z "$hive_env" ]
 ```
@@ -2092,7 +2450,7 @@ sudo -u hdfs hdfs dfs -mkdir  /warehouse/tablespace/external/hive/kylin.db
 sudo -u hdfs hdfs dfs -chown -R kylin:hadoop  /warehouse/tablespace/external/hive/kylin.db
 kdestroy
 
-klist -k /etc/security/keytabs/hive.service.keytab 
+klist -k /etc/security/keytabs/hive.service.keytab
 kinit -kt /etc/security/keytabs/hive.service.keytab hive/cdnlog040.ctyun.net
 
 hive
@@ -2112,7 +2470,7 @@ kylin.source.hive.beeline-shell=/usr/bin/beeline
 kylin.source.hive.beeline-params=kylin.source.hive.beeline-params=-u"jdbc:hive2://hbase36.ecloud.com:10000;principal=hive/hbase36.ecloud.com@ECLOUD.COM"
 kylin.web.timezone=GMT+8
 
-vi find-hive-dependency.sh 
+vi find-hive-dependency.sh
 #这里去掉那些参数
 hive_env=`${beeline_shell}  -e"set;" 2>&1 | grep --text 'env:CLASSPATH' `
 
@@ -2126,7 +2484,7 @@ kylin.storage.hbase.namespace=kylin
 kylin.storage.hbase.compression-codec=snappy
 kylin.metadata.url=kylin:kylin_metadata@hbase
 #
-klist -k /etc/security/keytabs/hbase.service.keytab 
+klist -k /etc/security/keytabs/hbase.service.keytab
 kinit -kt /etc/security/keytabs/hbase.service.keytab  hbase/hbase36.ecloud.com
 hbase shell:
 create_namespace "kylin"
@@ -2188,7 +2546,7 @@ kylin.job.lock=org.apache.kylin.storage.hbase.util.ZookeeperJobLock
 57 2 */3 * * /bin/bash  /data2/apache-kylin-2.6.1-bin-hadoop3/bin/ctg-clean-kylinmeta.sh  >> /data2/apache-kylin-2.6.1-bin-hadoop3/clean-kylinmeta.log
 
 #删除数据脚本
-cat /data2/apache-kylin-2.6.1-bin-hadoop3/bin/ctg-clean-kylinmeta.sh 
+cat /data2/apache-kylin-2.6.1-bin-hadoop3/bin/ctg-clean-kylinmeta.sh
 
 cd /data2/apache-kylin-2.6.1-bin-hadoop3
 ./bin/metastore.sh backup
@@ -2281,9 +2639,11 @@ kylin.job.lock=org.apache.kylin.storage.hbase.util.ZookeeperJobLock
 ```
 org.apache.kylin.rest.security.PasswordPlaceholderConfigurer
 工程：kylin-server-base
+
+Usage: ${KYLIN_HOME}/bin/kylin.sh org.apache.kylin.rest.security.PasswordPlaceholderConfigurer <EncryptMethod> <your_password>"
 ```
 
-vi  /data1/apache-kylin-2.6.1-bin-hadoop3/tomcat/webapps/kylin/WEB-INF/classes/kylinSecurity.xml 
+vi  /data1/apache-kylin-2.6.1-bin-hadoop3/tomcat/webapps/kylin/WEB-INF/classes/kylinSecurity.xml
 
 
 
@@ -2321,7 +2681,7 @@ ANALYST/ANALYST@1234@#&
   kylin.engine.spark-conf.spark.executor.extraJavaOptions "-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps  -XX:+PrintTenuringDistribution"
   ```
 
-- 
+-
 
 # 13.集群参数优化
 
@@ -2411,7 +2771,7 @@ ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-
 ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.9.5.jar
 ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-jaxb-annotations-2.9.5.jar
 ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-scala_2.11-2.9.5.jar
-ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar 
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar
 
 done
 
@@ -2463,12 +2823,12 @@ NEW_ZK_DIR="kafka-test-auth3"
 
 ```bash
 #如果没有启用kerberos，只要这一段就行了
-KafkaServer { 
-org.apache.kafka.common.security.plain.PlainLoginModule required 
-username="admin" 
-password="admin-sec" 
+KafkaServer {
+org.apache.kafka.common.security.plain.PlainLoginModule required
+username="admin"
+password="admin-sec"
 user_admin="admin-sec"
-user_producer="prod-sec" 
+user_producer="prod-sec"
 user_consumer="cons-sec";
 };
 #如果启用了kerberos，必须包含下面两段，这个是使用kerberos连接zk用的
@@ -2481,7 +2841,7 @@ useTicketCache=false
 serviceName="zookeeper"
 principal="{{kafka_jaas_principal}}";
 };
- 
+
 com.sun.security.jgss.krb5.initiate {
 com.sun.security.auth.module.Krb5LoginModule required
 renewTGT=false
@@ -2542,10 +2902,10 @@ principal="{{kafka_jaas_principal}}";
 
         {% if kerberos_security_enabled %}
 
-      KafkaServer { 
-            org.apache.kafka.common.security.plain.PlainLoginModule required 
-            username="admin" 
-            password="CtYiofnwk@269Mn" 
+      KafkaServer {
+            org.apache.kafka.common.security.plain.PlainLoginModule required
+            username="admin"
+            password="CtYiofnwk@269Mn"
             user_admin="CtYiofnwk@269Mn"
             user_huaweiYun="C#huaTwei2Y4Gun"
             user_cache_access="TcacGhe2@acCcess"
@@ -2594,7 +2954,7 @@ principal="{{kafka_jaas_principal}}";
 
 ```bash
 KafkaClient {
-org.apache.kafka.common.security.plain.PlainLoginModule required 
+org.apache.kafka.common.security.plain.PlainLoginModule required
 username="producer"
 password="prod-sec" ;
 };
@@ -2604,13 +2964,13 @@ password="prod-sec" ;
 
 ```bash
 KafkaClient {
-org.apache.kafka.common.security.plain.PlainLoginModule required 
+org.apache.kafka.common.security.plain.PlainLoginModule required
 username="consumer"
 password="cons-sec";
 };
 ```
 
-- cat consumer.properties 
+- cat consumer.properties
 
 ```bash
 secutiry.protocol=SASL_PLAINTEXT
@@ -2621,14 +2981,14 @@ group.id=zws-test-grp1
 - 创建新的Topic测试
 
 ```bash
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1
 
 
 #创建Topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1  --topic zwstestnew2    --partitions 1 --replication-factor 1
 
 #查看创建的Topic
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --describe --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1   --topic zwstestnew2 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --describe --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1   --topic zwstestnew2
 
 #Topic授权，注意这里最好使用--producer，不要使用--operation Write
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --add --allow-principal User:producer --topic zwstestnew2  --producer
@@ -2639,8 +2999,8 @@ group.id=zws-test-grp1
 #修改好kafka_client_jaas_conf ，注意使用 --security-protocol，而不是网上的producer-property，那样不行
 /usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic zwstestnew2 --security-protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
 
-#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties 
-/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic zwstestnew2 --security-protocol=SASL_PLAINTEXT --from-beginning --consumer.config ./consumer.properties --new-consumer 
+#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic zwstestnew2 --security-protocol=SASL_PLAINTEXT --from-beginning --consumer.config ./consumer.properties --new-consumer
 
 #想要读取，必须经过授权！
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1  --add --allow-principal User:consumer --topic zwstestnew2  --consumer --group zws-test-grp1
@@ -2675,10 +3035,10 @@ jvm启动参数
 |              |                  |        |
 |              |                  |        |
 
-KafkaServer { 
-org.apache.kafka.common.security.plain.PlainLoginModule required 
-username="admin" 
-password="CtYiofnwk@269Mn" 
+KafkaServer {
+org.apache.kafka.common.security.plain.PlainLoginModule required
+username="admin"
+password="CtYiofnwk@269Mn"
 user_admin="CtYiofnwk@269Mn"
 user_huaweiYun="C#huaTwei2Y4Gun"
 user_cache_access="TcacGhe2@acCcess"
@@ -2690,7 +3050,7 @@ user_baishanYun="CbaTishGan3@Y#un";
 ```bash
 华为云：
 
-topicName=huaweiYun    
+topicName=huaweiYun
 
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net:12181,ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1  --topic ${topicName}    --partitions 40 --replication-factor 3
 
@@ -2749,7 +3109,7 @@ ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --alter --zookeeper ${ZK_CONN} --topic ctYun --partitions 21
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 1 --replication-factor 3
@@ -2763,7 +3123,7 @@ ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 
 /usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list cdnlog003.ctyun.net:5044  --topic DebugTopic --producer-property security.protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
 
-#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties 
+#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044  --topic DebugTopic --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-DebugTopic  --consumer.config ./consumer.properties
 
 
@@ -2778,7 +3138,7 @@ ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 ##修改分区数量
 ./kafka-topics.sh --alter --zookeeper ${ZK_CONN} --topic ctYun --partitions 30
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --list  --topic ${topicName}
 
@@ -2787,9 +3147,9 @@ ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 
 /usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667   --topic ${topicName} --producer-property security.protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
 
-/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${topicName} --consumer.config /usr/hdp/3.1.0.0-78/kafka/consumer-kafka-rest.properties 
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${topicName} --consumer.config /usr/hdp/3.1.0.0-78/kafka/consumer-kafka-rest.properties
 
-cat consumer-test.properties 
+cat consumer-test.properties
 secutiry.protocol=SASL_PLAINTEXT
 sasl.mechanism=PLAIN
 group.id=logstash
@@ -2805,7 +3165,7 @@ group.id=logstash
 
 ```bash
 
-/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh  --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --topics-to-move-json-file ./topics-to-move.json --broker-list 1001,1002,1003 --generate  
+/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh  --zookeeper ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --topics-to-move-json-file ./topics-to-move.json --broker-list 1001,1002,1003 --generate
 
 topicName=KafkaRestTest2
 userName="zwstestnew2"
@@ -2813,14 +3173,14 @@ ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 
 
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions ${PART_NUM} --replication-factor 3
 
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --describe --zookeeper ${ZK_CONN} --topic ${topicName}
 
-#--bootstrap-server ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667 
+#--bootstrap-server ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667
 ```
 
 - Kafka网络日志配置（测试中）CLOSE_WAIT过高：
@@ -2900,7 +3260,7 @@ PART_NUM=1
 
 
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions ${PART_NUM} --replication-factor 3
@@ -2914,7 +3274,7 @@ PART_NUM=1
 
 /usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list cdnlog003.ctyun.net:5044  --topic DebugTopic --producer-property security.protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
 
-#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties 
+#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044  --topic CdnPerfTest-LZ4 --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-DebugTopic  --consumer.config ./consumer.properties
 
 
@@ -2966,7 +3326,7 @@ rule family="ipv4" port port="161" protocol="udp" accept
 ## 4.查看消费者组
 
 ```bash
-export KAFKA_OPTS=" -Djava.security.auth.login.config=/home/zhangwusheng/zws_jaas.conf" 
+export KAFKA_OPTS=" -Djava.security.auth.login.config=/home/zhangwusheng/zws_jaas.conf"
 
 /usr/hdp/current/kafka-broker/bin/kafka-consumer-groups.sh --bootstrap-server ctl-nm-hhht-yxxya6-ceph-011.ctyuncdn.net:6667 --describe --group edge_computing_log --command-config /usr/hdp/current/kafka-broker/config/consumer.properties
 ```
@@ -2977,6 +3337,13 @@ export KAFKA_OPTS=" -Djava.security.auth.login.config=/home/zhangwusheng/zws_jaa
 userName="DebugTopic"
 ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 /usr/hdp/current/kafka-broker/bin/kafka-topics  --delete --zookeeper ${ZK_CONN}  --topic Kafka_Rest_Test2
+
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name ctYun --describe
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name ctYun_agg_shanghai --describe
 
 ```
 
@@ -2989,12 +3356,12 @@ ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 #看看有没有单独的配置
 
 #开发broker对应关系
-1001 	ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net 	
-1003 	ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net 	
-1004 	ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net 	
-1005 	ctl-nm-hhht-yxxya6-ceph-011.ctyuncdn.net 	
-1006 	ctl-nm-hhht-yxxya6-ceph-012.ctyuncdn.net 	
-1007 	ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net 	
+1001 	ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net
+1003 	ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net
+1004 	ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net
+1005 	ctl-nm-hhht-yxxya6-ceph-011.ctyuncdn.net
+1006 	ctl-nm-hhht-yxxya6-ceph-012.ctyuncdn.net
+1007 	ctl-nm-hhht-yxxya6-ceph-010.ctyuncdn.net
 
 /usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1 --describe --entity-type topics --entity-name ctYun
 
@@ -3004,7 +3371,7 @@ ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 
 
 #调整topic参数（设置topic可以从不同步的副本选择leader！！慎用）：
-/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name ambari_kafka_service_check  --alter --add-config unclean.leader.election.enable=true  
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh  --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --entity-type topics  --entity-name ambari_kafka_service_check  --alter --add-config unclean.leader.election.enable=true
 
 # 查看分区分布情况
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --describe --zookeeper 192.168.2.27:12181/kafka-auth-test-1 --topic cdn-fee-flow-increment
@@ -3013,7 +3380,7 @@ ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 /usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1 --generate --topics-to-move-json-file /home/zhangwusheng/scripts/kafka-reassign.txt --broker-list 1001,1003,1004,1005,1006,1007
 
 cat /home/zhangwusheng/scripts/kafka-reassign.txt
-echo 
+echo
 {
      "topics":[
                 {
@@ -3041,16 +3408,16 @@ Proposed partition reassignment configuration
 ```bash
 
 #生产broker对应关系
-1001 	cdnlog003.ctyun.net 	
-1002 	cdnlog004.ctyun.net 	
-1012 	cdnlog043.ctyun.net 	
-1013 	cdnlog044.ctyun.net 	
-1014 	cdnlog023.ctyun.net 	
-1015 	cdnlog014.ctyun.net 	
-1016 	cdnlog033.ctyun.net 	
-1017 	cdnlog024.ctyun.net 	
-1018 	cdnlog034.ctyun.net 	
-1019 	cdnlog013.ctyun.net 
+1001 	cdnlog003.ctyun.net
+1002 	cdnlog004.ctyun.net
+1012 	cdnlog043.ctyun.net
+1013 	cdnlog044.ctyun.net
+1014 	cdnlog023.ctyun.net
+1015 	cdnlog014.ctyun.net
+1016 	cdnlog033.ctyun.net
+1017 	cdnlog024.ctyun.net
+1018 	cdnlog034.ctyun.net
+1019 	cdnlog013.ctyun.net
 
 /usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper cdnlog036.ctyun.net:12181/cdnlog-first --describe --entity-type topics --entity-name huaweiYun
 
@@ -3089,6 +3456,38 @@ bin/kafka-preferred-replica-election.sh --zookeeper zk_host:port/chroot
 
 ```
 
+## 7.压测
+
+
+
+```bash
+/usr/hdp/current/kafka-broker/bin/kafka-producer-perf-test.sh  --topic rsyslog-dev-30   --throughput 500000 --num-records 10000000 --record-size 1000 --producer-props bootstrap.servers=SASL_PLAINTEXT://ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  security.protocol=SASL_PLAINTEXT   sasl.mechanism=PLAIN
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1  --entity-type topics --entity-name CapTest  --alter --add-config retention.ms=7200000
+
+/usr/hdp/current/kafka-broker/bin/kafka-configs.sh --zookeeper 192.168.2.27:12181/kafka-auth-test-1  --entity-type topics --entity-name rsyslog-dev-30  --alter --add-config retention.ms=7200000
+
+结论
+1. 10个分区，1000字节，20W每秒，2000个字节，10W每秒
+2. 30个分区，1000字节，40W每秒，2000个字节，20W每秒
+3.
+```
+
+
+
+## 8.__consumer_offsets
+
+```bash
+https://support.huaweicloud.com/intl/en-us/trouble-mrs/mrs_03_0202.html
+exclude.internal.topics = false
+
+kafka-console-consumer.sh --topic __consumer_offsets --zookeeper 10.5.144.2:2181/kafka --formatter "kafka.coordinator.group.GroupMetadataManager\$OffsetsMessageFormatter" --consumer.config ../config/consumer.properties --from-beginning
+
+
+GetOffsetShell kafka-run-class kafka.tools.GetOffsetShell  --broker-list $  kafka-console-consumer is a consumer command line that: read data from a Kafka topic and write it to standard output (console). Articles Related Example Command line Print key and value kafka-console-consumer.sh \ --bootstrap-server localhost:9092 \ --topic mytopic \ --from-beginning \ --formatter kafka.tools.DefaultMessageFormatter \ --property print.key=true \ --property print.value=true
+```
+
 
 
 
@@ -3118,8 +3517,12 @@ zk上需要建立/kafka-manager目录
 ```
 nohup /data2/kafka-manager-2.0.0.2/bin/kafka-manager -Dconfig.file=/data2/kafka-manager-2.0.0.2/conf/application.conf -Dhttp.port=19090  -Dapplication.home=/data2/kafka-manager/kafka-manager-2.0.0.2 &
 
+生产系统：
 
 nohup /data2/kafka-manager/kafka-manager-2.0.0.2/bin/kafka-manager -Dconfig.file=/data2/kafka-manager/kafka-manager-2.0.0.2/conf/application.conf -Dhttp.port=19090  -Dapplication.home=/data2/kafka-manager/kafka-manager-2.0.0.2 &
+
+
+/usr/local/kafkamanager/bin/kafka-manager -Dconfig.file=/usr/local/kafkamanager/conf/application.conf -Dhttp.port=29090  -Dapplication.home=/usr/local/kafkamanager/
 ```
 
 5.新增配置；
@@ -3134,7 +3537,7 @@ Security Protocol: SASL_PLAINTEXT
 
 SASL Mechanism :PLAIN
 
-SASL JAAS Config:org.apache.kafka.common.security.plain.PlainLoginModule required  username="admin" password="CtYiofnwk@269Mn" ; 
+SASL JAAS Config:org.apache.kafka.common.security.plain.PlainLoginModule required  username="admin" password="CtYiofnwk@269Mn" ;
 
 
 
@@ -3145,6 +3548,26 @@ SASL Mechanism:PLAIN
 JAAS:
 KafkaClient { org.apache.kafka.common.security.plain.PlainLoginModule required  username="admin" password="admin-sec" ; };
 ```
+
+
+
+## Kafka连接排查
+
+```bash
+
+netstat -anp|grep 5044|grep -v 192.168.254|awk '{print $5;}'|awk -F':' '{print $1;}'|sort |uniq -c|sort -n -k1,1 > /home/zhangwusheng/ip.kafka.20201208
+
+#统计外网连接清单
+netstat -anp|grep 5044|grep -v 192.168.254|awk '{print $5;}'|awk -F':' '{print $1;}'|sort |uniq -c|sort -n -k1,1 > /home/zhangwusheng/kafka.${HOSTNAME}.`date +%Y%m%d`.txt
+
+#统计每个连接的总机器数
+netstat -anp|grep 5044|grep -v 192.168.254|awk '{print $5;}'|awk -F':' '{print $1;}'|sort |uniq -c|sort -n -k1,1|awk '{a[$1]++;}END{for(i in a){printf("%d = %d\n",i,a[i]);}}'|sort -n -k1,1
+
+```
+
+
+
+
 
 
 
@@ -3312,9 +3735,9 @@ then
 fi
 ```
 
-- 最后，修改脚本kafka-run-class.sh 
+- 最后，修改脚本kafka-run-class.sh
 
-vi kafka-run-class.sh 
+vi kafka-run-class.sh
 
 最后面开始执行程序时增加（在Launch mode这一行）：
 
@@ -3343,10 +3766,14 @@ todo：
 
 # 21.卸载HDP
 
+### 21.1卸载整个集群
+
 如果只是重装，不要删除配置目录，只删除数据目录，然后ambari-server reset即可。
 
 ```bash
 1. ambari-server reset
+
+/usr/bin/yum list available --showduplicates
 
 2. 查看日志里面安装了哪些包
    cat  /var/lib/ambari-agent/data/*|grep yum|grep install
@@ -3358,26 +3785,31 @@ todo：
 
 4. 列出所有的已安装的包
    yum list installed|grep HDP|awk '{print "yum remove -y "$1;}'|sort -u
-   yum list installed |grep hadoop
-   yum list installed |grep HDP 
+  yum list installed|grep hbase|awk '{print "yum remove -y "$1;}'|sort -u
+   yum list installed |grep hadoop|awk '{print "yum remove -y "$1;}'|sort -u
+   yum list installed |grep HDP
    yum list installed |grep ambari|awk '{print "yum remove -y "$1;}'|sort -u
    yum list installed |grep HDP|awk '{print "rpm -e "$1;}'|sort -u
 5. 删除数据目录！
-   rm -rf  XXXX 
+   rm -rf  XXXX
+
+   rm -rf /data1/hadoop*
+   rm -rf /data2/hadoop*
+   kafka的要换个新的目录和zk的目录
 6. yum clean all
 7. rm -rf /var/cache/yum/*
 rm -rf /var/lib/rpm/__db*
 
 #删除配置目录，还是要删掉，不然安装不同的版本会有问题
  rm -rf /etc/hadoop /etc/hbase/
- 
+
  #删除数据目录,防止软链出问题
  rm -rf /usr/hdp/*
- 
+
  8. baseurl为空的问题
- 
+
  https://community.cloudera.com/t5/Community-Articles/ambari-2-7-3-Ambari-writes-Empty-baseurl-values-written-to/ta-p/249314
- 
+
  cd /usr/lib/ambari-server/web/javascripts
  cp app.js app.js_backup
  edit the app.js
@@ -3415,10 +3847,50 @@ to
             useLocalRepo: true
           });
           stack.cleanReposBaseUrls();
-        } 
+        }
       });
     }
   }.observes('networkIssuesExist'),
+```
+
+### 21.2删除Service
+
+备注：网上找到的，没有完整验证过
+
+```bash
+Usually service can be removed using API calls, but if the service is inconsistent state then API's does not work.
+
+so only way to delete is by running SQL queries. here is the list of steps to delete KNOX service.
+
+1. delete from serviceconfigmapping where service_config_id in (select service_config_id from serviceconfig where service_name like '%KNOX%')
+
+2. delete from confgroupclusterconfigmapping where config_type like '%knox%'
+
+3. delete from clusterconfig where type_name like '%knox%'
+
+4. delete from clusterconfigmapping where type_name like '%knox%'
+
+5. delete from serviceconfig where service_name = 'KNOX'
+
+6. delete from servicedesiredstate where service_name = 'KNOX'
+
+7. delete from hostcomponentdesiredstate where service_name = 'KNOX'
+
+8. delete from hostcomponentstate where service_name = 'KNOX'
+
+9.delete from servicecomponentdesiredstate where service_name = 'KNOX'
+
+10.delete from clusterservices where service_name = 'KNOX'
+
+11. DELETE from alert_history where alert_definition_id in ( select definition_id from alert_definition where service_name = 'KNOX')
+
+12.DELETE from alert_notice where history_id in ( select alert_id from alert_history where alert_definition_id in ( select definition_id from alert_definition where service_name = 'KNOX'))
+
+13.DELETE from alert_definition where service_name like '%KNOX%'
+
+Note1: I have tried and tested this in Ambari 2.4.x
+
+Note2: Above queries are case sensitive - so use Upper/Lower case for service name.
 ```
 
 
@@ -3484,7 +3956,7 @@ cd C:\ProgramData\MIT\Kerberos5
 
 "C:\Program Files\MIT\Kerberos\bin\klist.exe" -k "C:\ProgramData\MIT\Kerberos5\spnego.service.keytab"
 
-"C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt  "C:\ProgramData\MIT\Kerberos5\spnego.service.keytab" HTTP/cdnlog040.ctyun.net 
+"C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt  "C:\ProgramData\MIT\Kerberos5\spnego.service.keytab" HTTP/cdnlog040.ctyun.net
 "C:\Program Files\MIT\Kerberos\bin\klist.exe"
 
 
@@ -3520,7 +3992,7 @@ cd C:\ProgramData\MIT\Kerberos5
 
 "C:\Program Files\MIT\Kerberos\bin\kinit.exe" -kt "C:\ProgramData\MIT\Kerberos5\keytabs-prod\yarn.service.keytab"  yarn/cdnlog040.ctyun.net@CTYUN.NET
 
-"C:\Program Files\MIT\Kerberos\bin\klist.exe" 
+"C:\Program Files\MIT\Kerberos\bin\klist.exe"
 
 
 "C:\Program Files\MIT\Kerberos\bin\klist.exe" -k "C:\ProgramData\MIT\Kerberos5\keytabs-prod\rm.service.keytab"
@@ -3652,7 +4124,7 @@ JDK12安装
 
 #拷贝软件
 
-#40 
+#40
 
 cd /data3
 
@@ -3769,7 +4241,7 @@ es集群必须处理green状态，否则会被禁止race
 
 因为我们自己有集群，所以这样用：
 
-esrally --pipeline=benchmark-only --target-hosts=host:9200 
+esrally --pipeline=benchmark-only --target-hosts=host:9200
 
 这时候会下载数据，下载完毕后可以这样用：
 
@@ -3858,27 +4330,27 @@ ln -fs filebeat-7.3.1-linux-x86_64 filebeat
     #- /var/log/*.log
     #这里修改成自己的目录，支持通配符
     - /data3/elk/filebeat/data/logstash-tutorial*.log
-    
+
    ......
 #----------------------------- Logstash output --------------------------------
 output.logstash:
   # The Logstash hosts
   hosts: ["localhost:5044"]
-  
-  
-#cat /data3/elk/logstash/config/ctg-nginx2es.conf 
+
+
+#cat /data3/elk/logstash/config/ctg-nginx2es.conf
 input {
      beats {
         port => "5044"
      }
 }
- 
+
 output {
-     stdout { 
+     stdout {
         codec => rubydebug
      }
-}  
-  
+}
+
 #测试配置：
 logstash -f /data3/elk/logstash/config/ctg-nginx2es.conf --config.test_and_exit
 #启动logstash
@@ -3899,7 +4371,7 @@ done
 
 
 
-/data3/elk/logstash/bin/logstash -f /data3/elk/logstash/config/ctg-nginx2es.conf 
+/data3/elk/logstash/bin/logstash -f /data3/elk/logstash/config/ctg-nginx2es.conf
 
 
 
@@ -3927,10 +4399,10 @@ export GOROOT=/data3/elk/source
 
 ```bash
 curl --user 'elastic:elastic123!@' -H "Content-Type: application/json" -XGET http://192.168.2.43:19200/edge_computing_event_dev/_search -d '{
-"query" : { 
+"query" : {
 "match" : { "cluster" : "guangzhou"}
 },
-"sort" : [{"event.lastTimestamp" : {"order" : "desc"}}], 
+"sort" : [{"event.lastTimestamp" : {"order" : "desc"}}],
 "from":0,
 "size":3
 }'
@@ -4055,7 +4527,7 @@ demo/demo
 
 
 
--XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/data2/core_files/spark-%p.hprof 
+-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/data2/core_files/spark-%p.hprof
 -XX:OnOutOfMemoryError="rm -f /data2/core_files/spark-%p.hprof ;/usr/local/jdk/bin/jmap -dump:live,format=b,file=/data2/core_files/spark-%p.hprof;kill -9 %p "
 
 
@@ -4069,11 +4541,11 @@ yum install bison -y
 yum -y install centos-release-scl
 yum install devtoolset-8
 scl enable devtoolset-8 -- bash
-source /opt/rh/devtoolset-8/enable 
+source /opt/rh/devtoolset-8/enable
 
 
 cd /data2
-tar zxvf mysql-boost-8.0.17.tar.gz 
+tar zxvf mysql-boost-8.0.17.tar.gz
 cd mysql-8.0.17
 mkdir objs
 cd objs
@@ -4085,14 +4557,22 @@ cmake3 -DWITH_BOOST=/data2/mysql-8.0.17/boost/boost_1_69_0/ ..
 https://wangchujiang.com/linux-command/c/firewall-cmd.html
 
 ```bash
-systemctl status firewalld 
+systemctl status firewalld
 systemctl is-enabled firewalld.service
 systemctl enable firewalld
-systemctl start firewalld 
+systemctl start firewalld
 
 
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.30/24 accept'
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=192.168.2.40/24 accept'
+
+
+sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=192.168.189.0/25 accept'
+sudo firewall-cmd --permanent --remove-rich-rule 'rule family=ipv4 source address=192.168.189.0/25 accept'
+sudo firewall-cmd --reload
+sudo firewall-cmd --list-all
+
+
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=58.62.0.226 accept'
 sudo firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=36.111.140.26 accept'
 
@@ -4148,7 +4628,11 @@ sudo firewall-cmd --list-all
 ## 1.shell
 
 ```scala
-spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=10 --conf spark.executor.memory=2G --conf spark.driver.memory=2G 
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/part-00141-77793485-3f72-42f4-9bcf-bd5f07920029-c000.snappy.parquet")
+
+
+
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=30 --conf spark.executor.memory=10G --conf spark.driver.memory=10G
 
 val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
@@ -4178,11 +4662,11 @@ import org.apache.spark.sql.functions._
 
 var ppp:Int =0
 val ff = spark.udf.register("getPart",(channel:String)=>{
-    if(channel=="v95-dy.ixigua.com") 
+    if(channel=="v95-dy.ixigua.com")
     {ppp+=1
     ppp
     }
-    else 
+    else
     1
 })
 
@@ -4191,12 +4675,12 @@ val bb=aa.withColumn("part",col("channel"))
 val updatedDf = df.withColumn("part", regexp_replace(col("part"), "v95-dy.ixigua.com", "1"))
 
 val updatedDf = bb.withColumn("part", ff(col("channel"))
-                              
+
 SparkSession spark = SparkSession
 		             .builder()
 		             .appName("spark-job")
 		             .getOrCreate();
-                              
+
 import org.apache.spark.sql.RuntimeConfig
 import org.apache.spark.sql._
 val conf:RuntimeConfig = spark.conf();
@@ -4205,7 +4689,7 @@ conf.set("mapreduce.output.fileoutputformat.compress", "true");
 conf.set("mapreduce.output.fileoutputformat.compress.type", SequenceFile.CompressionType.BLOCK.toString());
 conf.set("mapreduce.output.fileoutputformat.compress.codec", "org.apache.hadoop.io.compress.GzipCodec");
 conf.set("mapreduce.map.output.compress", "true");
-conf.set("mapreduce.map.output.compress.codec", "org.apache.hadoop.io.compress.GzipCodec");                              
+conf.set("mapreduce.map.output.compress.codec", "org.apache.hadoop.io.compress.GzipCodec");
                               .write()
     .format("text")
     .mode(SaveMode.Overwrite)
@@ -4220,13 +4704,13 @@ tt2.rdd.getNumPartitions
 
     val newDF = df.mapPartitions(
       iterator => {
-        val result = iterator.map(row=> 
+        val result = iterator.map(row=>
                                    {
                                        val channel=row.getString("channel")
                                        if( channel == "v95-dy.ixigua.com" )
                                        if (data.get(data.fieldIndex("part")))
                                    }
-                                 
+
                                  ).toList
         //return transformed data
         result.iterator
@@ -4238,7 +4722,8 @@ tt2.rdd.getNumPartitions
 
 
     val buffer: mutable.Buffer[Object] = Row.unapplySeq(row).get.map(_.asInstanceOf[Object]).toBuffer
-              buffer.append(要加的字段) 
+              buffer.append(要加的字段)
+
               val schema: StructType = row.schema.add("aaa", StringType).add("bbb", StringType).add("ccc", StringType)
               val new_row = new GenericRowWithSchema(buffer.toArray, schema)
 ```
@@ -4248,7 +4733,9 @@ tt2.rdd.getNumPartitions
 ## 2.spark shell生产跑数据
 
 ```bash
-spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=3 --conf spark.executor.memory=2G --conf spark.driver.memory=2G --jars 
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=3 --conf spark.executor.memory=2G --conf spark.driver.memory=2G --jars
+
+spark-shell --conf spark.executor.memoryOverhead=2G --conf spark.executor.instances=40 --conf spark.executor.memory=8G --conf spark.driver.memory=3G --conf spark.yarn.queue=batch --conf spark.executor.cores=4
 
 import org.apache.spark.sql.RuntimeConfig
 import org.apache.spark.sql._
@@ -4260,18 +4747,26 @@ import sqlContext.implicits._
 import java.lang.Double
 import java.util.Date
 import java.text.SimpleDateFormat
+import org.apache.spark.Partitioner
+import org.apache.spark.api.java.function.PairFlatMapFunction
+import java.util.ArrayList
+import org.apache.spark.api.java.JavaPairRDD
 
-val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00/part-00141-77793485-3f72-42f4-9bcf-bd5f07920029-c000.snappy.parquet")
+val schemaStr="serverIp string,timestamp string,respondTime long,httpCode integer,eventTime string,clientIp string,clientPort integer,method string,protocol string,channel string,url string,httpVersion string,bodyBytes long,destIp string,destPort integer,status string,full_status string,referer string,Ua string,fileType string,host_name string,source_ip string,source_id string,source_old string,type string,range string,vendorCode byte,genericsChannel string,clientId integer,keyFlag byte,productType byte,hostingType byte,uri string,url_param string,requestBytes long,body_sent long,proxyIp string,via string,sent_http_content_length long,http_range string,sent_http_content_range string,http_tt_request_traceid string,liveProtocol string,currentTime string,requestTime string,command string,connTag string,appName string,stream string,sendBytes string,recvBytes  string"
 
 val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-09/2020-09-09-17/minute=2020-09-09-17-20/part-00040-efc48350-f9e6-4f72-adb1-69d7caefccb5-c000.snappy.parquet")
 
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-00","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-05","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-10","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-15","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-20","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-25","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-30","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-35"),"/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-40","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-45","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-50","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-55")
+
+#val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
 
 ab.write.mode(SaveMode.Append).format("jdbc").option("driver","com.github.housepower.jdbc.ClickHouseDriver").option("url", "jdbc:clickhouse://192.168.2.40:18000").option("user", "default").option("password", "").option("dbtable", "default.t_cdnlog_analysis_c").option("batchsize", 10000).option("isolationLevel", "NONE").save
-  
+
 parquetFile.printSchema
 
 parquetFile.registerTempTable("logs")
 
+<<<<<<< HEAD
  |-- serverIp: string (nullable = true)
  |-- timestamp: string (nullable = true)
  |-- respondTime: long (nullable = true)
@@ -4290,6 +4785,8 @@ parquetFile.registerTempTable("logs")
 
 val ab = spark.sql("select serverIp,timestamp,respondTime,httpCode,eventTime,clientIp,clientPort,method,protocol,channel,url,httpVersion,bodyBytes,destIp,destPort from logs")
 val aa=spark.sql("select eventTime, channel, serverIp,timestamp,uri,source_ip,sendBytes,recvBytes,country,province,city,clientId,type from logs ")
+=======
+val aa=spark.sql("select serverIp,timestamp,respondTime,httpCode,eventTime,clientIp,clientPort,method,protocol,channel,url,httpVersion,bodyBytes,destIp,destPort,status,full_status,referer,Ua,fileType,host_name,source_ip,source_id,source_old,type,range,vendorCode,genericsChannel,clientId,keyFlag,productType,hostingType,uri,url_param,requestBytes,body_sent,proxyIp,via,sent_http_content_length,http_range,sent_http_content_range,http_tt_request_traceid,liveProtocol,currentTime,requestTime,command,connTag,appName,stream,sendBytes,recvBytes from logs ")
 
 val bb=aa.withColumn("part",col("channel"))
 
@@ -4297,60 +4794,333 @@ val bb=aa.withColumn("part",col("channel"))
 var ppp_ixigua:Int =0
 var ppp_ixigua_2:Int =0
 var ppp_ltssjy:Int =0
+var ppp_ltssjy2:Int =0
+var ppp_ltssjy_other:Int =0
+var ppp_ugcsjy:Int = 0
 var ppp_other:Int =0
 
+val simpleDateFormat: SimpleDateFormat  = new SimpleDateFormat("yyyy-MM-dd-HH-mm")
+val procTimeStr="2020-09-08-21-00"
+val  procDateTime: Date = simpleDateFormat.parse(procTimeStr)
+val ddd1 = procDateTime.getTime()
 
 val ff = spark.udf.register("getPart",(channel:String,eventtime:String)=>{
-    val simpleDateFormat: SimpleDateFormat  = new SimpleDateFormat("yyyy-MM-dd-HH-mm")
-    val procTimeStr="2020-09-08-21-00"
-    val  procDateTime: Date = simpleDateFormat.parse(procTimeStr)
-    val ddd1 = procDateTime.getTime()
-
     val evtime_d=eventtime.toDouble * 1000
     val evtime_l=evtime_d.asInstanceOf[Number].longValue
     val intervals=ddd1-evtime_l
-    
-    if(channel=="v95-dy.ixigua.com"   ) {
-        ppp_ixigua+=1
-        if( intervals<= 300000 ){
-           "v95-dy-"+(ppp_ixigua % 5)}
-        else 
-           {"v95-dy-other"}
+    val batch_ixigua=90
+    val batch_ltssjy=20
+    val batch_other=40
+   if(channel=="v95-dy.ixigua.com") {
+      if( intervals<= 300000 ){
+      ppp_ixigua+=1
+         "v95-dy-"+(ppp_ixigua % batch_ixigua)}
+      else
+         {"v95-dy-other"}
     }
     else if(channel=="v95-dy-a.ixigua.com" ) {
-        ppp_ixigua_2+=1
         if( intervals<= 300000 ){
-           "v95-dy-a-"+(ppp_ixigua_2 % 5)
+        ppp_ixigua_2+=1
+           "v95-dy-a-"+(ppp_ixigua_2 % batch_ixigua)
         }
         else{
             "v95-dy-a-other"
         }
     }
     else if(channel=="ltssjy.qq.com"  ) {
-        ppp_ltssjy+=1
         if( intervals<= 300000 ){
-       "ltssjy-"+(ppp_ltssjy % 5)}
+          ppp_ltssjy+=1
+         "ltssjy-"+(ppp_ltssjy % batch_ltssjy)}
+       else if( intervals<= 600000 ){
+         ppp_ltssjy2+=1
+         "ltssjy-sec"
+       }
        else{
-        "ltssjy-other"
+       ppp_ltssjy_other+=1
+        "ltssjy-other-"+(ppp_ltssjy_other % batch_ltssjy)
        }
     }
     else if(channel=="ugcsjy.qq.com" ) {
-        "ugcsjy-0"
+      ppp_ugcsjy+=1
+        "ugcsjy-"+(ppp_ugcsjy % batch_ltssjy)
     }
-    else{ 
+    else{
         ppp_other+=1
-        "other-"+(ppp_other % 10)
+        "other-"+(ppp_other % batch_other)
     }
 })
-
 val updatedDf = bb.withColumn("part", ff(col("channel"),col("timestamp")))
 
+
+class CustomPartitioner() extends Partitioner{
+  override def numPartitions: Int = 35
+
+  override def getPartition(key: Any): Int = {
+    val keyStr = key.toString
+    if( keyStr == "v95-dy-0") {
+         0
+    } else if( keyStr == "v95-dy-1") {
+         1
+    } else   if( keyStr == "v95-dy-2") {
+         2
+    } else   if( keyStr == "v95-dy-3") {
+         3
+    } else   if( keyStr == "v95-dy-4") {
+         4
+    } else   if( keyStr == "v95-dy-other") {
+         5
+    } else   if( keyStr == "v95-dy-a-0") {
+         6
+    } else   if( keyStr == "v95-dy-a-1") {
+         7
+    } else   if( keyStr == "v95-dy-a-2") {
+         8
+    } else   if( keyStr == "v95-dy-a-3") {
+         9
+    } else   if( keyStr == "v95-dy-a-4") {
+         10
+    } else   if( keyStr == "v95-dy-a-other") {
+         11
+    } else   if( keyStr == "ltssjy-0") {
+         12
+    } else   if( keyStr == "ltssjy-1") {
+         13
+    } else   if( keyStr == "ltssjy-2") {
+         14
+    } else if( keyStr == "ltssjy-3") {
+         15
+    } else  if( keyStr == "ltssjy-4") {
+         16
+    } else if( keyStr == "ltssjy-sec") {
+         17
+    } else  if( keyStr == "ltssjy-other-0") {
+         18
+    } else  if( keyStr == "ltssjy-other-1") {
+         19
+    } else  if( keyStr == "ltssjy-other-2") {
+         20
+    } else  if( keyStr == "ltssjy-other-3") {
+         21
+    } else  if( keyStr == "ltssjy-other-4") {
+         22
+    } else if( keyStr == "ugcsjy-0") {
+         23
+    } else if( keyStr == "other-0") {
+         24
+    }else  if( keyStr == "other-1") {
+         25
+    } else if( keyStr == "other-2") {
+         26
+    } else  if( keyStr == "other-3") {
+         27
+    } else  if( keyStr == "other-4") {
+         28
+    } else  if( keyStr == "other-5") {
+         29
+    } else  if( keyStr == "other-6") {
+         30
+    }  else if( keyStr == "other-7") {
+         31
+    }  else if( keyStr == "other-8") {
+         32
+    } else  if( keyStr == "other-9") {
+         33
+    }else
+       34
+  }
+}
+
+val myhash:CustomPartitioner = new CustomPartitioner
+
+val FlatMapData: PairFlatMapFunction[java.util.Iterator[Row], String, Row] = new PairFlatMapFunction[java.util.Iterator[Row], String, Row]() {
+    override def call(x: java.util.Iterator[Row]) = {
+        import java.util
+        val tuple = new util.ArrayList[Tuple2[String, Row]]
+        while(x.hasNext ){
+           val r = x.next
+           val part:String = r.getString(r.fieldIndex("part"))
+           tuple.add(Tuple2(part, r))
+        }
+        tuple.iterator()
+    }
+}
+
+#val wordPairRDD:JavaPairRDD[String, Row] = updatedDf.toJavaRDD.mapPartitionsToPair(FlatMapData)
+#val hashedrdd =wordPairRDD.partitionBy(myhash)
+
+#val updatedDf = bb.withColumn("part", ff(col("channel"),col("timestamp")))
+```
+
+```bash
+#测试1，直接测试partitionBy
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test1")
+```
+
+分区数：
+updatedDf.rdd.getNumPartitions
+211
+共产生文件：
+
+hdfs dfs -ls /tmp/zws-test1/*|grep -v Found|wc -l
+4246
+
+耗时1.9分钟：
+
+```bash
+#测试2，直接测试repartition
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.repartition(col("part")).write.mode(SaveMode.Overwrite).option("compression", "gzip").option("delimiter", "#").csv("/tmp/zws-test2")
+
+效果：有数据写在一起的现象
+
+v95-dy-0
+v95-dy-4
+```
+
+
+共产生文件：
+
+hdfs dfs -ls /tmp/zws-test2/*|grep -v Found|wc -l
+31
+
+耗时3.8分钟
+
+有数据倾斜，跑两次，第一次3.8分钟，第二次4.8分钟
+
+zcat part-00002-24a746e3-30b4-486b-8cb3-85907bcaa008-c000.csv.gz |rev|awk -F'#' '{print $1;}'|sort -u|rev
+
+
+
+```bash
+#测试3，直接测试repartition，然后write的时候partitionBy
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.repartition(col("part")).write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").option("delimiter", "#").csv("/tmp/zws-test3")
+
+效果：4.5分钟，35个文件，可以把文件分开，有shuffle
+```
+
+
+
+```bash
+#测试4，使用coalesce和输出partitionBy
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.coalesce(6).write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").option("delimiter", "#").csv("/tmp/zws-test4")
+
+有spill ，10G内存，2.9G spill到disk，只有6个executor工作，太慢，7.9分钟，有小文件,每个part有5个小文件
+```
+
+
+
+改启动命令：（10个executor，40G内存）
+
+```bash
+#测试5，10个executor，40G内存，用coalesce
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.coalesce(6).write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").option("delimiter", "#").csv("/tmp/zws-test5")
+
+input花了3.2分多钟，只有6个executor，共花了8.9分钟，有小文件,每个part有5个小文件，没有spill，没有shuffle
+```
+
+
+
+```bash
+#测试6，40个executor，10G内存，使用自定义partitioner
+
+import org.apache.hadoop.io.compress.GzipCodec
+
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+val wordPairRDD:JavaPairRDD[String, Row] = updatedDf.toJavaRDD.mapPartitionsToPair(FlatMapData)
+val hashedrdd =wordPairRDD.partitionBy(myhash)
+hashedrdd.saveAsTextFile("/tmp/zws-test6",classOf[GzipCodec])
+
+（1.7+4.2）5.9分钟，35个文件，shuffle了19G
+```
+
+
+
+```bash
+#测试7，测试两个批次的
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00","/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-05")
+
+......
+
+
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+updatedDf.repartition(col("part")).write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").option("delimiter", "#").csv("/tmp/zws-test7")
+```
+
+
+
+```bash
+#测试8
+val parted = updatedDf.repartitionByRange(col("part"))
+parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test8")
+```
+
+
+
+```bash
+#测试9 两个批次
+val parted = updatedDf.repartitionByRange(col("part"))
+parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test9")
+```
+
+
+
+```bash
+#测试10 三个批次
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00","/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-05","/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-10")
+
+parquetFile.registerTempTable("logs")
+val aa=spark.sql("select serverIp,timestamp,respondTime,httpCode,eventTime,clientIp,clientPort,method,protocol,channel,url,httpVersion,bodyBytes,destIp,destPort,status,full_status,referer,Ua,fileType,host_name,source_ip,source_id,source_old,type,range,vendorCode,genericsChannel,clientId,keyFlag,productType,hostingType,uri,url_param,requestBytes,body_sent,proxyIp,via,sent_http_content_length,http_range,sent_http_content_range,http_tt_request_traceid,liveProtocol,currentTime,requestTime,command,connTag,appName,stream,sendBytes,recvBytes from logs ")
+
+val updatedDf = aa.withColumn("part", ff(col("channel"),col("timestamp")))
+
+val parted = updatedDf.repartitionByRange(col("part"))
+parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test10")
+
+#测试11 半个小时的批次
+
+```
+
+
+
+```bash
+#测试12：一个小时的数据
+
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-00","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-05","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-10","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-15","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-20","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-25","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-30","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-35","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-40","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-45","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-50","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-55")
+
+parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test12")
+不到8分钟
+
+#测试13 ，使用6个core（spark出错了）
+spark-shell --conf spark.executor.memoryOverhead=2G --conf spark.executor.instances=40 --conf spark.executor.memory=8G --conf spark.driver.memory=3G --conf spark.yarn.queue=batch --conf spark.executor.cores=4
+
+这个时间点腾讯的数据是没有的（量切走了）。ixigua的数据都是1G的，所以可以适当增大ixigua的分区数
+
+    val batch_ixigua=90
+    val batch_ltssjy=40
+    val batch_other=40
+
+    parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test13")
+```
+
+
+
+
+
+
+```
+#
 val parted = updatedDf.repartitionByRange(col("part"))
 parted.registerTempTable("parted")
 val cc = spark.sql("select * from parted limit 10")
 
 #val parted = updatedDf.repartition(6,col("part"))
-System.currentTimeMillis
+
+parted.write.mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test9")
+
 parted.write.partitionBy("part").mode(SaveMode.Overwrite).option("compression", "gzip").csv("/tmp/zws-test9")
 #updatedDf.coalesce(3).write.mode(SaveMode.Overwrite).partitionBy("part").csv("/tmp/zws-test6")
 #updatedDf.write.mode(SaveMode.Overwrite).csv("/tmp/zws-test5")
@@ -4360,20 +5130,20 @@ updatedDf.rdd.getNumPartitions
 ------------------------------------------------------------------
 
 select sum(req_cnt),event_time,proc_time,client_id,channel
-from CDN_LOG_BASE_V01 
+from CDN_LOG_BASE_V01
 where event_time=1599570000
 group by event_time,proc_time,client_id,channel
 order by 1 desc
 ------------------------------------------------------------------
 parquetFile.rdd.mapPartitionsWithIndex(
       (x,iterator) => {
-        val result = iterator.map(row=> 
+        val result = iterator.map(row=>
                                    {
                                        val channel=row.getString("channel")
                                        if( channel == "v95-dy.ixigua.com" )
                                        if (data.get(data.fieldIndex("part")))
                                    }
-                                 
+
                                  ).toList
         //return transformed data
         result.iterator
@@ -4397,7 +5167,7 @@ echo -n 'kafka:Kafka0701@2019' | openssl dgst -binary -sha1 | openssl base64
 Mzhi+zkz666H8mFYTEXjsyKT5uk=
 create /kafka-digest-test 'digest'
 setAcl /kafka-digest-test digest:kafka:Mzhi+zkz666H8mFYTEXjsyKT5uk=:rwdca
-getAcl /kafka-digest-test 
+getAcl /kafka-digest-test
 addauth digest kafka:Kafka0701@2019
 
 
@@ -4427,21 +5197,21 @@ group by ttt,channel,source_ip,rrr
 
 ----hive
 select count(1) from (
-SELECT ttt,channel,source_ip,rrr 
+SELECT ttt,channel,source_ip,rrr
 FROM(
 SELECT
 cast( cast( substring( `TIMESTAMP`, 1, 11 ) AS INT )/ 300 AS INT )* 300 AS ttt,
  channel,
 source_ip,
-cast( region / 100 AS INT )* 100 AS rrr 
+cast( region / 100 AS INT )* 100 AS rrr
 FROM
-cdn_log_origin 
+cdn_log_origin
  WHERE
-dateminute >= '2020-07-29-21-30' 
-AND dateminute <= '2020-07-29-21-40' 
+dateminute >= '2020-07-29-21-30'
+AND dateminute <= '2020-07-29-21-40'
 and vendorcode=1
 ) aaa
-group by ttt,channel,source_ip,rrr 
+group by ttt,channel,source_ip,rrr
 ) bbb
 ```
 
@@ -4477,7 +5247,7 @@ yum install smartmontools
 ```bash
 41主机：
 
-klist -k /etc/security/keytabs/hbase.service.keytab 
+klist -k /etc/security/keytabs/hbase.service.keytab
 kinit -kt /etc/security/keytabs/hbase.service.keytab hbase/ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net
 
 hbase shell
@@ -4502,7 +5272,7 @@ put 'hbase:meta',"kylin:KYLIN_OO6KVM9J4T,\x00\x04,1579464200900.6ab620ef74f7be73
 echo "scan 'hbase:meta',{FILTER => org.apache.hadoop.hbase.filter.PrefixFilter.new(org.apache.hadoop.hbase.util.Bytes.toBytes('kylin:KYLIN_Q4ZG4MY5R1'))}"|hbase shell -n|grep OPENING
 
 
-klist -k /etc/security/keytabs/zk.service.keytab 
+klist -k /etc/security/keytabs/zk.service.keytab
 kinit -kt /etc/security/keytabs/zk.service.keytab zookeeper/ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net
 
 /usr/hdp/current/zookeeper-client/bin/zkCli.sh -server ctl-nm-hhht-yxxya6-ceph-009.ctyuncdn.net:12181
@@ -4518,7 +5288,7 @@ echo 'scan "hbase:meta"'|hbase shell -n |grep a55f86bc482c366d84c6296e8dec6f98
 
 设置了他为 hbase.regionserver.lease.period 2分钟，但是hbase.rpc.timeout为3分钟，要求hbase.rpc.timeout> hbase.regionserver.lease.period
 
-警告是hbase.regionserver.lease.period已经修改为hbase.client.scanner.timeout.period 
+警告是hbase.regionserver.lease.period已经修改为hbase.client.scanner.timeout.period
 
 但是这个设置为了3分钟，所以实际上是 hbase.rpc.timeout要大于hbase.client.scanner.timeout.period
 
@@ -4527,7 +5297,7 @@ echo 'scan "hbase:meta"'|hbase shell -n |grep a55f86bc482c366d84c6296e8dec6f98
 Scanner超时，增加了timeout参数和scan的
 
  hbase.client.scanner.timeout.period
-hbase.client.scanner.caching 
+hbase.client.scanner.caching
 
 
 
@@ -4569,7 +5339,7 @@ done
 
 for ip in `seq 40 45 `
 do
-	echo  192.168.2.${ip} 
+	echo  192.168.2.${ip}
 	ssh 192.168.2.${ip} mkdir /data8/apps-dev
 	ssh 192.168.2.${ip} mkdir /data9/apps-test
 done
@@ -4705,14 +5475,14 @@ quit
 
 ```bash
  kinit -kt /etc/security/keytabs/hdfs.headless.keytab  hdfs-cdnlog@CTYUNCDN.NET
- 
+
  hdfs dfs -mkdir /apps-dev
  hdfs dfs -mkdir /apps-test
- 
+
  hdfs dfs -chown -R cdnlog-dev:cdnlog-dev /apps-dev
  hdfs dfs -chown -R cdnlog-test:cdnlog-test /apps-test
- 
- 
+
+
 ```
 
 5.Hive
@@ -4776,7 +5546,7 @@ topicName=baishanYun_live
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 KAFKA_USER="baishanYun"
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 5 --replication-factor 3
@@ -4790,7 +5560,7 @@ KAFKA_USER="baishanYun"
 
 
 #验证数据
-#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER}
 
 #==================================================================================
 #白山云直播-海外
@@ -4798,7 +5568,7 @@ topicName=baishanYun_live_haiwai
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 KAFKA_USER="baishanYun"
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 3 --replication-factor 3
@@ -4816,7 +5586,7 @@ topicName=haohanYun_live
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 KAFKA_USER="haohanYun"
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 5 --replication-factor 3
@@ -4830,7 +5600,7 @@ KAFKA_USER="haohanYun"
 
 
 #验证数据
-#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER}
 
 #==================================================================================
 #浩瀚云直播-海外
@@ -4838,7 +5608,7 @@ topicName=haohanYun_live_haiwai
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 KAFKA_USER="haohanYun"
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 3 --replication-factor 3
@@ -4857,7 +5627,7 @@ topicName=youpuYun_live
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 KAFKA_USER="youpuYun"
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 5 --replication-factor 3
@@ -4871,7 +5641,7 @@ KAFKA_USER="youpuYun"
 
 
 #验证数据
-#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER}
 
 #==================================================================================
 #浩瀚云直播-海外
@@ -4879,7 +5649,7 @@ topicName=youpuYun_live_haiwai
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 KAFKA_USER="youpuYun"
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 3 --replication-factor 3
@@ -4899,7 +5669,7 @@ topicName=huaweiYun_live
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 KAFKA_USER="huaweiYun"
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 20 --replication-factor 3
@@ -4913,7 +5683,7 @@ KAFKA_USER="huaweiYun"
 
 
 #验证数据
-#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER}
 
 #==================================================================================
 #浩瀚云直播-海外
@@ -4921,7 +5691,7 @@ topicName=youpuYun_live_haiwai
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 KAFKA_USER="youpuYun"
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 12 --replication-factor 3
@@ -4996,7 +5766,7 @@ topicName=axe-SubTaskCallback
 ZK_CONN="cdnlog040.ctyun.net:12181/cdnlog-first"
 OSS_USER="axetask"
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 1 --replication-factor 3
@@ -5010,7 +5780,7 @@ OSS_USER="axetask"
 
 
 #验证数据
-#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${OSS_USER} 
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${OSS_USER}
 
 
 topicName=axe-SubTaskCallback
@@ -5036,23 +5806,23 @@ function GetGcOpts()
    local gc_log_enable_opts="-verbose:gc -Xloggc:${gc_log_filename}"
    local gc_log_rotation_opts="-XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10M"
    local gc_log_format_opts="-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps"
-   local gc_g1_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB " 
+   local gc_g1_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB "
    local gc_error_opt="-XX:ErrorFile=${log_dir}/hs_err_${component_name}_pid%p.log"
    #######################################################
    ##NOTE: In hbase.distro
    #exec "$JAVA" -Dproc_$COMMAND -XX:OnOutOfMemoryError="kill -9 %p"
    #NOTE: in hdfs.distro
-   #-XX:OnOutOfMemoryError=\"/usr/hdp/current/hadoop-hdfs-namenode/bin/kill-name-node\" 
+   #-XX:OnOutOfMemoryError=\"/usr/hdp/current/hadoop-hdfs-namenode/bin/kill-name-node\"
    #######################################################
    local gc_oom_opt="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=${log_dir}/heapdump-${component_name}-${timestamp_str}.hprof"
    local gc_cmd_flags=" -XX:+PrintCommandLineFlags -XX:+PrintFlagsFinal"
-   
+
    if [ "X${use_g1}" = "Xuse_g1" ]
    then
        echo "${gc_g1_opts} ${gc_log_enable_opts} ${gc_log_rotation_opts} ${gc_log_format_opts}  ${gc_error_opt} ${gc_oom_opt} ${gc_cmd_flags}"
    else
        echo "${gc_log_enable_opts} ${gc_log_rotation_opts} ${gc_log_format_opts}  ${gc_error_opt} ${gc_oom_opt} ${gc_cmd_flags}"
-   fi	   
+   fi
 }
 
 
@@ -5084,7 +5854,7 @@ fi
 for ip in `cat cdn_hosts_kafka.txt `
 do
 echo ${ip}
-ssh ${ip} -p 9000 "cp  /usr/hdp/current/kafka-broker/bin/kafka-run-class.sh /usr/hdp/current/kafka-broker/bin/kafka-run-class.sh.20191211" 
+ssh ${ip} -p 9000 "cp  /usr/hdp/current/kafka-broker/bin/kafka-run-class.sh /usr/hdp/current/kafka-broker/bin/kafka-run-class.sh.20191211"
 done
 
 
@@ -5096,7 +5866,7 @@ do
   echo ${ip}
   ssh -p 9000 ${ip} "mkdir -p /data1/var/log/spark2/object-log;mkdir -p /data1/var/log/spark2/cdnlog;"
   ssh -p 9000 ${ip} "chmod -R a+rwx /data1/var/log/spark2;"
-done  
+done
 ```
 
 
@@ -5106,7 +5876,7 @@ done
 ```scala
 hdfs dfs -mkdir /tmp/2020-05-31
 
-spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=10 --conf spark.executor.memory=2G 
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=10 --conf spark.executor.memory=2G
 
 import spark.sql
 
@@ -5159,7 +5929,7 @@ spark-sql
 /usr/hdp/current/spark2-client/bin/beeline -u "jdbc:hive2://cdnlog029.ctyun.net:10016/;principal=spark/cdnlog029.ctyun.net@CTYUN.NET"
 ```
 
-
+见 29.
 
 
 
@@ -5176,7 +5946,7 @@ spark-sql
 1. 备份数据
 
    主要是namespace列表，因为恢复完毕后不会自动创建namespace，需要手动创建
-   
+
 2. 修改配置： conf.setBoolean("hbase.hregion.memstore.mslab.enabled", false);
 
    否则后面的OfflineMetaRepair 后抛出NPE异常
@@ -5193,12 +5963,12 @@ spark-sql
 
    ```bash
     hdfs dfs -mkdir -p /apps/hbase-backup-20200110/data
-    hdfs dfs -mv /apps/hbase/data/data /apps/hbase-backup-20200110/data 
+    hdfs dfs -mv /apps/hbase/data/data /apps/hbase-backup-20200110/data
    ```
 
    后续的恢复工作以/apps/hbase-backup-20200110/data为基础，因为数据少，所以后面的是copy数据
 
-- 
+-
   恢复工作
 
 
@@ -5232,20 +6002,20 @@ spark-sql
 
    ```bash
    #！！！切换到HDFS用户，kerberos是不同的命令
-   su - hdfs 
+   su - hdfs
    #删除default，一般不存在，有时候会出现，确保删掉
    hdfs dfs -rmr /apps/hbase25/data/data/default
    #copy数据
    hdfs dfs -cp /apps/hbase-backup-20200110/data/data/cdnlog /apps/hbase25/data/data
-   
+
    hdfs dfs -cp /apps/hbase-backup-20200110/data/data/default /apps/hbase25/data/data
-   
+
    hdfs dfs -cp /apps/hbase-backup-20200110/data/data/zws /apps/hbase25/data/data
-   
+
    hdfs dfs -chown -R hbase:hdfs /apps/hbase25/data
-   
+
    hdfs dfs -ls /apps/hbase25/data/data/*
-   
+
    ```
 
 7. 删除zk目录
@@ -5271,7 +6041,7 @@ spark-sql
 
     ```bash
     su - hbase
-    hbase org.apache.hadoop.hbase.util.hbck.OfflineMetaRepair -fix 
+    hbase org.apache.hadoop.hbase.util.hbck.OfflineMetaRepair -fix
     ```
 
 12. 启动集群
@@ -5285,10 +6055,10 @@ spark-sql
 
     ```bash
     echo 'scan "hbase:meta" ' | hbase shell -n  2>/dev/null|grep ','|grep -v zookeeper|awk '{print $1;}'|grep -v 'hbase:'|grep ','|awk '{printf("deleteall \"hbase:meta\",\"%s\"\n",$1);}'
-    
+
     #验证上面输出
     #在hbase shell里面执行，不同的数据输出是不同的！
-    
+
     deleteall "hbase:meta", "cdnlog:testtable,,1578551500025.b7f684b7ef4d39bca29182f88ab9df93."
     deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000010000,1578551500025.f25045990e8bf33efccc9bbb7b090237."
     deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000020000,1578551500025.02c8ec8051730292c1a81068763a6525."
@@ -5321,7 +6091,7 @@ spark-sql
     deleteall "hbase:meta", "zws:testtable,00000000000000000000090000,1578551494048.88c4293a2a80543dcd31ebb61a326d57."
     ```
 
-    
+
 
 14. 上传hbase-operator-tools的jar包到/usr/hdp/current/hbase-client/lib
 
@@ -5339,7 +6109,7 @@ spark-sql
     hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta cdnlog
     hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta zws
     hbase hbck -j ../lib/hbase-hbck2-1.1.0-SNAPSHOT.jar addFsRegionsMissingInMeta default
-    
+
     #一定要记录每条命令的输出
     assigns 10b6ec98bf5db7fdbfdfc996c3a22258 158e1cfc21041173dbfa0933890d15b7 16c876a34b4bde70e25e4f121148506e 3a028f391f4d5085c0a9c9e51fcc4f9b 62610b4494f71428b8d3198c97f9e98b 7706a4936316b6c1b9e143853d4c6d48 81179946305bd69be0a3dbea04e7b1ab b5c3fefc80de158f178d45dafcee324b c8ea8b3543c07ceaa9ffeed25411de77 e949c1158c5157a3f51ffce95117f499
     #都要记录下来！
@@ -5348,7 +6118,7 @@ spark-sql
 16. 重启集群,验证数据
 
     ```bash
-    echo 'scan "hbase:meta", {FILTER => "(PrefixFilter ('"'"'zws:testtable,'"'"')"} ' | hbase shell -n 
+    echo 'scan "hbase:meta", {FILTER => "(PrefixFilter ('"'"'zws:testtable,'"'"')"} ' | hbase shell -n
     ```
 
 17. assign region
@@ -5356,7 +6126,7 @@ spark-sql
     ```bash
     #针对所有的第15步的assigns，运行
     echo 2e1360529420f2ce8d32a6f37fcd1edb 4478f421a32fe206d9cb1a73732f8fcf 501b997e23409e5251b390f7a22f3a39 6238e0b66e6203fa0c5566532da91d8a 88c4293a2a80543dcd31ebb61a326d57 94cca9bef528ec2466e54c2f9d2c31aa def014fa8dcefca2b2baa8c61b54dee2 e0c4007576835d8c2d42e0192cd3fb4a e507ddd8a7b1ebc07d49956205ca2ebb eb5ad3c230d08aaff7743f8da7389e59 |awk '{for(i=1;i<=NF;i++){printf("assign \"%s\"\n",$i);}}'
-    
+
     #产生类似如下输出：
     assign "2e1360529420f2ce8d32a6f37fcd1edb"
     assign "4478f421a32fe206d9cb1a73732f8fcf"
@@ -5368,12 +6138,12 @@ spark-sql
     assign "e0c4007576835d8c2d42e0192cd3fb4a"
     assign "e507ddd8a7b1ebc07d49956205ca2ebb"
     assign "eb5ad3c230d08aaff7743f8da7389e59"
-    
+
     #将这些命令在hbase shell里面运行
-    
+
     ```
 
-    
+
 
 18. 重启集群
 
@@ -5385,25 +6155,25 @@ spark-sql
     grant
     ```
 
-    
+
 
 20. 验证集群可读可写
 
     ```bash
     #一般写会出问题！
-    scan "hbase:meta", {FILTER => "(PrefixFilter ('"'"'zws:testtable,'"'"')"} 
+    scan "hbase:meta", {FILTER => "(PrefixFilter ('"'"'zws:testtable,'"'"')"}
     put 'zws:testtable','2','info0:1','1'
     get 'zws:testtable','2','info0:1'
     put 'cdnlog:testtable','2','info0:1','1'
     get 'cdnlog:testtable','2','info0:1'
     put 'testtable','2','info0:1','1'
     get 'testtable','2','info0:1'
-    
+
     #验证能创建表
-    hbase pe --nomapred --rows=1000 --presplit=10 --table=testtable111_hbase25 sequentialWrite 1 
+    hbase pe --nomapred --rows=1000 --presplit=10 --table=testtable111_hbase25 sequentialWrite 1
     ```
 
-    
+
 
 21. TODO：
 
@@ -5413,9 +6183,9 @@ spark-sql
     3. OfflineMetaRepair 在2.1.6中会被废弃
     ```
 
-    
 
-22. 
+
+22.
 
 ## 42.2单个表遇到了RIT
 
@@ -5425,8 +6195,8 @@ spark-sql
   #1  清理zookeeper的目录
   #使用hbase的keytab
   kinit -kt /etc/security/keytabs/hbase.service.keytab hbase/sct-nmg-huhehaote2-tsdb-04.in.ctyun.net@CTYUN.NET
-  #使用域名连接zk  
-  /usr/hdp/current/zookeeper-client/bin/zkCli.sh -server cdnlog036.ctyun.net:12181 
+  #使用域名连接zk
+  /usr/hdp/current/zookeeper-client/bin/zkCli.sh -server cdnlog036.ctyun.net:12181
   #删除表
   rmr /hbase-secure/table/tsdb:cdn_monitor-rollup
   ```
@@ -5442,18 +6212,18 @@ spark-sql
 - 第三步：清理hbase meta表
 
   ```bash
-  
+
   echo  'scan "hbase:meta",{ROWPREFIXFILTER=>"tsdb:cdn_monitor-rollup",COLUMNS=>["info:state"]}' | hbase shell -n > cdn_monitor-rollup.meta
-  
+
   cat cdn_monitor-rollup.meta |awk -F' column=' '{printf("deleteall \"hbase:meta\",\"%s\"\n",$1);}'|sort -u > cdn_monitor-rollup.rowkey
-  
+
   ## !! 检查命令，手工执行输出！！
-  
+
   #检查是否删除干净
   scan "hbase:meta",{ROWPREFIXFILTER=>"tsdb:cdn_monitor-rollup"}
   ```
 
-  
+
 
 - 第四步：清理MasterWal
 
@@ -5472,7 +6242,7 @@ spark-sql
 
   ```bash
   如果需要恢复表，那么进行如下操作：
-  
+
   ```
 
 #找出所有的region和时间戳
@@ -5481,8 +6251,8 @@ spark-sql
   #生成表的信息
   put 'hbase:meta','tsdb:cdn_monitor_tsdb','table:state',"\x08\x00"
   ```
-  
-  
+
+
 
 
 
@@ -5533,7 +6303,7 @@ buildscript {
   repositories {
     mavenCentral()
     jcenter()
-    
+
     #增加如下仓库
     maven {
       url  "http://repo.hortonworks.com/content/groups/public/"
@@ -5593,7 +6363,7 @@ mvn versions:set -DnewVersion=5.1.0-HBase-2.0-CTG
 export KAFKA_REST_HOME=/data2/confluent-5.4.0
 export KAFKA_REST_CONF_DIR=${KAFKA_REST_HOME}/etc/kafka-rest
 export KAFKA_REST_JAAS_CONF="${KAFKA_REST_CONF_DIR}/kafka-rest.jaas"
-export KAFKAREST_OPTS="-Djava.security.auth.login.config=${KAFKA_REST_JAAS_CONF} -Dkafka-rest.log.dir=." 
+export KAFKAREST_OPTS="-Djava.security.auth.login.config=${KAFKA_REST_JAAS_CONF} -Dkafka-rest.log.dir=."
 cd ${KAFKA_REST_HOME}
 
 #增加用户
@@ -5628,7 +6398,7 @@ ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 1 --replication-factor 3
 #检查
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 #授权可写
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${userName} --topic ${topicName}   --producer
 #授权可读
@@ -5638,14 +6408,14 @@ ZK_CONN="ctl-nm-hhht-yxxya6-ceph-027.ctyuncdn.net:12181/kafka-auth-test-1"
 #控制台写数据
 /usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667   --topic ${topicName} --producer-property security.protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
 #控制台读数据
-cat /usr/hdp/3.1.0.0-78/kafka/consumer-kafka-rest.properties 
+cat /usr/hdp/3.1.0.0-78/kafka/consumer-kafka-rest.properties
 security.protocol=SASL_PLAINTEXT
 sasl.mechanism=PLAIN
 group.id=grp-KafkaRestTest2
 #从头开始读取数据
-/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${topicName} --consumer.config /usr/hdp/3.1.0.0-78/kafka/consumer-kafka-rest.properties 
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${topicName} --consumer.config /usr/hdp/3.1.0.0-78/kafka/consumer-kafka-rest.properties
 #从指定partition读取数据
-/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-${topicName} --consumer.config /usr/hdp/3.1.0.0-78/kafka/consumer-kafka-rest.properties 
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-${topicName} --consumer.config /usr/hdp/3.1.0.0-78/kafka/consumer-kafka-rest.properties
 
 #增加partition数目
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --alter --zookeeper ${ZK_CONN} --topic ${topicName} --partitions 15
@@ -5654,9 +6424,9 @@ group.id=grp-KafkaRestTest2
 
  #binary数据
  curl -X POST -H "Content-Type: application/vnd.kafka.binary.v2+json" -H "Accept: application/vnd.kafka.v2+json" --data '{"records":[{value":"S2Fma2E="}]}' http://192.168.2.40:18682/topics/KafkaRestTest2
- 
+
   curl -X POST -H "Content-Type: application/vnd.kafka.binary.v2+json" -H "Accept: application/vnd.kafka.v2+json" --data '{"records":[{value":"S2Fma2E="}]}' http://192.168.2.40:18682/topics/KafkaRestTest2
-   
+
  wget http://www.acme.com/software/http_load/http_load-12mar2006.tar.gz
 ```
 ## 2.生产环境
@@ -5666,17 +6436,17 @@ group.id=grp-KafkaRestTest2
  -----------------------------------------------
  OSS实例
  /usr/hdp/current/zookeeper-client/bin/zkCli.sh -server cdnlog040.ctyun.net:12181  create /oss-kafkaproxy "nodata"
- 
+
  mkdir -p /usr/local/kafkaproxy/oss/confluent-5.4.0
  ln -fs /usr/local/kafkaproxy/oss/confluent-5.4.0 /usr/local/oss-kafkaproxy
- 
+
 cat > ${KAFKA_REST_JAAS_CONF}<<EOF
 export OSS_KAFKA_REST_HOME=/usr/local/oss-kafkaproxy
 export OSS_KAFKA_REST_CONF_DIR=${OSS_KAFKA_REST_HOME}/etc/kafka-rest
 export OSS_KAFKA_REST_JAAS_CONF="${OSS_KAFKA_REST_CONF_DIR}/oss-kafka-rest.jaas"
 export OSS_KAFKA_REST_LOG_DIR=${OSS_KAFKA_REST_HOME}/logs
 mkdir -p ${OSS_KAFKA_REST_LOG_DIR}
-export KAFKAREST_OPTS="-Djava.security.auth.login.config=${KAFKA_REST_JAAS_CONF} -Dkafka-rest.log.dir=${OSS_KAFKA_REST_LOG_DIR}" 
+export KAFKAREST_OPTS="-Djava.security.auth.login.config=${KAFKA_REST_JAAS_CONF} -Dkafka-rest.log.dir=${OSS_KAFKA_REST_LOG_DIR}"
 EOF
 
 topicName=KafkaRestTest2
@@ -5720,6 +6490,7 @@ curl -X GET -H "Accept: application/vnd.kafka.v1+json, application/vnd.kafka+jso
 #使用admin的账号
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044    --topic oss-vod-capacity --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning   --group grp-oss-vod-capacity
 
+#从指定partition的最后面读数据
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server cdnlog003.ctyun.net:5044    --topic oss-vod-capacity --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-oss-vod-capacity
 
 #生产系统03主机使用debugtopic用户读取最后的数据
@@ -5811,8 +6582,8 @@ ab -c60 -n50000  -H "Accept: application/vnd.kafka.v2+json" -k -p ./kafka.test.2
 
 #binary数据
 ab -c1 -n1  -H "Accept: application/vnd.kafka.v2+json" -k -p kafka-partition-1 -T "application/vnd.kafka.binary.v2+json"  http://192.168.2.40:18682/topics/KafkaRestTest2
- 
- 
+
+
 curl -X POST -H "Content-Type: application/vnd.kafka.binary.v2+json" -H "Accept: application/vnd.kafka.v2+json" --data '{"records":[{"key":"key1","value":"S2Fma2E=","partition":1}]}' http://192.168.2.40:18682/topics/KafkaRestTest2
 
 ab -c50 -n30000  -H "Accept: application/vnd.kafka.v2+json" -p kafka-partition.txt -T "application/vnd.kafka.binary.v2+json"  http://192.168.2.40:18682/topics/KafkaRestTest2
@@ -5826,17 +6597,17 @@ ab -c50 -n60000 -k -H "Accept: application/vnd.kafka.v2+json" -p $FILENAME -T "a
 
 - 压测结果
 
-- [ ] 
-  格式说明		
+- [ ]
+  格式说明
   	json	数据有效负载为json
   	bin	数据药效负载为二进制数据，传给proxy时需要base64编码
   	bin-partition	上报数据时，指定partition
   	bin-no-partition	上报数据时，不指定partition，由kafka自己轮询
 
-- [ ]  测试说明		
-        不同的包大小各运行五次	
+- [ ]  测试说明
+        不同的包大小各运行五次
 
-- [ ] 
+- [ ]
   测试结果
 
 
@@ -5874,20 +6645,20 @@ ab -c50 -n60000 -k -H "Accept: application/vnd.kafka.v2+json" -p $FILENAME -T "a
 | 50     | 60000  | 200351   | 15        | bin-no-partition | 725    | 706    | 695    | 706    | 708    |      |
 | 50     | 60000  | 200960   | 15        | bin-partition    | 1153   | 1173   | 1179   | 1151   | 1211   |      |
 
-- [ ] 结论		
-  1	每秒5000左右的tps	
-  2	随着数据包大小的增加，tps下降的不是很明显，这个应该是kafka producer端做了缓存有关，tps缓慢下降是因为包逐渐变大，网络传输和数据反序列化需要占用时间	
-  3	压测数据有时候受到机器负责的影响	
-  4	bin格式的性能比json格式的稍好，json格式的需要把整个数据都反序列为对象，bin格式的value只是base解码，而无需反序列化为对象，这可能是bin比json稍高的原因	
-  5	bin格式很大的数据包，ab也能跑出数据，json在数据79K时无法跑出数据	
-  6	bin格式可以是gzip压缩后再base64的数据，同样的包大小可以承载gzip压缩倍数的有效负载，因此bin更适合数据传输	
-  7	partition数量由10增加到15时，各个数据均有提升，但是提升幅度不算大	
-  8	partitin为10时，数据中指定partition比不指定partition（此时kafka roundbin）性能稍好，但是partition数目增加到15时，指定分区性能猛增1倍	
-  
-- [ ] 建议		
-  	上报数据时，使用bin上报	
-    	数据包可选择压缩后10K左右进行上报（每秒48M传输）	
-    	上报时同时指定partition(可选)	
+- [ ] 结论
+  1	每秒5000左右的tps
+  2	随着数据包大小的增加，tps下降的不是很明显，这个应该是kafka producer端做了缓存有关，tps缓慢下降是因为包逐渐变大，网络传输和数据反序列化需要占用时间
+  3	压测数据有时候受到机器负责的影响
+  4	bin格式的性能比json格式的稍好，json格式的需要把整个数据都反序列为对象，bin格式的value只是base解码，而无需反序列化为对象，这可能是bin比json稍高的原因
+  5	bin格式很大的数据包，ab也能跑出数据，json在数据79K时无法跑出数据
+  6	bin格式可以是gzip压缩后再base64的数据，同样的包大小可以承载gzip压缩倍数的有效负载，因此bin更适合数据传输
+  7	partition数量由10增加到15时，各个数据均有提升，但是提升幅度不算大
+  8	partitin为10时，数据中指定partition比不指定partition（此时kafka roundbin）性能稍好，但是partition数目增加到15时，指定分区性能猛增1倍
+
+- [ ] 建议
+  	上报数据时，使用bin上报
+    	数据包可选择压缩后10K左右进行上报（每秒48M传输）
+    	上报时同时指定partition(可选)
 
 - [ ] TODO：
 
@@ -5901,12 +6672,12 @@ kafka的配置是**compression.type**，rest的配置是**producer.compression.t
   >
   > - **Type**: boolean
   > - **Default**: false
-  > - **Valid Values**: 
+  > - **Valid Values**:
   > - **Importance**: low
   >
   > `acks`这个会降低吞吐量，`max.in.flight.requests.per.connection`太少可能会导致异常，`retries`倒是个好的设置
 
-- [ ] 
+- [ ]
 
 # 44.组件部署机器
 
@@ -5952,7 +6723,7 @@ https://docs.cloudera.com/HDPDocuments/Ambari-2.7.5.0/administering-ambari/conte
 #建立脚本目录
 ansible cdnlog  -m shell -a 'mkdir -p /home/zhangwusheng/scripts/third/'
 #备份hosts
-ansible thirdnew -m shell -a 'cp /etc/hosts /etc/hosts.`date +%s` ' 
+ansible thirdnew -m shell -a 'cp /etc/hosts /etc/hosts.`date +%s` '
 #幂等操作
 ansible thirdnew -m shell -a 'sed -i "/sct-nmg-huhehaote/d" /etc/hosts'
 #添加新的机器
@@ -5992,7 +6763,7 @@ firewall-cmd --reload
 firewall-cmd --list-all
 
 
-ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/firewall.sh -O /home/zhangwusheng/scripts/third/firewall.sh' 
+ansible cdnlog -m shell -a 'wget http://192.168.254.40:8181/scripts/third/firewall.sh -O /home/zhangwusheng/scripts/third/firewall.sh'
 ansible thirdnew -m shell -a 'bash /home/zhangwusheng/scripts/third/firewall.sh'
 
 #
@@ -6030,9 +6801,9 @@ wget https://openresty.org/download/openresty-1.33.6.2.tar.gz
 tar zxvf openresty-1.33.6.2.tar.gz
 cd openresty-1.33.6.2
 ./configure --prefix=/usr/local/openresty --with-luajit --with-http_iconv_module
-make 
+make
 make install
-export PATH=$PATH:/usr/local/openresty/nginx/sbin 
+export PATH=$PATH:/usr/local/openresty/nginx/sbin
 
 # 47.HDFS复制慢
 
@@ -6094,7 +6865,7 @@ create 'tsdb:cdn_monitor_tsdb-uid',
 create 'tsdb:cdn_monitor_tsdb',{NAME => 't', VERSIONS => 1, COMPRESSION => 'SNAPPY', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true',TTL => 7776000},SPLITS => ['\x01','\x02','\x03','\x04','\x05','\x06','\x07','\x08','\x09']
 
 create 'tsdb:cdn_monitor_tsdb-tree',{NAME => 't', VERSIONS => 1, COMPRESSION => 'SNAPPY', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true'}
-  
+
 create 'tsdb:cdn_monitor_tsdb-meta',{NAME => 'name', COMPRESSION => 'SNAPPY', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true'},{NAME => 'count', COMPRESSION => 'NONE', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true'},{NAME => 'del', COMPRESSION => 'NONE', BLOOMFILTER => 'ROW',NEW_VERSION_BEHAVIOR => 'true'}
 
 create 'tsdb:cdn_monitor_tsdb-tag', {NAME => 'm', COMPRESSION => 'NONE', BLOOMFILTER => 'ROW'}, {NAME => 'k', COMPRESSION => 'NONE', BLOOMFILTER => 'ROW'}, {NAME => 'v', COMPRESSION => 'NONE', BLOOMFILTER => 'ROW'}
@@ -6123,11 +6894,11 @@ yum remove docker docker-common docker-selinux docker-engine
  wget http://192.168.254.40:8181/soft/docker-ce-17.12.1.ce-1.el7.centos.x86_64.rpm
  yum install docker-ce-17.12.1.ce-1.el7.centos.x86_64.rpm
  systemctl enable docker && systemctl start docker
- 
- 
+
+
  modprobe ip_vs
  cat /proc/net/ip_vs
- 
+
 ```
 
 
@@ -6140,7 +6911,7 @@ rpm -qa | grep rsync
 cat /etc/rsyncd.conf
 
 uid =  root
-gid = root 
+gid = root
 use chroot = no
 max connections = 200
 timeout = 300
@@ -6172,10 +6943,10 @@ test:111
 # chmod 600 /etc/rsyncd.d/pass.server
 
 telnet 192.168.254.40 873
- 
-cat /etc/rsync.passwd 
+
+cat /etc/rsync.passwd
 111
-ll /etc/rsync.passwd 
+ll /etc/rsync.passwd
 -rw-------. 1 root root 4 Sep  4 01:59 /etc/rsync.passwd
 
 cd /var/www/html
@@ -6224,22 +6995,24 @@ ansible tsdbhbase -m shell -a "ln -fs /usr/hdp/3.1.0.0-78/hbase/lib/hbase-server
 
 # 53.Druid
 
+## 安装
+
 ```bash
 192.168.2.40:3306
 easyscheduler/KLETUadgj1!
 cdnlog-dev /cdnlog123@
-root/  QETUadgj1!        
+root/  QETUadgj1!
 
  mysql -h 192.168.2.40 -u cdnlog-dev -p
- 
+
  CREATE DATABASE druid DEFAULT CHARACTER SET utf8mb4;
- 
+
  CREATE USER 'druid'@'192.168.2.%' IDENTIFIED BY 'diurd';
- 
+
  CREATE USER 'druid' IDENTIFIED BY 'diurd';
- 
+
  GRANT ALL PRIVILEGES ON druid.* TO 'druid'@'192.168.2.%';
- 
+
 --drop user dolphinscheduler@'192.168.254.%';
 --create user 'dolphinscheduler'@'192.168.254.%' identified by 'BL4OUvXtZWefh5Z!';
 -- grant all privileges on dolphinscheduler.* to 'dolphinscheduler'@'192.168.254.%' identified by 'BL4OUvXtZWefh5Z!' ;
@@ -6249,8 +7022,8 @@ FLUSH PRIVILEGES;
 
 192.168.2.44
  root   /   QETUadgj1!
- 
- 
+
+
  问题：
 1.修改数据库字符编码
 
@@ -6308,7 +7081,7 @@ ln -fs /etc/hadoop/3.1.0.0-78/0/mapred-site.xml  /home/zhangwusheng/apache-druid
 ln -fs /etc/hadoop/3.1.0.0-78/0/yarn-site.xml /home/zhangwusheng/apache-druid-0.18.1/conf/druid/cluster/_common/hadoop-xml/yarn-site.xml
 
 
-# cat druid-env.sh 
+# cat druid-env.sh
 #!/bin/bash
 # Set DRUID specific environment variables here.
 # The java implementation to use.
@@ -6360,7 +7133,7 @@ ssh -p 9000 192.168.254.21 '/usr/bin/kadmin -p root/admin -w "cdnlog@kdc!@#" -q 
 
 
 ####
-cat druid_jaas.conf 
+cat druid_jaas.conf
 KafkaClient {
    com.sun.security.auth.module.Krb5LoginModule required
    useKeyTab=true
@@ -6419,14 +7192,14 @@ ansible cdnlog -m shell -a "chown -R zhangwusheng:zhangwusheng /home/zhangwushen
 #启动程序
 
  nohup /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-master-no-zk-server &
- 
+
  nohup /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-query-server &
- 
+
  nohup /home/zhangwusheng/apache-druid-0.18.1/bin/start-cluster-data-server &
- 
- 
+
+
 #验证数据库是否创建
-root/QETUadgj1!        
+root/QETUadgj1!
 
 mysql -h 192.168.2.44 -u root -p
 use druid_018_20200603;
@@ -6470,8 +7243,8 @@ topicName="zws-druid-test"
 
 /usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic ${topicName} --producer-property security.protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN < /home/zhangwusheng/apache-druid-0.18.1/quickstart/tutorial/zws-2015-09-12.json
 
-#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties 
-/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic  ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property sasl.mechanism=PLAIN --consumer-property  auto.offset.reset=earliest --consumer-property group.id=grp-${userName} --consumer-property client.id=zws-druid-consumer --from-beginning  
+#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic  ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property sasl.mechanism=PLAIN --consumer-property  auto.offset.reset=earliest --consumer-property group.id=grp-${userName} --consumer-property client.id=zws-druid-consumer --from-beginning
 
 
 {
@@ -6483,82 +7256,82 @@ topicName="zws-druid-test"
 
 
   "auto.offset.reset":"latest",
-  
-  
-  
+
+
+
   #转换数据
-  CREATE EXTERNAL TABLE `druid_202005`(   
-  `client_id` int  ,                  
-  `protocol_type` tinyint  ,          
-  `product_code` tinyint  ,           
-  `channel` string  ,                   
-  `province_code` int  ,               
-  `isp_code` tinyint  ,                
-  `vendor_code` tinyint  ,            
-  `http_code` int  ,                   
-  `netflag_type` tinyint  ,           
-  `event_time` int  ,                 
-  `req_cnt` int  ,                     
-  `hit_req_cnt` int  ,               
-  `miss_req_cnt` int  ,            
-  `pv_req_cnt` int  ,                
-  `flow` bigint  ,                     
-  `hit_flow` bigint  ,                
-  `miss_flow` bigint  ,             
-  `int_flag` tinyint  ,                
-  `hosting_type` tinyint  ,         
-  `response_time` bigint,                          
-  `city_code` int,                                 
-  `county_code` int,                               
-  `lake_id` int)                                   
-PARTITIONED BY (                                   
-  `proc_time` string  )               
-ROW FORMAT SERDE                                   
-  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'  
-STORED AS INPUTFORMAT                              
-  'org.apache.hadoop.mapred.SequenceFileInputFormat'  
-OUTPUTFORMAT                                       
-  'org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat' 
+  CREATE EXTERNAL TABLE `druid_202005`(
+  `client_id` int  ,
+  `protocol_type` tinyint  ,
+  `product_code` tinyint  ,
+  `channel` string  ,
+  `province_code` int  ,
+  `isp_code` tinyint  ,
+  `vendor_code` tinyint  ,
+  `http_code` int  ,
+  `netflag_type` tinyint  ,
+  `event_time` int  ,
+  `req_cnt` int  ,
+  `hit_req_cnt` int  ,
+  `miss_req_cnt` int  ,
+  `pv_req_cnt` int  ,
+  `flow` bigint  ,
+  `hit_flow` bigint  ,
+  `miss_flow` bigint  ,
+  `int_flag` tinyint  ,
+  `hosting_type` tinyint  ,
+  `response_time` bigint,
+  `city_code` int,
+  `county_code` int,
+  `lake_id` int)
+PARTITIONED BY (
+  `proc_time` string  )
+ROW FORMAT SERDE
+  'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
+STORED AS INPUTFORMAT
+  'org.apache.hadoop.mapred.SequenceFileInputFormat'
+OUTPUTFORMAT
+  'org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat'
 
 
 ALTER TABLE druid_202005 ADD IF NOT EXISTS PARTITION (proc_time='202005010000') LOCATION '/apps/druid_018_20200603/202005/01/00/00';
 
- CREATE EXTERNAL TABLE `druid_parquet_202005`(   
-  `client_id` int  ,                  
-  `protocol_type` tinyint  ,          
-  `product_code` tinyint  ,           
-  `channel` string  ,                   
-  `province_code` int  ,               
-  `isp_code` tinyint  ,                
-  `vendor_code` tinyint  ,            
-  `http_code` int  ,                   
-  `netflag_type` tinyint  ,           
-  `event_time` int  ,                 
-  `req_cnt` int  ,                     
-  `hit_req_cnt` int  ,               
-  `miss_req_cnt` int  ,            
-  `pv_req_cnt` int  ,                
-  `flow` bigint  ,                     
-  `hit_flow` bigint  ,                
-  `miss_flow` bigint  ,             
-  `int_flag` tinyint  ,                
-  `hosting_type` tinyint  ,         
-  `response_time` bigint,                          
-  `city_code` int,                                 
-  `county_code` int,                               
-  `lake_id` int)   
-PARTITIONED BY (                                   
-  `proc_time` string)                             
-ROW FORMAT SERDE                                   
-  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'  
-STORED AS INPUTFORMAT                              
+ CREATE EXTERNAL TABLE `druid_parquet_202005`(
+  `client_id` int  ,
+  `protocol_type` tinyint  ,
+  `product_code` tinyint  ,
+  `channel` string  ,
+  `province_code` int  ,
+  `isp_code` tinyint  ,
+  `vendor_code` tinyint  ,
+  `http_code` int  ,
+  `netflag_type` tinyint  ,
+  `event_time` int  ,
+  `req_cnt` int  ,
+  `hit_req_cnt` int  ,
+  `miss_req_cnt` int  ,
+  `pv_req_cnt` int  ,
+  `flow` bigint  ,
+  `hit_flow` bigint  ,
+  `miss_flow` bigint  ,
+  `int_flag` tinyint  ,
+  `hosting_type` tinyint  ,
+  `response_time` bigint,
+  `city_code` int,
+  `county_code` int,
+  `lake_id` int)
+PARTITIONED BY (
+  `proc_time` string)
+ROW FORMAT SERDE
+  'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'
+STORED AS INPUTFORMAT
   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat'
-OUTPUTFORMAT                                       
-  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat' 
-LOCATION                                           
-  'hdfs://cdnlog/tmp/202005/druid_parquet_202005.db' 
+OUTPUTFORMAT
+  'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+LOCATION
+  'hdfs://cdnlog/tmp/202005/druid_parquet_202005.db'
 
-insert overwrite table druid_parquet_202005 partition  (proc_time='202005010000') 
+insert overwrite table druid_parquet_202005 partition  (proc_time='202005010000')
 select client_id,protocol_type,product_code,channel,province_code,isp_code,vendor_code,http_code,netflag_type,event_time,req_cnt
 ,hit_req_cnt,miss_req_cnt,pv_req_cnt,flow,hit_flow,miss_flow,int_flag,hosting_type,response_time,city_code,county_code,lake_id
 from druid_202005 where proc_time='202005010000'
@@ -6582,6 +7355,54 @@ DSQL:
 
 
 
+## 每日查询
+
+```bash
+SELECT TIME_FLOOR("__time", 'PT5M'), SUM("upFlow")
+FROM "cdn-log-tencent"
+WHERE "__time" >= CURRENT_TIMESTAMP - INTERVAL '1' DAY GROUP BY TIME_FLOOR("__time", 'PT5M') ORDER BY TIME_FLOOR("__time", 'PT5M') DESC
+```
+
+手工compact
+
+```bash
+覃国幸(365099489)  16:17:17
+{
+    "type": "compact",
+    "dataSource": "cdn-log-uv",
+
+
+     "interval" : "2020-11-23T00:00:00.000Z/2020-12-01T00:00:00.000Z" }
+
+覃国幸(365099489)  16:17:31
+http://cdnlog002.ctyun.net:28081/druid/indexer/v1/task
+
+覃国幸(365099489)  16:17:34
+post方法
+
+覃国幸(365099489)  16:18:01
+uv时间间隔可以长一点，common因为量比较大，我之前是一天一天提交的
+
+覃国幸(365099489)  16:18:36
+之前提交一个月的失败了
+
+
+```
+
+
+
+## 扩容
+
+```bash
+1. 修改 ulimit
+
+/etc/security/limits.d/20-nproc.conf
+```
+
+
+
+
+
 # 54.手工修改Hive元数据
 
 
@@ -6593,7 +7414,7 @@ hdfs  dfs -mkdir /tmp/zws_cdn_log_parquet2/
 hdfs  dfs -mkdir /tmp/zws_cdn_log_parquet3/
 
 #hive建表
-CREATE EXTERNAL TABLE `zws_cdn_log_parquet3`(  
+CREATE EXTERNAL TABLE `zws_cdn_log_parquet3`(
 client_id bigint,
 protocol_type tinyint,
 product_code tinyint,
@@ -6617,22 +7438,22 @@ response_time bigint,
 city_code int,
 county_code int,
 lake_id int
-)                                   
- PARTITIONED BY (                                   
-   `dateminute` string)                             
- ROW FORMAT SERDE                                   
-   'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'  
- STORED AS INPUTFORMAT                              
-   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat'  
- OUTPUTFORMAT                                       
-   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat' 
- LOCATION                                           
+)
+ PARTITIONED BY (
+   `dateminute` string)
+ ROW FORMAT SERDE
+   'org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe'
+ STORED AS INPUTFORMAT
+   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat'
+ OUTPUTFORMAT
+   'org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat'
+ LOCATION
    '/tmp/zws_cdn_log_parquet3'
    ;
-   
+
 hdfs dfs -mkdir /tmp/zws_cdn_log_sequence3;
-   
-CREATE EXTERNAL TABLE `zws_cdn_log_sequence3`(  
+
+CREATE EXTERNAL TABLE `zws_cdn_log_sequence3`(
 client_id bigint,
 protocol_type tinyint,
 product_code tinyint,
@@ -6656,34 +7477,34 @@ response_time bigint,
 city_code int,
 county_code int,
 lake_id int
-)                                   
- PARTITIONED BY (                                   
-   `dateminute` string)                             
- ROW FORMAT SERDE                                   
-   'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'   
- STORED AS INPUTFORMAT                              
+)
+ PARTITIONED BY (
+   `dateminute` string)
+ ROW FORMAT SERDE
+   'org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe'
+ STORED AS INPUTFORMAT
    'org.apache.hadoop.mapred.SequenceFileInputFormat'
- OUTPUTFORMAT                                       
+ OUTPUTFORMAT
    'org.apache.hadoop.hive.ql.io.HiveSequenceFileOutputFormat'
- LOCATION                                           
-   '/tmp/zws_cdn_log_sequence3' 
+ LOCATION
+   '/tmp/zws_cdn_log_sequence3'
    ;
-   
-   
+
+
    insert overwrite  table zws_cdn_log_sequence3 partition(dateminute='202005312355')
-   select 
+   select
 client_id ,protocol_type ,product_code ,channel ,province_code ,isp_code ,vendor_code ,
 http_code ,netflag_type ,event_time ,req_cnt ,hit_req_cnt ,miss_req_cnt ,pv_req_cnt ,
 flow ,hit_flow ,miss_flow ,int_flag ,hosting_type ,response_time ,city_code ,county_code ,
-lake_id 
-   from zws_cdn_log_parquet3 where 
+lake_id
+   from zws_cdn_log_parquet3 where
    dateminute='202005312355'
-   
- 
- 
-   
-   
-alter table zws_cdn_log_parquet3 add partition (dateminute='202005312355') location '/tmp/202005/druid_parquet_202005.db/proc_time=202005312355';  
+
+
+
+
+
+alter table zws_cdn_log_parquet3 add partition (dateminute='202005312355') location '/tmp/202005/druid_parquet_202005.db/proc_time=202005312355';
 #mysql元数据修改
 
 select "TBL_ID","OWNER","SD_ID","TBL_NAME" from "TBLS" where "TBL_NAME"='zws_cdn_log_parquet3';
@@ -6713,7 +7534,7 @@ yum install centos-release-scl
 yum install devtoolset-8
 scl enable devtoolset-8 -- bash
 enable the tools:
-source /opt/rh/devtoolset-8/enable 
+source /opt/rh/devtoolset-8/enable
 ```
 
 # 56.Kafka死锁排查
@@ -6746,15 +7567,18 @@ KAFKA_USER="zws-upgrade-test"
 
 nohup /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server int-chengdu-loganalysis-125-ecloud.com:6667  --topic ${topicName} --from-beginning --group grp5-${KAFKA_USER} > /data2/zhangwusheng/messages5.log &
 
-/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN} 
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper ${ZK_CONN}
 
 #建立topic
 /usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${ZK_CONN}  --topic ${topicName}    --partitions 5 --replication-factor 3
 
-/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  int-chengdu-loganalysis-125-ecloud.com:6667   --topic ${topicName} --from-beginning --group grp-${KAFKA_USER} 
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  int-chengdu-loganalysis-125-ecloud.com:6667   --topic ${topicName} --from-beginning --group grp-${KAFKA_USER}
 
-/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list int-chengdu-loganalysis-125-ecloud.com:6667  --topic ${topicName} 
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list int-chengdu-loganalysis-125-ecloud.com:6667  --topic ${topicName}
 
+#------------------------------------------------------------------------
+#成都的按时没有加上授权
+#
 #授权
 /usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=${ZK_CONN} --add --allow-principal User:${KAFKA_USER} --topic ${topicName}   --producer
 
@@ -6765,7 +7589,7 @@ nohup /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-se
 
 
 #验证数据
-#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER} 
+#/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  cdnlog003.ctyun.net:5044    --topic ${topicName} --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-${KAFKA_USER}
 
 ```
 
@@ -6840,22 +7664,22 @@ https://kafka.apache.org/22/documentation.html#upgrade
 >
 > **For a rolling upgrade:**
 >
-> 1.  Update server.properties on all brokers and add the following  properties. CURRENT_KAFKA_VERSION refers to the version you        are upgrading from. CURRENT_MESSAGE_FORMAT_VERSION refers to the message format version currently in use. If you have previously        overridden the message format version, you should keep its  current value. Alternatively, if you are upgrading from a version prior        to 0.11.0.x, then CURRENT_MESSAGE_FORMAT_VERSION should be set  to match CURRENT_KAFKA_VERSION.        
+> 1.  Update server.properties on all brokers and add the following  properties. CURRENT_KAFKA_VERSION refers to the version you        are upgrading from. CURRENT_MESSAGE_FORMAT_VERSION refers to the message format version currently in use. If you have previously        overridden the message format version, you should keep its  current value. Alternatively, if you are upgrading from a version prior        to 0.11.0.x, then CURRENT_MESSAGE_FORMAT_VERSION should be set  to match CURRENT_KAFKA_VERSION.
 >
 >    - inter.broker.protocol.version=CURRENT_KAFKA_VERSION (e.g. 0.8.2, 0.9.0, 0.10.0, 0.10.1, 0.10.2, 0.11.0, 1.0, 1.1).
 >    - log.message.format.version=CURRENT_MESSAGE_FORMAT_VERSION  (See [potential performance impact                 following the upgrade](https://kafka.apache.org/22/documentation.html#upgrade_10_performance_impact) for the details on what this configuration does.)
 >
->    ​        If you are upgrading from 0.11.0.x, 1.0.x, 1.1.x, or 2.0.x and  you have not overridden the message format, then you only need to  override        the inter-broker protocol version.        
+>    ​        If you are upgrading from 0.11.0.x, 1.0.x, 1.1.x, or 2.0.x and  you have not overridden the message format, then you only need to  override        the inter-broker protocol version.
 >
 >    - inter.broker.protocol.version=CURRENT_KAFKA_VERSION (0.11.0, 1.0, 1.1, 2.0).
 >
-> 2.  Upgrade the brokers one at a time: shut down the broker, update the code, and restart it. Once you have done so, the        brokers will be running the latest version and you can verify  that the cluster's behavior and performance meets expectations.        It is still possible to downgrade at this point if there are any problems.    
+> 2.  Upgrade the brokers one at a time: shut down the broker, update the code, and restart it. Once you have done so, the        brokers will be running the latest version and you can verify  that the cluster's behavior and performance meets expectations.        It is still possible to downgrade at this point if there are any problems.
 >
-> 3.  Once the cluster's behavior and performance has been verified, bump the protocol version by editing        `inter.broker.protocol.version` and setting it to 2.2.    
+> 3.  Once the cluster's behavior and performance has been verified, bump the protocol version by editing        `inter.broker.protocol.version` and setting it to 2.2.
 >
-> 4.  Restart the brokers one by one for the new protocol version to take effect. Once the brokers begin using the latest        protocol version, it will no longer be possible to downgrade the cluster to an older version.    
+> 4.  Restart the brokers one by one for the new protocol version to take effect. Once the brokers begin using the latest        protocol version, it will no longer be possible to downgrade the cluster to an older version.
 >
-> 5.  If you have overridden the message format version as instructed above, then you need to do one more rolling restart to        upgrade it to its latest version. Once all (or most) consumers have been upgraded to 0.11.0 or later,        change log.message.format.version to 2.2 on each broker and restart them one by one. Note that the older Scala clients,        which are no longer maintained, do not support the message format introduced in 0.11, so to avoid conversion costs        (or to take advantage of [exactly once semantics](https://kafka.apache.org/22/documentation.html#upgrade_11_exactly_once_semantics)),        the newer Java clients must be used.    
+> 5.  If you have overridden the message format version as instructed above, then you need to do one more rolling restart to        upgrade it to its latest version. Once all (or most) consumers have been upgraded to 0.11.0 or later,        change log.message.format.version to 2.2 on each broker and restart them one by one. Note that the older Scala clients,        which are no longer maintained, do not support the message format introduced in 0.11, so to avoid conversion costs        (or to take advantage of [exactly once semantics](https://kafka.apache.org/22/documentation.html#upgrade_11_exactly_once_semantics)),        the newer Java clients must be used.
 >
 > ##### [Notable changes in 2.2.1](https://kafka.apache.org/22/documentation.html#upgrade_221_notable)
 >
@@ -6915,8 +7739,8 @@ docker push harbor.ctyuncdn.cn/cdn-log-fluentd/fluentd:v2.2.2
 ```bash
 增加nginx.fluent-xian-test-env.conf，修改kafka连接串
 增加三个文件
-fluentd-xian-test-env.conf  
-nginx.fluent-xian-test-env.conf  
+fluentd-xian-test-env.conf
+nginx.fluent-xian-test-env.conf
 start-xian-test-env.sh
 从各自的文件进行Copy。
 
@@ -6958,14 +7782,14 @@ docker ps -a
 
 docker exec -it 76c4af8ccae2 /bin/sh
 ls -al /fluentd/nginx/access.log
- 
- 
-firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=172.17.0.2/16 accept' 
+
+
+firewall-cmd --permanent --add-rich-rule 'rule family=ipv4 source address=172.17.0.2/16 accept'
 firewall-cmd --reload
 
 
 
-/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list  ecm-b254-011.ctyunxian.cn:6667  --topic ctYun 
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list  ecm-b254-011.ctyunxian.cn:6667  --topic ctYun
 
 
 #########
@@ -6973,7 +7797,7 @@ echo '[12/May/2020:14:50:36 +0800]"8999999999999999999999999"200"1589266236.415"
 
 ##########
 
-/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ecm-b254-011.ctyunxian.cn:6667    --topic ctYun --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-ctyun 
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  ecm-b254-011.ctyunxian.cn:6667    --topic ctYun --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --group grp-ctyun
 
 ##########
 for i in `seq 1 10000`
@@ -7088,13 +7912,17 @@ done
 
 22. 测试具备自动化测试
 
-## 4.gitflow规范  
+## 4.gitflow规范
 
 详见 https://www.cnblogs.com/jeffery-zou/p/10280167.html
 
 ## 5. 数据库设计规范
 
- 详见 https://developer.aliyun.com/article/709387  
+ 详见 https://developer.aliyun.com/article/709387
+
+## 6.上线规范
+
+上线评审过配置文件的修改，从git上对比上次上线到目前需要上线的时间的各种变化
 
 
 
@@ -7106,7 +7934,872 @@ done
 
 
 
-44.CMDB
+
+
+# 62.部署canal admin
+
+
+
+## 1.下载软件
+
+https://github.com/alibaba/canal/releases/download/canal-1.1.5-alpha-2/canal.adapter-1.1.5-SNAPSHOT.tar.gz
+
+
+
+https://github.com/alibaba/canal/releases/download/canal-1.1.5-alpha-2/canal.admin-1.1.5-SNAPSHOT.tar.gz
+
+
+
+https://github.com/alibaba/canal/releases/download/canal-1.1.5-alpha-2/canal.deployer-1.1.5-SNAPSHOT.tar.gz
+
+
+
+https://github.com/alibaba/canal/releases/download/canal-1.1.5-alpha-2/canal.example-1.1.5-SNAPSHOT.tar.gz
+
+
+
+## 2.安装CanalAdmin
+
+mkdir -p /data1/zhangwusheng/canal/canal.admin
+
+tar zxvf  canal.admin-1.1.5-SNAPSHOT.tar.gz -C  /data1/zhangwusheng/canal/canal.admin
+
+
+
+
+
+# 63.Kafka常用命令
+
+## 生产
+
+```bash
+
+```
+
+
+
+
+
+## 开发
+
+
+
+
+
+# 64.rpm相关命令
+
+查看 属于哪个包
+
+rpm -qf /bin/iostat
+
+查看某个包有哪些文件
+
+rpm -ql
+
+
+
+ yumdownloader --resolve clickhouse
+
+
+
+# 65.负载过高
+
+https://blog.csdn.net/u011183653/article/details/19489603?utm_medium=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.channel_param&depth_1-utm_source=distribute.pc_relevant.none-task-blog-BlogCommendFromMachineLearnPai2-1.channel_param
+
+- yum -y install sysstat
+
+查看磁盘情况
+
+iostat -x 1 30
+
+查看cpu情况
+
+- vmstat
+
+
+
+procs
+ r 列表示运行和等待cpu时间片的进程数，如果长期大于1，说明cpu不足，需要增加cpu。
+ b 列表示在等待资源的进程数，比如正在等待I/O、或者内存交换等。
+
+
+
+ cpu 表示cpu的使用状态
+ us 列显示了用户方式下所花费 CPU 时间的百分比。us的值比较高时，说明用户进程消耗的cpu时间多，但是如果长期大于50%，需要考虑优化用户的程序。
+ sy 列显示了内核进程所花费的cpu时间的百分比。这里us + sy的参考值为80%，如果us+sy 大于 80%说明可能存在CPU不足。
+ wa 列显示了IO等待所占用的CPU时间的百分比。这里wa的参考值为30%，如果wa超过30%，说明IO等待严重，这可能是磁盘大量随机访问造成的，也可能磁盘或者磁盘访问控制器的带宽瓶颈造成的(主要是块操作)。
+ id 列显示了cpu处在空闲状态的时间百分比
+
+- iostat
+
+如果 %util 接近 100%，说明产生的I/O请求太多，I/O系统已经满负荷，该磁盘
+ 可能存在瓶颈。
+ idle小于70% IO压力就较大了,一般读取速度有较多的wait.
+
+
+
+- free -ml
+- ps -ajxf
+
+
+
+Kafka检查：
+
+grep 'Scheduling' server.log|grep 'for deletion'|awk '{print $1"-" $2}'|awk -F',' '{print $1;}'|sort -u
+[2020-11-02-10:22:01
+
+首先查出删除日志的时间点
+[2020-11-02-12:02:01
+[2020-11-02-12:02:02
+[2020-11-02-12:12:01
+[2020-11-02-12:22:01
+[2020-11-02-12:22:02
+[2020-11-02-12:32:01
+[2020-11-02-12:32:02
+[2020-11-02-12:42:01
+[2020-11-02-12:42:02
+[2020-11-02-12:52:01
+
+然后检查监控系统，12:22附近比较高，所以检查12:22时间左右的具体日志：
+
+
+
+
+
+# 66.spark优化经验
+
+- 写kafka基本只需要调整batch.size即可（bug死循环，导致网卡跑满，kafka写入很猛）
+- spark的json效率确实不太高，自己用stringbuilder效率最好
+- 所有的逻辑在mapPartition里面，减少RDD的次数，确实能提高很多
+- 如果能把write的action在mapPartition里面完成，可以减少job数，从而减少计算次数
+- 45s的一分钟优化到8s，五分钟的效果有待验证（尚未完成开发）
+- 数据旁路貌似可以在mapPartition里面去实现了
+- 尽量不要cache，如果出现cache，应该整合rdd的计算逻辑
+- MR的不要使用hadoop自带的groupwrite和groupread，使用spark的readsupport
+- parquet使用自带的过滤
+
+
+
+
+
+# 67.fsck
+
+
+
+| **选项**          | **含义**                                                   |
+| ----------------- | ---------------------------------------------------------- |
+| -a                | 自动修复文件系统，不询问任何问题                           |
+| -A                | 按照/etc/fstab配置文件的内容，检查文件内所列的全部文件系统 |
+| -N                | 不执行命令，仅列出实际执行会进行的动作                     |
+| -P                | 当搭配-A选项使用时，则会同时检查/目录的文件系统            |
+| -r                | 采用交互模式，在执行修复时询问，让用户确认并决定处理方式   |
+| -R                | 当使用-A选项检查所有文件系统的时候，跳过/目录的文件系统    |
+| -t <文件系统类型> | 指定要检查的文件系统类型                                   |
+| -C                | 显示完整的检查进度                                         |
+| -y                | 关闭互动模式                                               |
+| -c                | 检查坏块，并将它们添加到坏块列表                           |
+| -p                | 自动修复文件系统错误                                       |
+| -f                | 强制检查，即使文件系统被标记干净                           |
+
+----------------------------------------------------
+
+# 68.ClickHouse
+
+```
+sudo yum install yum-utils
+sudo rpm --import https://repo.clickhouse.tech/CLICKHOUSE-KEY.GPG
+sudo yum-config-manager --add-repo https://repo.clickhouse.tech/rpm/clickhouse.repo
+sudo yum install clickhouse-server clickhouse-client
+
+sudo yum install  --downloadonly --downloaddir=/root clickhouse-server clickhouse-client
+
+
+ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/clickhouse.tar.gz   dest=/home/zhangwusheng/soft  owner=zhangwusheng group=zhangwusheng"
+
+```
+
+
+
+```bahs
+spark-shell --conf spark.executor.memoryOverhead=4G --conf spark.executor.instances=4 --conf spark.executor.memory=8G --conf spark.driver.memory=3G --conf spark.yarn.queue=kylin --conf spark.executor.cores=4 --jars /home/zhangwusheng/clickhouse-native-jdbc-2.3-stable.jar
+
+spark-shell  --jars /home/zhangwusheng/clickhouse-native-jdbc-2.4.1.jar
+
+import org.apache.spark.sql.RuntimeConfig
+import org.apache.spark.sql._
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+import sqlContext.implicits._
+import java.lang.Double
+import java.util.Date
+import java.text.SimpleDateFormat
+import org.apache.spark.Partitioner
+import org.apache.spark.api.java.function.PairFlatMapFunction
+import java.util.ArrayList
+import org.apache.spark.api.java.JavaPairRDD
+
+
+
+
+val schemaStr="serverIp string,timestamp string,respondTime long,httpCode integer,eventTime string,clientIp string,clientPort integer,method string,protocol string,channel string,url string,httpVersion string,bodyBytes long,destIp string,destPort integer,status string,full_status string,referer string,Ua string,fileType string,host_name string,source_ip string,source_id string,source_old string,type string,range string,vendorCode byte,genericsChannel string,clientId integer,keyFlag byte,productType byte,hostingType byte,uri string,url_param string,requestBytes long,body_sent long,proxyIp string,via string,sent_http_content_length long,http_range string,sent_http_content_range string,http_tt_request_traceid string,liveProtocol string,currentTime string,requestTime string,command string,connTag string,appName string,stream string,sendBytes string,recvBytes  string"
+
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-00","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-05","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-10","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-15","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-20","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-25","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-30","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-35"),"/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-40","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-45","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-50","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-55")
+
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-09-09/2020-09-09-17/minute=2020-09-09-17-20/part-00122-efc48350-f9e6-4f72-adb1-69d7caefccb5-c000.snappy.parquet")
+
+
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-09-09/2020-09-09-17/minute=2020-09-09-17-20")
+
+
+parquetFile.rdd.mapPartitionsWithIndex{(index, iterator)=>{
+var result = List[String]()
+result.iterator
+} }
+
+parquetFile.printSchema
+
+parquetFile.registerTempTable("logs")
+
+val aa=spark.sql("select serverIp,timestamp,respondTime,httpCode,eventTime,clientIp,clientPort,method,protocol,channel,url,httpVersion,bodyBytes,destIp,destPort,status,full_status,referer,Ua,fileType,host_name,source_ip,source_id,source_old,type,range,vendorCode,genericsChannel,clientId,keyFlag,productType,hostingType,uri,url_param,requestBytes,body_sent,proxyIp,via,sent_http_content_length,http_range,sent_http_content_range,http_tt_request_traceid,liveProtocol,currentTime,requestTime,command,connTag,appName,stream,sendBytes,recvBytes from logs ")
+
+
+aa.write.mode("append").format("jdbc").option("driver","com.github.housepower.jdbc.ClickHouseDriver").option("url", "jdbc:clickhouse://192.168.2.40:18000").option("user", "default").option("password", "").option("dbtable", "default.t_cdnlog_analysis_j").option("batchsize", 1000).option("isolationLevel", "NONE").save
+
+
+parquetFile.write.mode("append").format("jdbc").option("driver","com.github.housepower.jdbc.ClickHouseDriver").option("url", "jdbc:clickhouse://192.168.2.40:18000").option("user", "default").option("password", "").option("dbtable", "default.t_cdnlog_analysis_j").option("batchsize", 10000).option("isolationLevel", "NONE").save
+
+CLickHouse建表：
+
+create table t_cdnlog_analysis_j( serverIp Nullable(String),timestamp String,respondTime Nullable(UInt32),httpCode Nullable(UInt32),eventTime Nullable(String),clientIp Nullable(String),clientPort Nullable(UInt32),method Nullable(String),protocol Nullable(String),channel Nullable(String),url Nullable(String),httpVersion Nullable(String),bodyBytes Nullable(UInt32),destIp Nullable(String),destPort Nullable(UInt32),status Nullable(String),full_status Nullable(String),referer Nullable(String),Ua Nullable(String),fileType Nullable(String),host_name Nullable(String),source_ip Nullable(String),source_id Nullable(String),source_old Nullable(String),type Nullable(String),range Nullable(String),vendorCode Nullable(UInt8),genericsChannel Nullable(String),clientId Nullable(UInt32),keyFlag Nullable(UInt8),productType Nullable(UInt8),hostingType Nullable(UInt8),uri Nullable(String),url_param Nullable(String),requestBytes Nullable(UInt32),body_sent Nullable(UInt32),proxyIp Nullable(String),via Nullable(String),sent_http_content_length Nullable(UInt32),http_range Nullable(String),sent_http_content_range Nullable(String),http_tt_request_traceid Nullable(String),liveProtocol Nullable(String),currentTime Nullable(String),requestTime Nullable(String),command Nullable(String),connTag Nullable(String),appName Nullable(String),stream Nullable(String),sendBytes Nullable(String),recvBytes  Nullable(String)) engine=MergeTree()  PARTITION BY(fromUnixTimestamp(toInt32( subString(timestamp,1,10)))) order by timestamp  settings storage_policy='all_sata';
+
+
+create table t_cdnlog_analysis_d(  serverIp String ,  timestamp String ,  respondTime UInt32 ) engine=MergeTree()  PARTITION BY(fromUnixTimestamp(toInt32( subString(timestamp,1,10)))) order by timestamp  settings storage_policy='all_sata';
+
+create table t_cdnlog_analysis_e(  serverIp Nullable(String) ,  timestamp String ,  respondTime Nullable( UInt32) ) engine=MergeTree()  PARTITION BY(fromUnixTimestamp(toInt32( subString(timestamp,1,10)))) order by timestamp  settings storage_policy='all_sata';
+
+
+```
+
+```bash
+clickhouse-client  --port 18000 -h 192.168.2.40
+
+spark shell:
+```
+
+
+
+# 69.SuperSet
+
+
+
+```bash
+https://aichamp.wordpress.com/2019/11/20/installing-apache-superset-into-centos-7-with-python-3-7/
+https://www.jianshu.com/p/b02fcea7eb5b
+  https://zhuanlan.zhihu.com/p/111295100
+
+yum -y install conda.noarch
+conda info -e
+conda init bash
+
+##新建环境
+conda create -n superset python=3.6
+
+
+##删除环境
+conda deactivate
+conda remove -n superset --all
+#重命名环境
+conda create -n superset2 --clone superset
+conda remove -n superset --all
+
+#进入环境
+conda activate superset
+
+#查看已有环境
+conda info -e
+
+
+vi /root/.conda/envs/superset/lib/python3.7/site-packages/Geohash
+ from .geohash import decode_exactly, decode, encode
+
+
+pip install superset
+pip install flask
+pip install wtforms_json
+pip install flask_appbuilder
+pip install flask_compress
+pip install celery
+pip install flask_migrate
+pip install flask_talisman
+pip install flask_caching
+pip install sqlparse
+pip install bleach
+pip install markdown
+pip install numpy
+pip install markdown
+pip install pandas
+pip install parsedatetime
+pip install pathlib2
+pip install simplejson
+pip install humanize
+pip install geohash
+pip install polyline
+pip install geopy
+pip install geopy
+pip install cryptography
+pip install sqlalchemy
+pip install backoff
+pip install polyline
+pip install geopy
+pip list|grep sqlalch
+pip install sqlalchemy
+pip install cryptography
+pip install backoff
+pip install msgpack
+pip install pyarrow
+pip install contextlib2
+pip install croniter
+pip install retry
+pip install selenium
+pip install isodate
+
+
+
+cd ./.conda/envs/superset/lib/python3.6/site-packages
+mv Geohash geohash
+vi __init__.py
+from .geohash import decode_exactly, decode, encode
+
+
+
+superset db upgrade
+
+superset init
+
+export FLASK_APP=superset
+
+flask fab create-admin
+   admin
+  jDJBr0equnP98377
+
+superset load-examples
+
+superset run --host 0.0.0.0 --port 28380 --reload --debugger --with-threads
+
+
+pip install pydruid
+pip install kylinpy
+
+
+druid://<User>:<password>@<Host>:<Port-default-9088>/druid/v2/sql
+
+
+kylin://CDNADMIN:KYLIN\@123!@192.168.254.41:7070/kylin/api?project=cdn_log_v02
+
+kylin://CDNADMIN:XXXXXXXXXX@192.168.254.41:7070/kylin/api/query?project=cdn_log_v02
+
+kylin://CDNADMIN:KYLIN\@123!@192.168.254.41:7070/kylin/cdn_log_v02?version=v1
+
+
+http://kylin.apache.org/blog/2018/01/01/kylin-and-superset/
+https://superset.apache.org/docs/databases/druid
+
+
+
+druid://192.168.254.2:18888/druid/v2/sql
+
+```
+
+# 70.jmxterm
+
+```bahs
+java -jar jmxterm-1.1.0-SNAPSHOT-uber.jar
+
+open pid
+domains
+
+domain
+
+beans
+bean
+info
+get
+```
+
+# 71.贵州Kafka Mirror
+
+
+
+```bash
+
+ansible -i /home/zhangwusheng/cdnlog.guiyang.hosts mirror -m copy -b -a "src=/home/zhangwusheng/kafka-mirror-maker.sh dest=/usr/hdp/current/kafka-broker/bin backup=yes"
+
+ansible -i /home/zhangwusheng/cdnlog.guiyang.hosts mirror -m copy -b -a "src=/home/zhangwusheng/mirror-producer.properties dest=/usr/hdp/current/kafka-broker/conf backup=yes"
+
+ansible -i /home/zhangwusheng/cdnlog.guiyang.hosts kafka -m copy -b -a "src=/home/zhangwusheng/mirror-consumer.properties dest=/usr/hdp/current/kafka-broker/conf backup=yes"
+
+ansible -i /home/zhangwusheng/cdnlog.guiyang.hosts kafka -m copy -b -a "src=/home/zhangwusheng/tools-log4j.properties dest=/usr/hdp/current/kafka-broker/conf backup=yes"
+
+/usr/hdp/current/kafka-broker/bin/kafka-mirror-maker.sh --whitelist cdn-log-analysis-realtime  --consumer.config /usr/hdp/current/kafka-broker/conf/mirror-consumer.properties --producer.config /usr/hdp/current/kafka-broker/conf/mirror-producer.properties --offset.commit.interval.ms 2000 --num.streams 10 >> ./kafka-mirror-maker-2.log 2>&1 &
+
+ps -ef|grep Mirror|grep -v 'grep'|awk '{print "kill "$2;}'
+
+ps -ef|grep Mirror|grep cdn-log-analysis-realtime|grep -v 'grep'|awk '{print "kill "$2;}'|xargs kill
+
+cd /ssd1/kafka;nohup /usr/hdp/current/kafka-broker/bin/kafka-mirror-maker.sh --whitelist cdn-log-analysis-realtime  --consumer.config /usr/hdp/current/kafka-broker/conf/mirror-consumer.properties --producer.config /usr/hdp/current/kafka-broker/conf/mirror-producer.properties --offset.commit.interval.ms 10000 --num.streams 4 > /ssd1/kafka/kafka-mirror-maker-test2.log 2>&1 &
+
+ansible -i /home/zhangwusheng/cdnlog.guiyang.hosts kafka -m copy -b -a "src=/home/zhangwusheng/kafka_2.12-2.5.0.tgz dest=/home/zhangwusheng backup=yes"
+
+
+
+
+
+/ssd1/kafka-2.5.0/kafka_2.12-2.5.0/bin/kafka-mirror-maker.sh --whitelist cdn-log-analysis-realtime  --consumer.config /ssd1/kafka-2.5.0/kafka_2.12-2.5.0/config/mirror-consumer.properties --producer.config /ssd1/kafka-2.5.0/kafka_2.12-2.5.0/config/mirror-producer.properties --offset.commit.interval.ms 2000 --num.streams 1 >> ./kafka-mirror-maker-2.log 2>&1 &
+
+#经验1：调整参数
+bootstrap.servers=cdnlog013.ctyun.net:5044,cdnlog014.ctyun.net:5044
+
+
+#如果使用旧版Consumer，则使用zookeeper.connect
+#zookeeper.connect=
+#这个没变
+request.timeout.ms=900000
+
+#这个调整小一点，防止rebalance
+heartbeat.interval.ms=2000
+
+#这个设置大一点
+session.timeout.ms=300000
+#consumer group id
+group.id=cdn_mirror_nm2gy_realtime-test1
+partition.assignment.strategy=org.apache.kafka.clients.consumer.RoundRobinAssignor
+#这个不能太大，1000应该足够了
+max.poll.records=1000
+#这个不能太小
+max.poll.interval.ms=10000
+#set receive buffer from default 64kB to 512kb
+receive.buffer.bytes=4221440
+
+#set max amount of data per partition to override default 1048576
+max.partition.fetch.bytes=5248576
+
+key.deserializer=org.apache.kafka.common.serialization.ByteArrayDeserializer
+value.deserializer=org.apache.kafka.common.serialization.ByteArrayDeserializer
+
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="CtYiofnwk@269Mn";
+
+
+
+#######################################
+
+#prod
+bootstrap.servers=sct-gz-guiyang1-loganalysis-10.in.ctcdn.cn:5044,sct-gz-guiyang1-loganalysis-11.in.ctcdn.cn:5044
+
+# name of the partitioner class for partitioning events; default partition spreads data randomly
+#partitioner.class=
+
+# 必须是异步
+producer.type=async
+
+# specify the compression codec for all data generated: none, gzip, snappy, lz4.
+# the old config values work as well: 0, 1, 2, 3 for none, gzip, snappy, lz4, respectively
+compression.type=lz4
+# message encoder
+#serializer.class=kafka.serializer.DefaultEncoder
+
+#batch.size=16384
+#key.serializer=org.apache.kafka.common.serialization.StringSerializer
+key.serializer=org.apache.kafka.common.serialization.ByteArraySerializer
+#value.serializer=org.apache.kafka.common.serialization.StringSerializer
+value.serializer=org.apache.kafka.common.serialization.ByteArraySerializer
+#retries=3
+#linger.ms=100
+#buffer.memory=33554432
+
+#enable.idempotence=true
+
+sasl.mechanism=PLAIN
+security.protocol=SASL_PLAINTEXT
+sasl.jaas.config=org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="CtYiofnwk@269Mn";
+
+#max.in.flight.requests.per.connection=50
+acks=1
+#这个不能太大
+batch.size=163840
+send.buffer.bytes=4221440
+receive.buffer.bytes=4221440
+#####################################
+
+##注意consumer和producer的数据量要匹配起来
+#内蒙到贵阳，一个consumer一秒10万，一个producer一秒接近100W
+/usr/hdp/current/kafka-broker/bin/kafka-mirror-maker.sh --whitelist cdn-log-analysis-realtime  --consumer.config /usr/hdp/current/kafka-broker/conf/mirror-consumer.properties --producer.config /usr/hdp/current/kafka-broker/conf/mirror-producer.properties --offset.commit.interval.ms 2000 --num.streams 3 > ./kafka-mirror-maker-debug.log 2>&1 &
+```
+
+# 72. g++多版本冲突
+
+```bash
+删掉有冲突的版本
+
+i686的版本删除掉
+yum remove glibc-2.17-322.el7_9.i686
+```
+
+
+
+# 73. rsyslog
+
+```bash
+
+yum -y install libuuid-devel
+yum install -y libgcrypt-devel
+yum search libcurl
+yum install -y libcurl-devel.x86_64
+yum install -y libcurl-devel.x86_64
+yum search rdkafka
+yum -y install librdkafka-devel.x86_64
+yum -y install g++
+yum -y install gcc-c++
+yum update -y libstdc++.x86_64
+yum install libstdc++.i686
+yum -y install gcc-c++
+yum -y install libstdc++-4.8.5-39.el7.i686
+yum -y install gcc-c++
+yum -y install libstdc++-4.8.5-44.el7.x86_64
+yum remove -y libstdc++-4.8.5-39.el7.i686
+yum -y install gcc-c++
+yum -y install libsasl2
+yum -y install yacc
+yum search yacc
+yum -y install byacc
+yum -y install flex
+
+#grok的安装，不同机器不同
+centos
+libgrok-dev libgrok1 libtokyocabinet-dev
+yum -y install tokyocabinet-devel.x86_64
+
+
+git clone https://github.com/civetweb/civetweb
+
+https://storage.googleapis.com/google-code-archive-downloads/v2/code.google.com/semicomplete/grok-1.20110708.1.tar.gz
+https://github.com/jordansissel/grok.git
+https://github.com/maiha/tokyocabinet.git
+https://github.com/thkukuk/rpcsvc-proto.git
+
+autoreconf --install
+
+安装liblognorm-2.0.6
+
+LIBFASTJSON_CFLAGS="-I/usr/include/libfastjson"  LIBFASTJSON_LIBS="-L/usr/lib -lfastjson" LIBRDKAFKA_CFLAGS="-I/usr/local/include" LIBRDKAFKA_LIBS="-L/usr/local/lib -lrdkafka" LIBLOGNORM_CFLAGS="-I/usr/local/include/" LIBLOGNORM_LIBS="-L/usr/local/lib -llognorm" ./configure  --prefix=/home/zhangwusheng/usr/local/  --enable-omkafka --enable-imkafka  --enable-regexp --enable-gssapi-krb5 --enable-uuid --enable-openssl --enable-mmnormalize  --enable-mmjsonparse --enable-mmgrok --enable-mmaudit --enable-mmcount --enable-mmsequence --enable-mmfields  --enable-imfile  --enable-pmnormalize  --enable-omruleset
+#--enable-imjournal --enable-omjournal
+
+#压测kafka幂等的信息 22秒257W
+[root@sct-gz-guiyang1-loganalysis-01 librdkafka-1.5.3]# date;./examples/idempotent_producer sct-gz-guiyang1-loganalysis-10.in.ctcdn.cn:5044  cdn-live-test;date
+Wed Jan 27 12:58:04 CST 2021
+% Running producer loop. Press Ctrl-C to exit
+% Failed to produce to topic cdn-live-test: Local: Queue full
+% Failed to produce to topic cdn-live-test: Local: Queue full
+1611723485:662687  100000
+1611723486:239844  200000
+1611723487:157673  300000
+1611723488:57540  400000
+1611723488:869915  500000
+1611723489:699757  600000
+1611723490:514558  700000
+1611723491:395811  800000
+1611723492:195446  900000
+1611723493:24598  1000000
+1611723493:846798  1100000
+1611723494:675041  1200000
+1611723495:502797  1300000
+1611723496:320813  1400000
+1611723497:159584  1500000
+1611723497:980876  1600000
+1611723498:803654  1700000
+1611723499:634289  1800000
+1611723500:470975  1900000
+1611723501:298566  2000000
+1611723502:121867  2100000
+1611723502:937373  2200000
+1611723503:751043  2300000
+1611723504:573546  2400000
+1611723505:390845  2500000
+^C% Flushing outstanding messages..
+% 2578850 message(s) produced, 2578850 delivered, 0 failed
+Wed Jan 27 12:58:26 CST 2021
+
+
+#调试rsyslogd
+export RSYSLOG_DEBUG="DebugOnDemand NoStdOut"
+export RSYSLOG_DEBUGLOG=/home/zhangwusheng/var/log/rsyslogd-debug.log
+/home/zhangwusheng/usr/local/sbin/rsyslogd -n -f /home/zhangwusheng/etc/rsyslog.conf -i /home/zhangwusheng/var/run/rsyslog.pid
+
+kill -USR1 `cat /home/zhangwusheng/var/run/rsyslog.pid`
+kill  `cat /home/zhangwusheng/var/run/rsyslog.pid`
+
+logger -n 192.168.189.24 -P 58085 -p local7.info "a&b&c"
+
+ps -ef|grep rsyslog|grep zhangwusheng|awk '{print $2;}'|xargs kill
+
+curl 'http://192.168.189.24:58080/?a&b&c'
+ab -n 10000 -c 30 'http://192.168.189.24:58080/qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq'
+
+https://my.oschina.net/MrYx3en/blog/525803
+
+https://www.liblognorm.com/files/manual/index.html
+
+
+rule=A: %date:char-to:\x20% %time:time-24hr% [%level:char-to:\x5D%] %f1:char-to::%: %f2:char-to:\x20% %errmsg:char-to:,%, client: %client:ipv4%, server: %server:rest%"
+
+#B和C不能同时存在一个rulebase文件中，否则会导致误解析。
+rule=B: %date:char-to:\x20% %time:time-24hr% [%level:char-to:\x5D%] %f1:char-to::%: %f2:char-to:\x20% %errmsg:char-to:,%, client: %client:ipv4%, server: %server:char-to:,%, request: "%verb:word% %urlpath:char-to:\x3F%?%urlparam:char-to:\x20% HTTP/%httpversion:char-to:\x22%", upstream: %upstream:char-to:,%, host: %host:rest%
+
+rule=C: %date:char-to:\x20% %time:time-24hr% [%level:char-to:\x5D%] %f1:char-to::%: %f2:char-to:\x20% %errmsg:char-to:,%, client: %client:ipv4%, server: %server:char-to:,%, request: "%verb:word% %urlpath:char-to:\x20% HTTP/%httpversion:char-to:\x22%", upstream: %upstream:char-to:\x2C%, host: %host:rest%
+
+rule=D: %date:char-to:\x20% %time:time-24hr% [%level:char-to:\x5D%] %f1:char-to::%: %f2:char-to:\x20% %errmsg:char-to:,%, client: %client:ipv4%, server: %server:char-to:,%, request: "%verb:word% %urlpath:char-to:\x3F%?%urlparam:char-to:\x20% HTTP/%httpversion:char-to:\x22%", host: %host:rest%
+
+rule=F: %errmsg:rest%
+
+cat ra.rb
+rule=ra:%AA:char-to:&%&%BB:char-to:&%&%c:rest%
+lognormalizer -r ra.rb   < a.txt > a.json
+lognormalizer -r nginxerr.rulebase -e json -T < test0.log > normalized.log
+
+
+the first thing to do is to test your ruleset
+
+create a template:
+$template raw,"%rawmsg%\n"
+
+/var/log/testing;raw
+
+then you can do
+head -1 raw |/usr/lib/lognorm/lognormalizer -r /etc/rsyslog.rb -v -e json -T
+
+and look at the output that you receive.
+
+one obvious problem that I see is that the rawmsg is going to contain the
+priority info (facility/severity), so before the timestamp there is going to be
+<number> so your rules aren't going to match
+
+but by logging the rawmsg to a file, you will see exactly what is being passed
+to the parser, and can test the parser from the command line.
+
+
+
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  sct-gz-guiyang1-loganalysis-10.in.ctcdn.cn:5044    --topic cdn-log-analysis-batch-perf-test --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-rsyslog-test
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server        edge-js-yangzhou3-loganalysis-01.in.ctcdn.cn:5044 --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --topic rsyslog-lizw --group grp-rsyslog-test
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server        edge-js-yangzhou3-loganalysis-01.in.ctcdn.cn:5044 --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --topic rsyslog-lizw --group grp-rsyslog-test
+
+
+```
+
+
+
+# 74. FIO
+
+```bash
+顺序写：
+/usr/local/bin/fio --name=sequence-write --ioengine=posixaio --rw=write --bs=4k --size=4g --numjobs=1 --runtime=60 --time_based --end_fsync=1 --filename=/home/zhangwusheng/fio_test.dat
+顺序读：
+/usr/local/bin/fio -filename=/home/zhangwusheng/fio_test_read.dat -direct=1 -iodepth 1 -thread -rw=read -ioengine=psync -bs=16k -size=2G -numjobs=1 -runtime=60 -group_reporting -name=sequence-read
+
+posixaio
+```
+
+
+
+# 75. iperf
+
+iperf3 -p 50475 -B 113.125.219.24 -s
+"GZ-GY-4L&401-J04&45U-DW-RG6220-03
+GZ-GY-4L&401-J05&45U-DW-RG6220-04
+GZ-GY-4L&401-J04&41U-JR-RGS5750-02"
+
+iperf3 -c 113.125.219.24 -P 100 -p 50475 -B 150.223.254.2  -b 400M -R
+[SUM]   0.00-10.00  sec  12.6 GBytes  10.8 Gbits/sec  16520             sender
+[SUM]   0.00-10.00  sec  12.4 GBytes  10.6 Gbits/sec                  receiver
+
+iperf3 -p 50475 -B 113.125.219.41 -s
+"GZ-GY-4L&401-J06&45U-DW-RG6220-05
+GZ-GY-4L&401-J07&45U-DW-RG6220-06
+GZ-GY-4L&401-J04&41U-JR-RGS5750-02"
+
+iperf3 -c 113.125.219.41 -P 100 -p 50475 -B 150.223.254.2  -b 400M -R
+
+[SUM]   0.00-10.00  sec  17.1 GBytes  14.7 Gbits/sec  14723             sender
+[SUM]   0.00-10.00  sec  16.9 GBytes  14.5 Gbits/sec                  receiver
+
+iperf3 -c 113.125.219.41 -P 100 -p 50475 -B 150.223.254.2  -b 800M -R
+
+[SUM]   0.00-10.00  sec  18.6 GBytes  16.0 Gbits/sec  12678             sender
+[SUM]   0.00-10.00  sec  18.4 GBytes  15.8 Gbits/sec                  receiver
+
+ iperf3 -p 50475 -B 113.125.219.56 -s
+ "GZ-GY-4L&401-J06&45U-DW-RG6220-07
+GZ-GY-4L&401-J07&45U-DW-RG6220-08
+GZ-GY-4L&401-J08&41U-JR-RGS5750-03"
+
+ iperf3 -c 113.125.219.56 -P 100 -p 50475 -B 150.223.254.2  -b 800M -R
+ [SUM]   0.00-10.00  sec  12.6 GBytes  10.8 Gbits/sec  13760             sender
+[SUM]   0.00-10.00  sec  12.3 GBytes  10.6 Gbits/sec                  receiver
+
+
+ iperf3 -p 50475 -B 113.125.219.75 -s
+GZ-GY-4L&401-J10&45U-DW-RG6220-09
+GZ-GY-4L&401-J11&45U-DW-RG6220-10
+GZ-GY-4L&401-J08&41U-JR-RGS5750-03
+ iperf3 -c 113.125.219.75 -P 100 -p 50475 -B 150.223.254.2  -b 800M -R
+
+ [SUM]   0.00-10.00  sec  13.8 GBytes  11.9 Gbits/sec  12763             sender
+[SUM]   0.00-10.00  sec  13.6 GBytes  11.7 Gbits/sec                  receiver
+
+
+
+
+  iperf3 -c 113.125.219.75 -P 100 -p 50475 -B 150.223.254.21  -b 800M -R
+ Eth-Trunk12
+ [SUM]   0.00-10.00  sec  14.8 GBytes  12.7 Gbits/sec  9110             sender
+[SUM]   0.00-10.00  sec  14.5 GBytes  12.5 Gbits/sec                  receiver
+
+
+
+   iperf3 -c 113.125.219.56 -P 100 -p 50475 -B 150.223.254.21  -b 1000M -R
+[SUM]   0.00-10.00  sec  12.5 GBytes  10.7 Gbits/sec  23271             sender
+[SUM]   0.00-10.00  sec  12.3 GBytes  10.5 Gbits/sec                  receiver
+
+
+
+# 76. 扬州三线Kafka
+
+```bash
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  file  -b -a "dest=/home/zhangwusheng/usr/bin  owner=zhangwusheng group=zhangwusheng state=directory recurse=yes"
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/fstab.sh   dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/fstab.py   dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m shell  -b -a "bash /home/zhangwusheng/usr/bin/fstab.sh"
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m shell  -b -a "cat /etc/fstab"
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/jdk-8u211-linux-x64.tar.gz dest=/home/zhangwusheng/usr/bin  owner=root group=root"
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/jce_policy-8.zip dest=/home/zhangwusheng/usr/bin  owner=zhangwusheng group=zhangwusheng"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/java-env.sh   dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m shell  -b -a "bash /home/zhangwusheng/usr/bin/java-env.sh"
+
+```
+
+# 76. VIVO
+
+```bash
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  file  -b -a "dest=/home/zhangwusheng/usr/bin  owner=zhangwusheng group=zhangwusheng state=directory recurse=yes"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  file  -b -a "dest=/home/zhangwusheng/etc/security  owner=zhangwusheng group=zhangwusheng state=directory recurse=yes"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/mkfs.vivo     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/get_hosts_lan.sh     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /home/zhangwusheng/etc/ansible/yangzhou.hosts kafka -m  copy  -b -a "src=/home/zhangwusheng/usr/local/jmx-exporter    dest=/home/zhangwusheng/usr/local/  owner=zhangwusheng group=zhangwusheng"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/vivo.mount     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "mkfs.xfs /dev/sdb"
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "mkdir /data1 /data2 /data3 /data4 /data5 /data6 /data7 /data8 /data9 /data10"
+
+
+nohup bash /home/zhangwusheng/usr/bin/mkfs.vivo &
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/vivo.mkfs.sh     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host10 -m  shell  -b -a "bash /home/zhangwusheng/usr/bin/vivo.mkfs.sh"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host7 -m  shell  -b -a "bash /home/zhangwusheng/usr/bin/vivo.mount"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data1"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data1" |grep 'sdb'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data2" |grep 'sdc'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data3" |grep 'sdd'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data4" |grep 'sde'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data5" |grep 'sdf'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data6" |grep 'sdg'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data7" |grep 'sdh'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data8" |grep 'sdi'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data9" |grep 'sdj'|wc -l
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "df -h /data10" |grep 'sdk'|wc -l
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/fstab.sh     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/fstab.py     dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m shell  -b -a "bash /home/zhangwusheng/usr/bin/fstab.sh"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host1 -m shell  -b -a "cat /etc/fstab"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/jce_policy-8.zip dest=/home/zhangwusheng/usr/bin  owner=zhangwusheng group=zhangwusheng"
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/jdk-8u211-linux-x64.tar.gz dest=/home/zhangwusheng/usr/bin  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/java-env.sh   dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/usr/bin/ulimit.sh   dest=/home/zhangwusheng/usr/bin/  owner=zhangwusheng group=zhangwusheng"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m shell  -b -a "bash /home/zhangwusheng/usr/bin/java-env.sh"
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host1 -m shell  -b -a "ulimit -a"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host1 -m shell  -b -a "bash /home/zhangwusheng/usr/bin/ulimit.sh"
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host1 -m shell  -b -a "ulimit -a"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/etc/security/limits.d/20-nproc.conf   dest=/etc/security/limits.d  owner=root group=root"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/etc/yum.repos.d/ambari-hdp-1.repo   dest=/etc/yum.repos.d  owner=root group=root"
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/etc/yum.repos.d/ambari.repo   dest=/etc/yum.repos.d  owner=root group=root"
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  copy  -b -a "src=/home/zhangwusheng/.bash_profile   dest=/home/zhangwusheng/  owner=zhangwusheng group=zhangwusheng"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts host1 -m  shell  -b -a "yum -y install ambari-agent"
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "sed -i 's/hostname=localhost/hostname=192.168.254.40/g'  /etc/ambari-agent/conf/ambari-agent.ini  "
+
+
+ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "date "
+
+
+```
+
+网关配置：
+
+route add -net 192.168.189.0/24 gw 192.168.254.254
+/etc/sysconfig/static-routes
+
+any net  192.168.189.0/24 gw 192.168.254.254
+
+这个可以重启的时候生效
+
+反向的话也是一样，在那边添加：
+route add -net 192.168.254.0/24 gw 192.168.189.1
+
 
 
 
@@ -7147,6 +8840,12 @@ init.py
 
 cmdb/cmdb_apiserver/init_db.sh
 修改8080为18282
+
+
+
+
+
+
 
 
 # 44.问题：
@@ -7260,7 +8959,7 @@ org.apache.hadoop.mapred.FileInputFormat
 
 ```
   public static final String NUM_MAPS = "mapreduce.job.maps";
-  
+
 
 //总的大小除以Map数目
 long goalSize = totalSize / (numSplits == 0 ? 1 : numSplits);
@@ -7268,7 +8967,7 @@ long goalSize = totalSize / (numSplits == 0 ? 1 : numSplits);
 //minSplitSize:sequence文件是10K,默认是1
 long minSize = Math.max(job.getLong(org.apache.hadoop.mapreduce.lib.input.
   FileInputFormat.SPLIT_MINSIZE, 1), minSplitSize);
-  
+
   long blockSize = file.getBlockSize();
           //goalSize:文件大小除以希望的map数
           //minSize:基本可以理解为:mapreduce.input.fileinputformat.split.minsize
@@ -7293,22 +8992,11 @@ textFile .count()
 
 
 mv /usr/bin/spark-class /usr/bin/spark-class-nono
-
 mv /usr/bin/sparkR /usr/bin/sparkR-nono
-
 mv /usr/bin/spark-script-wrapper.sh /usr/bin/spark-script-wrapper.sh-nono
-
 mv /usr/bin/spark-shell /usr/bin/spark-shell-nono
-
 mv /usr/bin/spark-sql /usr/bin/spark-sql-nono
-
 mv /usr/bin/spark-submit /usr/bin/spark-submit-nono
-
-
-
-
-
-
 
 
 
@@ -7336,7 +9024,7 @@ start-slave.sh spark://192.168.1.73:7077
 
 
 
-vi /usr/hdp/current/hive-client/bin/hive.distro 
+vi /usr/hdp/current/hive-client/bin/hive.distro
 
   if [ $SERVICE == "cli" -o $SERVICE == "beeline" ]
   then
@@ -7344,11 +9032,6 @@ vi /usr/hdp/current/hive-client/bin/hive.distro
   else
       $TORUN "$@"
   fi
-
-
-
-
-
 
 
 
@@ -7367,7 +9050,7 @@ export HADOOP_CONF_DIR=/usr/hdp/3.0.0.0-1634/hadoop/conf && /data1/spark-2.3.2-b
 
 <http://140.246.128.62:18080/?showIncomplete=false>
 
-cat ../conf/spark-defaults.conf 
+cat ../conf/spark-defaults.conf
 
 spark.history.fs.logDirectory=hdfs://hbase105.ecloud.com:8020/kylin/spark-history
 spark.eventLog.enabled=true
@@ -7387,7 +9070,7 @@ kylin.engine.spark-conf.spark.master  spark://192.168.1.73:7077
 
 
 
- cat spark-defaults.conf 
+ cat spark-defaults.conf
 
 spark.history.fs.logDirectory=hdfs://hbase105.ecloud.com:8020/spark2-history
 spark.eventLog.enabled=true
@@ -7413,7 +9096,7 @@ export SPARK_WORKER_WEBUI_PORT=9090
 
 
 
-./start-master.sh 
+./start-master.sh
 
  ./start-slave.sh spark://192.168.1.73:7077
 
@@ -7450,7 +9133,7 @@ kylin.engine.spark.additional-jars
 
 修改  SPARK_HOME
 
-cat /etc/profile.d/spark.sh 
+cat /etc/profile.d/spark.sh
 #export SPARK_HOME=/data1/spark-2.3.2-bin-hadoop2.7
 export SPARK_HOME=/usr/hdp/3.0.0.0-1634/spark2
 
@@ -7462,7 +9145,7 @@ export SPARK_HOME=/usr/hdp/3.0.0.0-1634/spark2
 
 
 
-/etc/profile.d/spark.sh 
+/etc/profile.d/spark.sh
 
 export SPARK_HOME=/usr/hdp/3.0.0.0-1634/spark2
 export PATH=$SPARK_HOME/bin:$PATH
@@ -7486,7 +9169,7 @@ sudo -u hdfs hdfs dfs -chown -R root:root  /kylin
 
 
 ```bash
-vi  /usr/hdp/current/hive-client/bin/hive.distro 
+vi  /usr/hdp/current/hive-client/bin/hive.distro
 
 if [ $SERVICE == "beeline" -o $SERVICE == "cli" ]
   then
@@ -7494,10 +9177,10 @@ if [ $SERVICE == "beeline" -o $SERVICE == "cli" ]
   else
         $TORUN "$@"
   fi
-  
+
   /data2/apache-kylin-2.6.1-bin-hadoop3/bin/find-hive-dependency.sh
   第四十行:
-  
+
 if [ "${client_mode}" == "beeline" ]
 then
     beeline_shell=`$KYLIN_HOME/bin/get-properties.sh kylin.source.hive.beeline-shell`
@@ -7548,11 +9231,11 @@ metainfo.xml
                         <timeout>600</timeout>
                     </commandScript>
                 </component>
-                               
+
             </components>
             <osSpecifics>
                 <osSpecific>
-                    <osFamily>any</osFamily> 
+                    <osFamily>any</osFamily>
                 </osSpecific>
             </osSpecifics>
         </service>
@@ -7592,7 +9275,7 @@ It is caused by `hdp.version` not getting substituted correctly. You have to set
 And you have to set
 
 ```
-spark.driver.extraJavaOptions -Dhdp.version=XXX 
+spark.driver.extraJavaOptions -Dhdp.version=XXX
 spark.yarn.am.extraJavaOptions -Dhdp.version=XXX
 ```
 
@@ -7609,7 +9292,7 @@ mapreduce.job.acl-view-job = *
 
 
     Map Join:
-    
+
     <property>
         <name>hive.auto.convert.join.noconditionaltask.size</name>
         <value>3221225472</value>
@@ -7630,7 +9313,7 @@ wget -c 'https://repository.apache.org/content/repositories/releases/org/apache/
 
 
 
-cp 
+cp
 
 ## 5.修改用户名和密码：
 
@@ -7641,7 +9324,7 @@ org.apache.kylin.rest.security.PasswordPlaceholderConfigurer
 工程：kylin-server-base
 ```
 
-vi  /data1/apache-kylin-2.6.1-bin-hadoop3/tomcat/webapps/kylin/WEB-INF/classes/kylinSecurity.xml 
+vi  /data1/apache-kylin-2.6.1-bin-hadoop3/tomcat/webapps/kylin/WEB-INF/classes/kylinSecurity.xml
 
 
 
@@ -7685,7 +9368,7 @@ ANALYST/ANALYST@1234@#&
 
    yum list installed |grep hadoop
 
-   yum list installed |grep HDP 
+   yum list installed |grep HDP
 
    yum list installed |grep ambari
 
@@ -7693,18 +9376,18 @@ ANALYST/ANALYST@1234@#&
 
 4. 删除数据目录！
 
-   rm -rf 
+   rm -rf
 
 
-5. 
-
-
-
+5.
 
 
 
 
-yum list installed |grep HDP 
+
+
+
+yum list installed |grep HDP
 
 yum list installed |grep 1634
 
@@ -7906,7 +9589,7 @@ rm: "http://hbase73.ecloud.com:8088",
 
 
 
-vi configs.env 
+vi configs.env
 
 ```
 <property>
@@ -7930,10 +9613,10 @@ rm_gc_log_name="{{yarn_log_dir_prefix}}/$USER/yarn-resourcemanager-gc-${timestam
 rm_gc_log_enable_opts="-verbose:gc -Xloggc:$rm_gc_log_name"
 rm_gc_log_rotation_opts="-XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10M"
 rm_gc_log_format_opts="-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps"
-rm_gc_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB -XX:ErrorFile={{yarn_log_dir_prefix}}/rm_err_pid%p.log" 
+rm_gc_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB -XX:ErrorFile={{yarn_log_dir_prefix}}/rm_err_pid%p.log"
 rm_OOMHANDLER="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath={{yarn_log_dir_prefix}}/resourcemanager-heapdump.hprof.${timestamp_str}"
 rm_gc_log_opts="$rm_gc_log_enable_opts $rm_gc_log_rotation_opts $rm_gc_log_format_opts ${rm_gc_opts} ${rm_OOMHANDLER}"
-YARN_RESOURCEMANAGER_OPTS="${YARN_RESOURCEMANAGER_OPTS} ${rm_gc_log_opts}"	
+YARN_RESOURCEMANAGER_OPTS="${YARN_RESOURCEMANAGER_OPTS} ${rm_gc_log_opts}"
 
 
 function getGcOpts()
@@ -7944,10 +9627,10 @@ function getGcOpts()
    local gc_log_enable_opts="-verbose:gc -Xloggc:${gc_log_filename}"
    local gc_log_rotation_opts="-XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10M"
    local gc_log_format_opts="-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps"
-   local gc_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB " 
+   local gc_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB "
    local gc_error_opt="-XX:ErrorFile={{yarn_log_dir_prefix}}/gc_err_${component_name}_pid%p.log"
    local gc_oom_opt="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath={{yarn_log_dir_prefix}}/heapdump-${component_name}-${timestamp_str}.hprof."
-   
+
    echo "${gc_opts} ${gc_log_enable_opts} ${gc_log_rotation_opts} ${gc_log_format_opts} ${gc_error_opt} ${gc_oom_opt}"
 }
 
@@ -7961,10 +9644,10 @@ function getHBaseGcOpts()
    local gc_log_enable_opts="-verbose:gc -Xloggc:${gc_log_filename}"
    local gc_log_rotation_opts="-XX:+UseGCLogFileRotation -XX:NumberOfGCLogFiles=10 -XX:GCLogFileSize=10M"
    local gc_log_format_opts="-XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps"
-   local gc_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB " 
+   local gc_opts="-XX:+UseG1GC -XX:MaxGCPauseMillis=100 -XX:-ResizePLAB "
    local gc_error_opt="-XX:ErrorFile={{hbase_log_dir}}/gc_err_${component_name}_pid%p.log"
    local gc_oom_opt="-XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath={{hbase_log_dir}}/heapdump-${component_name}-${timestamp_str}.hprof."
-   
+
    echo "${gc_opts} ${gc_log_enable_opts} ${gc_log_rotation_opts} ${gc_log_format_opts} ${gc_error_opt} ${gc_oom_opt}"
 }
 
@@ -7976,25 +9659,25 @@ echo $YARN_RESOURCEMANAGER_OPTS
 
 目前kylin 30个container
 
-**kylin.storage.hbase.min-region-count**                                                             
+**kylin.storage.hbase.min-region-count**
 
-​                                                               20                   
+​                                                               20
 
-​                     **kylin.source.hive.redistribute-flat-table**                                                             
+​                     **kylin.source.hive.redistribute-flat-table**
 
-​                                                               false                   
+​                                                               false
 
-​                     **kylin.engine.spark-conf.spark.executor.cores**                                                             
+​                     **kylin.engine.spark-conf.spark.executor.cores**
 
-​                                                               2                   
+​                                                               2
 
-​                     **kylin.engine.spark-conf.spark.yarn.queue**                                                             
+​                     **kylin.engine.spark-conf.spark.yarn.queue**
 
-​                                                               kylin                   
+​                                                               kylin
 
-​                     **kylin.engine.spark-conf.spark.executor.instances**                                                             
+​                     **kylin.engine.spark-conf.spark.executor.instances**
 
-​                                                               30                   
+​                                                               30
 
 占了集群的65%,大概跑满了80%,所以这里可以配置成55%
 
@@ -8034,9 +9717,9 @@ export MY_LOCAL_IP=`/sbin/ifconfig|grep 192|awk '{print $2;}'`
 
 dfs.datanode.ipc.address    ${local.bind.address}:8010
 
-dfs.journalnode.http-address                                                         
+dfs.journalnode.http-address
 
-​          [            ](http://36.111.140.40:18080/#)           [            ](http://36.111.140.40:18080/#)                 [            ](http://36.111.140.40:18080/#)     
+​          [            ](http://36.111.140.40:18080/#)           [            ](http://36.111.140.40:18080/#)                 [            ](http://36.111.140.40:18080/#)
 
 
 
@@ -8052,7 +9735,7 @@ hadoop.http.authentication.simple.anonymous.allowed   true
 
 yarn.timeline-service.http-authentication.type kerberos->simple?
 
-# 
+#
 
 
 
@@ -8076,7 +9759,7 @@ mv ${ZOOCFG}.2 ${ZOOCFG}
 # 替换SPARK包:
 
 ```bash
-cp /usr/hdp/3.0.0.0-1634/hadoop/lib/jackson-core-2.9.5.jar 
+cp /usr/hdp/3.0.0.0-1634/hadoop/lib/jackson-core-2.9.5.jar
 
 ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson--2.6.7
  ls /usr/hdp/3.0.0.0-1634/spark2/jars/jackson--2.9.5
@@ -8146,7 +9829,7 @@ ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-annotations-
 ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-core-2.9.5.jar
 ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-jaxb-annotations-2.9.5.jar
 ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-module-scala_2.11-2.9.5.jar
-ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar 
+ssh 192.168.2.${ip} rm -f /usr/hdp/3.0.0.0-1634/spark2/jars/jackson-dataformat-cbor-2.9.5.jar
 
 done
 ```
@@ -8204,8 +9887,8 @@ OOZIE问题：
 https://stackoverflow.com/questions/49276756/ext-js-library-not-installed-correctly-in-oozie
 
 1. Stop Oozie service from Ambari
-2. Copy it to the path:  /usr/hdp/current/oozie-client/libext/ 
-3. /usr/hdp/current/oozie-server/bin/oozie-setup.sh prepare-war 
+2. Copy it to the path:  /usr/hdp/current/oozie-client/libext/
+3. /usr/hdp/current/oozie-server/bin/oozie-setup.sh prepare-war
 4. Start Oozie again
 
 
@@ -8214,7 +9897,7 @@ Atlas：
 
 [忘记密码了看这里](https://community.hortonworks.com/questions/144519/how-to-change-default-atlas-ui-admin-password.html)
 
-Configs-> Advanced -> Advanced atlas-env -> Admin password 
+Configs-> Advanced -> Advanced atlas-env -> Admin password
 
 导入示例数据：
 
@@ -8282,11 +9965,11 @@ ecloud.com=CDNLOG  #修改
 
 ```
 
-4.修改文件：/var/kerberos/krb5kdc/kdc.conf 
+4.修改文件：/var/kerberos/krb5kdc/kdc.conf
 
 ```bash
 ------------------------------------
- cat /var/kerberos/krb5kdc/kdc.conf 
+ cat /var/kerberos/krb5kdc/kdc.conf
 [kdcdefaults]
  kdc_ports = 88
  kdc_tcp_ports = 88
@@ -8338,8 +10021,8 @@ kadmin.local -q "addprinc kadmin/192.168.1.66@CDNLOG"
 
 Authenticating as principal root/admin@CDNLOG with password.
 WARNING: no policy specified for admin/admin@CDNLOG; defaulting to no policy
-Enter password for principal "admin/admin@CDNLOG": 
-Re-enter password for principal "admin/admin@CDNLOG": 
+Enter password for principal "admin/admin@CDNLOG":
+Re-enter password for principal "admin/admin@CDNLOG":
 Principal "admin/admin@CDNLOG" created.
 
 # kadmin.local -q "xst -norandkey admin/admin@CDNLOG"
@@ -8374,10 +10057,10 @@ kadmin.local:  addprinc root/admin
 cdnlog@kdc!@#
 
 WARNING: no policy specified for root/admin@CDNLOG; defaulting to no policy
-Enter password for principal "root/admin@CDNLOG": 
-Re-enter password for principal "root/admin@CDNLOG": 
+Enter password for principal "root/admin@CDNLOG":
+Re-enter password for principal "root/admin@CDNLOG":
 Principal "root/admin@CDNLOG" created.
-kadmin.local:  
+kadmin.local:
 ```
 
 8.重启服务
