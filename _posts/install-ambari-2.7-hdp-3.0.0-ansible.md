@@ -279,6 +279,14 @@ ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "java -versio
 
 ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m shell -b -a "unzip -o -j -q /home/zhangwusheng/soft/jce_policy-8.zip -d /usr/local/jdk/jre/lib/security/"
 
+
+显示java参数
+
+java -XX:+UnlockDiagnosticVMOptions -XX:+PrintFlagsFinal -version|grep -i meta
+
+
+jmap -F -dump:format=b,file=kylin.bin 221663
+
 ```
 
 ### 2.5设置ulimit
@@ -1159,7 +1167,7 @@ select *from ambari.hosts where host_name='ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.
 ```bash
 cd  /var/lib/pgsql/archieve
 # +2 2 day before，-2 in two days
-find . -type f -mtime +2 -exec rm -f {} \;
+find . -type f -mtime +3 -exec rm -f {} \;
 
 ```
 
@@ -2219,10 +2227,18 @@ https://docs.cloudera.com/documentation/enterprise/5-12-x/topics/cdh_admin_distc
 
 
 
+jmap -F -dump:format=b,file=peon.bin 224403
+
 
 
 
 # 12.Kylin安装
+
+问题排查：
+grep   'Duration:' /data2/apache-kylin-2.6.1-bin-hadoop3/logs/kylin.log.*|sort -n -k2,2 > /home/zhangwusheng/kylin.slow.log.`hostname`
+
+
+ tail -n 20 /home/zhangwusheng/kylin.slow.log.`hostname` |awk -F':' '{printf("echo ========\ngrep -b4 \"%s:%s\" %s\n",$2,$3,$1);}' > /home/zhangwusheng/t1.sh ;bash /home/zhangwusheng/t1.sh|more
 
 ## 1.增加kylin用户
 
@@ -2659,7 +2675,7 @@ MODELER/MODELER!@123#$%
 
 ANALYST/ANALYST@1234@#&
 
-## 15.麒麟优化建议
+## 15.Kylin优化建议
 
 - 将必要维度放在开头
 
@@ -2681,7 +2697,33 @@ ANALYST/ANALYST@1234@#&
   kylin.engine.spark-conf.spark.executor.extraJavaOptions "-verbose:gc -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:+PrintGCDateStamps  -XX:+PrintTenuringDistribution"
   ```
 
--
+
+
+## 16.Kylin慢查询 
+
+grep 'Duration:' /data2/apache-kylin-2.6.1-bin-hadoop3/logs/kylin.log |awk '{if($2>2){printf("%s\n",$0);}}'|sort -n -k2,2
+
+
+grep 'Duration:' /data2/apache-kylin-2.6.1-bin-hadoop3/logs/kylin.log |tail -n 100
+
+grep 'Duration:' /data2/apache-kylin-2.6.1-bin-hadoop3/logs/kylin.log.5 |awk '{if($2>2){printf("%s\n",$0);}}'|sort -n -k2,2|wc -l
+grep 'Duration:' /data2/apache-kylin-2.6.1-bin-hadoop3/logs/kylin.log.4 |awk '{if($2>2){printf("%s\n",$0);}}'|sort -n -k2,2|wc -l
+grep 'Duration:' /data2/apache-kylin-2.6.1-bin-hadoop3/logs/kylin.log.3 |awk '{if($2>2){printf("%s\n",$0);}}'|sort -n -k2,2|wc -l
+grep 'Duration:' /data2/apache-kylin-2.6.1-bin-hadoop3/logs/kylin.log.2 |awk '{if($2>2){printf("%s\n",$0);}}'|sort -n -k2,2|wc -l
+grep 'Duration:' /data2/apache-kylin-2.6.1-bin-hadoop3/logs/kylin.log.1 |awk '{if($2>2){printf("%s\n",$0);}}'|sort -n -k2,2|wc -l
+
+
+tail -n 20 /home/zhangwusheng/kylin.slow.log.31 |awk -F':' '{printf("echo ========\ngrep -b4 \"%s:%s\" %s\n",$2,$3,$1);}' > /home/zhangwusheng/t1.sh ;bash /home/zhangwusheng/t1.sh|more
+
+
+tail -n 40 /home/zhangwusheng/kylin.slow.log.32 |awk -F':' '{printf("echo ========\ngrep -b4 \"%s:%s\" %s\n",$2,$3,$1);}' > /home/zhangwusheng/t1.sh ;bash /home/zhangwusheng/t1.sh|more
+
+
+tail -n 20 /home/zhangwusheng/kylin.slow.log.31 |awk -F':' '{printf("echo ========\ngrep -b4 \"%s:%s\" %s\n",$2,$3,$1);}' > /home/zhangwusheng/t1.sh ;bash /home/zhangwusheng/t1.sh|more
+
+tail -n 20 /home/zhangwusheng/kylin.slow.log.31 |awk -F':' '{printf("echo ========\ngrep -b4 \"%s:%s\" %s\n",$2,$3,$1);}' > /home/zhangwusheng/t1.sh ;bash /home/zhangwusheng/t1.sh|more
+
+
 
 # 13.集群参数优化
 
@@ -4632,7 +4674,7 @@ val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-2
 
 
 
-spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=30 --conf spark.executor.memory=10G --conf spark.driver.memory=10G
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=10 --conf spark.executor.memory=10G --conf spark.driver.memory=10G
 
 val sqlContext = new org.apache.spark.sql.SQLContext(sc)
 
@@ -4759,6 +4801,8 @@ val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-09/2020-09-09-1
 val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-00","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-05","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-10","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-15","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-20","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-25","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-30","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-35"),"/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-40","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-45","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-50","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-55")
 
 #val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+
+val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2021-04-01/2021-04-01-10/minute=2021-04-01-10-10")
 
 ab.write.mode(SaveMode.Append).format("jdbc").option("driver","com.github.housepower.jdbc.ClickHouseDriver").option("url", "jdbc:clickhouse://192.168.2.40:18000").option("user", "default").option("password", "").option("dbtable", "default.t_cdnlog_analysis_c").option("batchsize", 10000).option("isolationLevel", "NONE").save
 
@@ -7361,6 +7405,13 @@ DSQL:
 SELECT TIME_FLOOR("__time", 'PT5M'), SUM("upFlow")
 FROM "cdn-log-tencent"
 WHERE "__time" >= CURRENT_TIMESTAMP - INTERVAL '1' DAY GROUP BY TIME_FLOOR("__time", 'PT5M') ORDER BY TIME_FLOOR("__time", 'PT5M') DESC
+
+
+SELECT "__time", SUM(reqCnt)/60, SUM(flow)*8/60
+FROM "cdn-log-common"
+WHERE "__time" >= CURRENT_TIMESTAMP - INTERVAL '1' DAY AND channel= 'vcode-api.vivo.com.cn' and vendorCode = 1 GROUP BY __time
+ORDER BY "__time" DESC
+
 ```
 
 手工compact
@@ -7973,7 +8024,13 @@ tar zxvf  canal.admin-1.1.5-SNAPSHOT.tar.gz -C  /data1/zhangwusheng/canal/canal.
 ## 生产
 
 ```bash
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic zwstestnew2 --security-protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
 
+#删除消费者组
+
+/usr/hdp/current/kafka-broker/bin/kafka-consumer-groups.sh --bootstrap-server edge-sh-pudongxin6-kafka-02.in.ctcdn.cn:5044 --describe --group console-consumer-13415 --state 
+
+/usr/hdp/current/kafka-broker/bin/kafka-consumer-groups.sh --bootstrap-server edge-sh-pudongxin6-kafka-02.in.ctcdn.cn:12181 --delete --group console-consumer-13415
 ```
 
 
@@ -8146,10 +8203,10 @@ val schemaStr="serverIp string,timestamp string,respondTime long,httpCode intege
 
 val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-00","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-05","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-10","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-15","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-20","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-25","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-30","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-35"),"/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-40","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-45","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-50","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-55")
 
-val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-09-09/2020-09-09-17/minute=2020-09-09-17-20/part-00122-efc48350-f9e6-4f72-adb1-69d7caefccb5-c000.snappy.parquet")
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2021-02-28/2021-02-28-23/minute=2021-02-28-23-00/task-80.parquet")
 
 
-val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-09-09/2020-09-09-17/minute=2020-09-09-17-20")
+val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2021-02-28/2021-02-28-23/minute=2021-02-28-23-00/task-80.parquet")
 
 
 parquetFile.rdd.mapPartitionsWithIndex{(index, iterator)=>{
@@ -8313,13 +8370,24 @@ druid://192.168.254.2:18888/druid/v2/sql
 
 # 70.jmxterm
 
-```bahs
-java -jar jmxterm-1.1.0-SNAPSHOT-uber.jar
+```bash
+
+ANSIBLE_FILE=/home/zhangwusheng/etc/ansible/shanghai.hosts
+
+ansible -i /home/zhangwusheng/etc/ansible/shanghai.hosts  kafka -m shell   -a "mkdir -p /home/zhangwusheng/var/lib"
+ansible -i /home/zhangwusheng/etc/ansible/shanghai.hosts  kafka -m shell   -a "mkdir -p /home/zhangwusheng/usr/bin/"
+ansible -i /home/zhangwusheng/etc/ansible/shanghai.hosts  kafka -m copy -b -a "src=/home/zhangwusheng/var/lib/jmxterm-1.1.0-SNAPSHOT-uber.jar dest=/home/zhangwusheng/var/lib backup=no"
+ansible -i /home/zhangwusheng/etc/ansible/shanghai.hosts  kafka -m copy  -a "src=/home/zhangwusheng/usr/bin/jmxterm.sh  dest=/home/zhangwusheng/usr/bin/ backup=no"
+ansible -i /home/zhangwusheng/etc/ansible/shanghai.hosts  kafka -m shell   -a "chmod +x /home/zhangwusheng/usr/bin/jmxterm.sh"
+ansible -i /home/zhangwusheng/etc/ansible/shanghai.hosts  kafka -m shell -b  -a "chown zhangwusheng:zhangwusheng /home/zhangwusheng/usr/bin/jmxterm.sh"
+
+
+java -jar /home/zhangwusheng/var/lib/jmxterm-1.1.0-SNAPSHOT-uber.jar
 
 open pid
 domains
 
-domain
+domain kafka.server
 
 beans
 bean
@@ -8609,9 +8677,19 @@ to the parser, and can test the parser from the command line.
 
 ```bash
 顺序写：
-/usr/local/bin/fio --name=sequence-write --ioengine=posixaio --rw=write --bs=4k --size=4g --numjobs=1 --runtime=60 --time_based --end_fsync=1 --filename=/home/zhangwusheng/fio_test.dat
+fio --name=sequence-write --ioengine=posixaio --rw=write --bs=4k --size=4g --numjobs=1 --runtime=60 --time_based --end_fsync=1 --filename=/dev/sdf --direct=1
+
+fio --name=sequence-write --ioengine=posixaio --rw=write --bs=4k --size=4g --numjobs=1 --runtime=60 --time_based --end_fsync=1 --filename=/dev/sdc --direct=1
+
+fio --name=sequence-write --ioengine=posixaio --rw=write --bs=4k --size=4g --numjobs=1 --runtime=60 --time_based --end_fsync=1 --filename=/data8/fio_test.dat --direct=1
+
+fio --name=sequence-write --ioengine=posixaio --rw=write --bs=4k --size=4g --numjobs=1 --runtime=60 --time_based --end_fsync=1 --filename=/data8/fio_test.dat --direct=1
+
+
 顺序读：
 /usr/local/bin/fio -filename=/home/zhangwusheng/fio_test_read.dat -direct=1 -iodepth 1 -thread -rw=read -ioengine=psync -bs=16k -size=2G -numjobs=1 -runtime=60 -group_reporting -name=sequence-read
+
+fio -filename=/data8/fio_test_read.dat -direct=1 -iodepth 1 -thread -rw=read -ioengine=psync -bs=16k -size=2G -numjobs=1 -runtime=60 -group_reporting -name=sequence-read
 
 posixaio
 ```
@@ -8786,6 +8864,19 @@ ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "sed -
 ansible -i /home/zhangwusheng/etc/ansible/vivo.hosts all -m  shell  -b -a "date "
 
 
+#查看vendor表
+mysql
+
+select event_time,channel,vendor_code,sum(req_cnt)/300
+from CDN_LOG_BASE_V01 
+where event_time>=1614924000
+and  channel='apkgametopdxdl.vivo.com.cn'
+group by event_time,channel,vendor_code
+order by 2 desc
+
+查看本网选择电信云，选择客户，可以看到云帆或者维沃的量
+查看云帆或者阿里云，可以看到异网的量
+
 ```
 
 网关配置：
@@ -8842,6 +8933,51 @@ cmdb/cmdb_apiserver/init_db.sh
 修改8080为18282
 
 
+
+# 77.K8S
+
+https://www.e-learn.cn/topic/3851014
+
+
+
+```
+https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+
+https://stackoverflow.com/questions/46360361/invalid-x509-certificate-for-kubernetes-master
+
+rm /etc/kubernetes/pki/apiserver.*
+kubeadm init phase certs all --apiserver-advertise-address=0.0.0.0 --apiserver-cert-extra-sans=39.103.135.196,39.99.228.229
+docker rm -f `docker ps -q -f 'name=k8s_kube-apiserver*'`
+systemctl restart kubelet
+
+
+kubectl -n kube-system get cm kubeadm-config -o yaml
+
+grep -nri 172.21.162.49 .
+
+
+```
+
+
+
+# 78.Mysql查看分区
+
+```bash
+ https://www.cnblogs.com/pejsidney/p/10074980.html
+ 
+ 
+ select 
+  partition_name part,  
+  partition_expression expr,  
+  partition_description descr,  
+  table_rows  
+from information_schema.partitions  where 
+  table_schema = schema()  
+  and table_name='t_download_file_info';  
+  
+  
+  
+```
 
 
 
@@ -9292,7 +9428,7 @@ mapreduce.job.acl-view-job = *
 
 
     Map Join:
-
+    
     <property>
         <name>hive.auto.convert.join.noconditionaltask.size</name>
         <value>3221225472</value>
