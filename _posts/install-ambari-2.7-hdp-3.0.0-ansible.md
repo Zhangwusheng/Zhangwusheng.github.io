@@ -321,6 +321,14 @@ mv /etc/security/limits.conf /etc/security/limits.conf.`date +%s`
 mv -f ${TEMPFILE} /etc/security/limits.conf
 #======================
 ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/scripts/ulimit.sh   dest=/home/zhangwusheng/scripts  owner=zhangwusheng group=zhangwusheng"
+
+
+
+#查看bond状态
+ifconfig #ifconfig命令可以查看设备的bond信息，bond口和两个成员口MAC地址相同，成员口的地址失效，两块网卡共用bond0设备的一个IP地址
+cat /proc/net/bonding/bond0.
+cat /sys/class/net/bond0/bonding/mode.
+
 ```
 ### 2.6设置通用环境变量
 
@@ -3565,6 +3573,19 @@ nohup /data2/kafka-manager/kafka-manager-2.0.0.2/bin/kafka-manager -Dconfig.file
 
 
 /usr/local/kafkamanager/bin/kafka-manager -Dconfig.file=/usr/local/kafkamanager/conf/application.conf -Dhttp.port=29090  -Dapplication.home=/usr/local/kafkamanager/
+
+
+#抓取数据
+cd /home/zhangwusheng/var/lib
+
+curl 'http://sct-gz-guiyang1-loganalysis-09.in.ctcdn.cn:29090/clusters/hdfs-cdnlog_guizhou/topics/ctYun' -o guizhou_km.txt
+dd=`date +%Y%m%d-%H%M`
+grep -A 12 'Messages in /sec' guizhou_km.txt|grep badge|awk -F'>' '{print $2;}'|awk -F'<' '{print $1;}'  | awk -v dd=${dd} 'BEGIN { ORS = " " ;print dd; } { print }END{printf("\n");}' >> guizhou_km.stat.txt
+echo '' >> guizhou_km.stat.txt 
+
+one line 
+
+curl 'http://sct-gz-guiyang1-loganalysis-09.in.ctcdn.cn:29090/clusters/hdfs-cdnlog_guizhou/topics/ctYun' |grep -A 12 'Messages in /sec' |grep badge|awk -F'>' '{print $2;}'|awk -F'<' '{print $1;}'  | awk -v dd="`date +%Y%m%d-%H%M`" 'BEGIN { ORS = " " ;print dd; } { print }END{printf("\n");}' >> guizhou_km.stat.txt
 ```
 
 5.新增配置；
@@ -3609,10 +3630,40 @@ netstat -anp|grep 5044|grep -v 192.168.254|awk '{print $5;}'|awk -F':' '{print $
 
 
 
+#CMAK
+下载cmak-3.0.0.5，安装jdk 11，sbt dist
+#对zk版本有要求，低版本的要先建立
+
+create /cmak-first ""
+create /cmak-first/kafka-manager ""
+create /cmak-first/kafka-manager/mutex ""
+create /cmak-first/kafka-manager/mutex/leases ""
+create /cmak-first/kafka-manager/mutex/locks ""
+
+ cat consumer.properties
+security.protocol=SASL_PLAINTEXT
+sasl.mechanism=PLAIN
+
+application.conf
+修改zk的连接
+
+https://github.com/yahoo/CMAK/issues/748
+需要修改zk的依赖版本，因为他依赖的curator版本比较高，zk也比较高
+
+增加kafka-jaas.conf
+KafkaClient {
+        org.apache.kafka.common.security.plain.PlainLoginModule required
+        username="admin"
+        password="admin-sec";
+};
+
+ /home/zhangwusheng/soft/cmak-3.0.0.5/bin/cmak
+ 最开始增加
+export JAVA_HOME=/home/zhangwusheng/soft/cmak-3.0.0.5/jdk-11.0.11
+export PATH=$JAVA_HOME/bin:$PATH
 
 
-
-
+/home/zhangwusheng/soft/cmak-3.0.0.5/bin/cmak -Dconfig.file=/home/zhangwusheng/soft/cmak-3.0.0.5/conf/application.conf -Dhttp.port=39090 -Djava.security.auth.login.config=/home/zhangwusheng/soft/cmak-3.0.0.5/conf/kafka-jaas.conf -Dapplication.home=/home/zhangwusheng/soft/cmak-3.0.0.5
 # 19.Kafaka配置
 
 broker端：
@@ -4048,7 +4099,7 @@ cd C:\ProgramData\MIT\Kerberos5
 
 1. 地址栏输入： about:config
 
-2.  network.negotiate-auth.trusted-uris设置为 cdnlog040.ctyun.net（多个主机以,分割）
+2.  network.negotiate-auth.trusted-uris设置为 ctyun.net,ctcdn.cn（多个主机以,分割）
 
    network.auth.use-sspi设置为false
 
@@ -4775,9 +4826,9 @@ tt2.rdd.getNumPartitions
 ## 2.spark shell生产跑数据
 
 ```bash
-spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=3 --conf spark.executor.memory=2G --conf spark.driver.memory=2G --jars
+spark-shell --conf spark.executor.memoryOverhead=3000 --conf spark.executor.instances=10 --conf spark.executor.memory=2G --conf spark.driver.memory=2G --jars
 
-spark-shell --conf spark.executor.memoryOverhead=2G --conf spark.executor.instances=40 --conf spark.executor.memory=8G --conf spark.driver.memory=3G --conf spark.yarn.queue=batch --conf spark.executor.cores=4
+spark-shell --conf spark.executor.memoryOverhead=2G --conf spark.executor.instances=10 --conf spark.executor.memory=8G --conf spark.driver.memory=3G --conf spark.yarn.queue=default --conf spark.executor.cores=4
 
 import org.apache.spark.sql.RuntimeConfig
 import org.apache.spark.sql._
@@ -4800,7 +4851,7 @@ val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-09/2020-09-09-1
 
 val parquetFile = sqlContext.read.schema(schemaStr).parquet("/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-00","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-05","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-10","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-15","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-20","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-25","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-30","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-35"),"/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-40","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-45","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-50","/apps/cdn/log/2020-10-08/2020-10-08-21/minute=2020-10-08-21-55")
 
-#val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2020-09-08/2020-09-08-21/minute=2020-09-08-21-00")
+#val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2021-04-29/2021-04-29-14/minute=2021-04-29-14-45/task-341.parquet")
 
 val parquetFile = sqlContext.read.parquet("/apps/cdn/log/2021-04-01/2021-04-01-10/minute=2021-04-01-10-10")
 
@@ -8068,6 +8119,7 @@ https://blog.csdn.net/u011183653/article/details/19489603?utm_medium=distribute.
 查看磁盘情况
 
 iostat -x 1 30
+iostat -x -d -k 1 100
 
 查看cpu情况
 
@@ -8120,6 +8172,14 @@ grep 'Scheduling' server.log|grep 'for deletion'|awk '{print $1"-" $2}'|awk -F',
 然后检查监控系统，12:22附近比较高，所以检查12:22时间左右的具体日志：
 
 
+/opt/MegaRAID/MegaCli/MegaCli64 -PDList -aALL |grep "Slot Number\|Error Count\|Predictive Failure Count\|Firmware state"
+
+Firmware state，首先可以看磁盘是否在线：若为Failed或Unconfigured(bad)则说明磁盘出现问题。若Firmware state为Online，则看磁盘是否有损坏，
+Media Error Count不为0则代表扇区有问题，存在坏道等，其值越大危险系数越高。
+Other Error Count不为0则表示磁盘可以没插紧，需要重新插入。查看问题磁盘的槽位号(注：告警描述中的硬盘槽位号（a-l）与Slot Number的（0-11）一一对应。例如，f号槽位的硬盘，其Slot Number为5)，找到相应磁盘。
+Degraded：硬盘被拔出
+Critical Disks：一颗 HDD 亮黄灯，可看到 VD 状态还是 Optimal (因为这个 HDD 还没死，目前是要死不死当中）
+Predictive Failure Count  
 
 
 
@@ -8172,6 +8232,10 @@ sudo yum install  --downloadonly --downloaddir=/root clickhouse-server clickhous
 
 
 ansible -i /etc/ansible/cdnlog_guiyang_hosts cdnlog -m  copy  -b -a "src=/home/zhangwusheng/clickhouse.tar.gz   dest=/home/zhangwusheng/soft  owner=zhangwusheng group=zhangwusheng"
+
+
+
+
 
 ```
 
@@ -8663,6 +8727,9 @@ to the parser, and can test the parser from the command line.
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server  sct-gz-guiyang1-loganalysis-10.in.ctcdn.cn:5044    --topic cdn-log-analysis-batch-perf-test --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --group grp-rsyslog-test
 
 
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server edge-sh-pudongxin6-kafka-05.in.ctcdn.cn:5044 --topic ctYun_agg_shanghai --consumer-property security.protocol=SASL_PLAINTEXT  --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 46 --group grp-rsyslog-test
+
+
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server        edge-js-yangzhou3-loganalysis-01.in.ctcdn.cn:5044 --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --offset latest --partition 0 --topic rsyslog-lizw --group grp-rsyslog-test
 
 
@@ -8692,6 +8759,11 @@ fio --name=sequence-write --ioengine=posixaio --rw=write --bs=4k --size=4g --num
 fio -filename=/data8/fio_test_read.dat -direct=1 -iodepth 1 -thread -rw=read -ioengine=psync -bs=16k -size=2G -numjobs=1 -runtime=60 -group_reporting -name=sequence-read
 
 posixaio
+
+
+
+echo `cat /proc/slabinfo |awk 'BEGIN{sum=0;}{sum=sum+$3*$4;}END{print sum/1024/1024}'` MB
+
 ```
 
 
