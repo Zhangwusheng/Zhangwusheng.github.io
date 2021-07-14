@@ -289,9 +289,287 @@ jmap -F -dump:format=b,file=kylin.bin 221663
 
 ```
 
+### 内蒙kafka优化步骤
+
+```bash
+
+1.运行 iostat -x 1 10 找出哪块盘利用率很高 查看 %util 字段
+
+
+2. 运行 iotop -oP 找出io占用高的进程
+        iotop -botq -p 8382 查看指定进程的io信息
+		
+3.运行  pidstat -d 1 查看进程的io相关信息
+
+
+
+第一步：调整系统参数
+
+对 182.42.78.61、182.42.78.99进行调整 
+sysctl -a|grep dirty
+
+vm.dirty_background_ratio 是内存可以填充脏数据的百分比。这些脏数据稍后会写入磁盘，pdflush/flush/kdmflush这些后台进程会稍后清理脏数据。比如，我有32G内存，那么有3.2G的脏数据可以待着内存里，超过3.2G的话就会有后台进程来清理。
+vm.dirty_ratio是可以用脏数据填充的绝对最大系统内存量，当系统到达此点时，必须将所有脏数据提交到磁盘，同时所有新的I/O块都会被阻塞，直到脏数据被写入磁盘。这通常是长I/O卡顿的原因，但这也是保证内存中不会存在过量脏数据的保护机制。
+https://blog.csdn.net/weixin_44410537/article/details/98449706
+
+/proc/vmstat, /proc/meminfo, iostat, vmstat 以及/proc/sys/vm
+
+150网段为：
+vm.dirty_background_bytes = 0
+vm.dirty_background_ratio = 5
+vm.dirty_bytes = 0
+vm.dirty_expire_centisecs = 3000
+vm.dirty_ratio = 70
+vm.dirty_writeback_centisecs = 500
+
+182网段为：
+vm.dirty_background_bytes = 0
+vm.dirty_background_ratio = 10  ----->   5
+vm.dirty_bytes = 0
+vm.dirty_expire_centisecs = 3000
+vm.dirty_ratio = 20             -----> 70
+vm.dirty_writeback_centisecs = 500
+
+
+cat /sys/kernel/mm/transparent_hugepage/enabled
+
+echo never > /sys/kernel/mm/transparent_hugepage/enabled
+echo never > /sys/kernel/mm/transparent_hugepage/defrag
+
+vm.dirty_ratio = 5
+vm.dirty_background_ratio = 70 
+做成服务：
+vim /etc/rc.d/rc.local
+增加下列内容：
+
+if test -f /sys/kernel/mm/transparent_hugepage/enabled; then
+echo never > /sys/kernel/mm/transparent_hugepage/enabled
+fi
+if test -f /sys/kernel/mm/transparent_hugepage/defrag; then
+echo never > /sys/kernel/mm/transparent_hugepage/defrag
+fi
+
+
+第二步：
+删除topic
+
+2.1 首先检查数据
+
+#du -sh /data*/kafka-logs/tencent_ctYun-[0-9]*
+
+du -sh /data*/kafka-logs/CdnPerfTest-[0-9]*
+du -sh /data*/kafka-logs/CdnPerfTest-LZ4-[0-9]*
+du -sh /data*/kafka-logs/CdnPerfTest2-[0-9]*
+du -sh /data*/kafka-logs/ctYun_test-[0-9]*
+du -sh /data*/kafka-logs/haohanRedo-[0-9]*
+du -sh /data*/kafka-logs/cdn-log-analysis-realtime-pref-[0-9]*
+du -sh /data*/kafka-logs/revert_ctYun_0608-[0-9]*
+du -sh /data*/kafka-logs/revert_ctYun_20210608-[0-9]*
+du -sh /data*/kafka-logs/ctYun_20210311-[0-9]*
+du -sh /data*/kafka-logs/cdn-log-analysis-realtime-Ali-[0-9]*
+du -sh /data*/kafka-logs/cdn-log-analysis-realtime-baidu-[0-9]*
+du -sh /data*/kafka-logs/cdn-log-analysis-realtime-yunfan-[0-9]*
+du -sh /data*/kafka-logs/cdn-log-analysis-realtime-jingdong-[0-9]*
+du -sh /data*/kafka-logs/cdn-log-analysis-realtime-tencent-[0-9]*
+du -sh /data*/kafka-logs/cdn-log-analysis-realtime-[0-9]*
+
+#
+150.223.254.23上进行zk的操作
+
+
+usr/hdp/current/zookeeper-client/bin/zkCli.sh -server cdnlog040.ctyun.net:12181/cdnlog-first
+
+ls /brokers/topics/CdnPerfTest
+ls /brokers/topics/CdnPerfTest-LZ4
+ls /brokers/topics/CdnPerfTest2
+ls /brokers/topics/ctYun_test
+ls /brokers/topics/haohanRedo
+ls /brokers/topics/cdn-log-analysis-realtime-pref
+ls /brokers/topics/revert_ctYun_0608
+ls /brokers/topics/revert_ctYun_20210608
+ls /brokers/topics/ctYun_20210311
+ls /brokers/topics/cdn-log-analysis-realtime-Ali
+ls /brokers/topics/cdn-log-analysis-realtime-baidu
+ls /brokers/topics/cdn-log-analysis-realtime-yunfan
+ls /brokers/topics/cdn-log-analysis-realtime-jingdong
+ls /brokers/topics/cdn-log-analysis-realtime-tencent
+ls /brokers/topics/cdn-log-analysis-realtime
+
+
+
+删除前一共topic数：
+Showing 1 to 161 of 161 entries
+
+本次共删除15个topic，应该剩余146个topic
+
+
+rmr /brokers/topics/CdnPerfTest
+rmr /brokers/topics/CdnPerfTest-LZ4
+rmr /brokers/topics/CdnPerfTest2
+rmr /brokers/topics/ctYun_test
+rmr /brokers/topics/haohanRedo
+rmr /brokers/topics/cdn-log-analysis-realtime-pref
+rmr /brokers/topics/revert_ctYun_0608
+rmr /brokers/topics/revert_ctYun_20210608
+rmr /brokers/topics/ctYun_20210311
+rmr /brokers/topics/cdn-log-analysis-realtime-Ali
+rmr /brokers/topics/cdn-log-analysis-realtime-baidu
+rmr /brokers/topics/cdn-log-analysis-realtime-yunfan
+rmr /brokers/topics/cdn-log-analysis-realtime-jingdong
+rmr /brokers/topics/cdn-log-analysis-realtime-tencent
+rmr /brokers/topics/cdn-log-analysis-realtime
+
+
+
+rm -rf /data*/kafka-logs/CdnPerfTest-[0-9]*
+rm -rf /data*/kafka-logs/CdnPerfTest-LZ4-[0-9]*
+rm -rf /data*/kafka-logs/CdnPerfTest2-[0-9]*
+rm -rf /data*/kafka-logs/ctYun_test-[0-9]*
+rm -rf /data*/kafka-logs/haohanRedo-[0-9]*
+rm -rf /data*/kafka-logs/cdn-log-analysis-realtime-pref-[0-9]*
+rm -rf /data*/kafka-logs/revert_ctYun_0608-[0-9]*
+rm -rf /data*/kafka-logs/revert_ctYun_20210608-[0-9]*
+rm -rf /data*/kafka-logs/ctYun_20210311-[0-9]*
+rm -rf /data*/kafka-logs/cdn-log-analysis-realtime-Ali-[0-9]*
+rm -rf /data*/kafka-logs/cdn-log-analysis-realtime-baidu-[0-9]*
+rm -rf /data*/kafka-logs/cdn-log-analysis-realtime-yunfan-[0-9]*
+rm -rf /data*/kafka-logs/cdn-log-analysis-realtime-jingdong-[0-9]*
+rm -rf /data*/kafka-logs/cdn-log-analysis-realtime-tencent-[0-9]*
+rm -rf /data*/kafka-logs/cdn-log-analysis-realtime-[0-9]*
+
+
+ls -al /data*/kafka-logs/CdnPerfTest-[0-9]*
+ls -al /data*/kafka-logs/CdnPerfTest-[0-9]*
+ls -al /data*/kafka-logs/CdnPerfTest-LZ4-[0-9]*
+ls -al /data*/kafka-logs/CdnPerfTest2-[0-9]*
+ls -al /data*/kafka-logs/ctYun_test-[0-9]*
+ls -al /data*/kafka-logs/haohanRedo-[0-9]*
+ls -al /data*/kafka-logs/cdn-log-analysis-realtime-pref-[0-9]*
+ls -al /data*/kafka-logs/revert_ctYun_0608-[0-9]*
+ls -al /data*/kafka-logs/revert_ctYun_20210608-[0-9]*
+ls -al /data*/kafka-logs/ctYun_20210311-[0-9]*
+ls -al /data*/kafka-logs/cdn-log-analysis-realtime-Ali-[0-9]*
+ls -al /data*/kafka-logs/cdn-log-analysis-realtime-baidu-[0-9]*
+ls -al /data*/kafka-logs/cdn-log-analysis-realtime-yunfan-[0-9]*
+ls -al /data*/kafka-logs/cdn-log-analysis-realtime-jingdong-[0-9]*
+ls -al /data*/kafka-logs/cdn-log-analysis-realtime-tencent-[0-9]*
+ls -al /data*/kafka-logs/cdn-log-analysis-realtime-[0-9]*
+
+
+03已重启
+04已重启
+13,14，23，24已重启
+
+
+CPU SOFt STUCK
+调整机器参数
+
+sysctl -a |grep kernel.watchdog_thresh
+sudo sysctl -w kernel.watchdog_thresh=30
+
+
+#检查磁盘分布情况
+
+cd cd /home/zhangwusheng/usr/bin/kafka-io
+TOPIC=ctYun
+du -sh /data*/kafka-logs/ctYun-*|sort -k2,2 > $TOPIC.$HOSTNAME
+
+ansible -i /home/zhangwusheng/etc/ansible/neimeng.hosts kafka -m shell  -a "mkdir -p /home/zhangwusheng/usr/bin/kafka-io"
+ansible -i /home/zhangwusheng/etc/ansible/neimeng.hosts kafka  -m copy -b -a "src=/home/zhangwusheng/usr/bin/kafka-io/get_topic_disk_dist.sh  dest=/home/zhangwusheng/usr/bin/kafka-io "
+
+ansible -i /home/zhangwusheng/etc/ansible/neimeng.hosts kafka -m shell  -a "bash /home/zhangwusheng/usr/bin/kafka-io/get_topic_disk_dist.sh migu_haohanYun" --forks=1
+```
+
+TOPIC=zws_dir_test
+ du -sh /data*/kafka-logs/${TOPIC}-[0-9]*|sort -k2,2|awk '{print $2;}'|awk -F'/' '{print $2;}'|sort|uniq -c|awk 'BEGIN{for(i=1;i<=10;i++){a["data"i]=0;}}{a[$2]=$1;}END{for(i=1;i<=10;i++){print a["data"i];}}'
+
+1. 增加jmx采集，做曲线（指标待讨论，暂定
+2. 监控每台机器平均时间之内IO达到40%以上告警，直接重启机器（预案）
+3. 准备磁盘相关的命令（需群策群力，看看哪些命令有效），
+   3.1. 运行 iostat -x 1 10 找出哪块盘利用率很高 查看 %util 字段
+   3.2. 运行 iotop -oP 找出io占用高的进程
+      iotop -botq -p 8382 查看指定进程的io信息
+   3.3. 运行  pidstat -d 1 查看进程的io相关信息
+4. 调整kafka分区磁盘分布（目前不知道怎么调整目录，需要研究） 
+5. 重启kafka集群，删除部分topic（已做）  
+6. 现有baiduYun扩分区或者合入ctYun，防止个别分区变慢，再读冷数据。（后者多一次读写）
+   7.对 182.42.78.61、182.42.78.99进行调整 dirty参数,(已调整，观察效果，其他182网段机器未做）
+    7.1 cat /sys/kernel/mm/transparent_hugepage/enabled
+      echo never > /sys/kernel/mm/transparent_hugepage/enabled
+      echo never > /sys/kernel/mm/transparent_hugepage/defrag
+    7.2 vm.dirty_ratio = 5
+      vm.dirty_background_ratio = 70 
+
+重点：
+找出哪些进程IO高，以及高的原因
+
+在机器 sct-nmg-huhehaote3-loganalysis-75.in.ctcdn.cn 部署arthas监控脚本。
+
+
+#预生产环境验证kafka目录迁移
+
+KAFKA_ZK=dev-nmg-huhehaote2-loganalysis-06.in.ctcdn.cn:12181,dev-nmg-huhehaote2-loganalysis-03.in.ctcdn.cn:12181,dev-nmg-huhehaote2-loganalysis-09.in.ctcdn.cn:12181/cdnlog-first
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --list --zookeeper  ${KAFKA_ZK}
+
+
+
+/usr/hdp/current/kafka-broker/bin/kafka-reassign-partitions.sh  --zookeeper ${KAFKA_ZK} --topics-to-move-json-file ./topics-to-move.json --broker-list 1001,1002,1003,1004,1005,1006,1007,1008 --generate
+
+
+#创建Topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --create --zookeeper ${KAFKA_ZK}  --topic zws_dir_test    --partitions 50 --replication-factor 3
+
+#查看创建的Topic
+/usr/hdp/current/kafka-broker/bin/kafka-topics.sh --describe --zookeeper ${KAFKA_ZK}   --topic zws_dir_test
+
+#Topic授权，注意这里最好使用--producer，不要使用--operation Write
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --add --allow-principal User:producer --topic zwstestnew2  --producer
+
+#验证权限
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh -authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1 --list  --topic zwstestnew2
+
+#修改好kafka_client_jaas_conf ，注意使用 --security-protocol，而不是网上的producer-property，那样不行
+/usr/hdp/current/kafka-broker/bin/kafka-console-producer.sh --broker-list ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic zwstestnew2 --security-protocol=SASL_PLAINTEXT --producer-property sasl.mechanism=PLAIN
+
+#修改好consumer的kafka_client_jaas_conf，然后修改好consumer.properties
+/usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server ctl-nm-hhht-yxxya6-ceph-007.ctyuncdn.net:6667  --topic zwstestnew2 --security-protocol=SASL_PLAINTEXT --from-beginning --consumer.config ./consumer.properties --new-consumer
+
+#想要读取，必须经过授权！
+/usr/hdp/current/kafka-broker/bin/kafka-acls.sh --authorizer-properties zookeeper.connect=ctl-nm-hhht-yxxya6-ceph-008.ctyuncdn.net:12181/kafka-auth-test-1  --add --allow-principal User:consumer --topic zwstestnew2  --consumer --group zws-test-grp1
+
+
+#/bin/bash
+
+#profile_one_minute_spark.sh
+
+app_count=`ps -ef|grep profile_one_minute_spark|grep  -v grep |wc -l 2>/dev/null`
+echo $app_count
+if [ $app_count -gt 2 ]
+then
+	echo "total $app_count instance of profile_one_minute_spark running"
+	exit 0
+fi
+
+cd /home/cdnlog
+mkdir -p /home/cdnlog/spark-56005
+java -jar ./arthas-boot.jar -c'profiler start;stop' 56005 
+sleep 4m
+java -jar arthas-boot.jar -c'profiler stop;stop' 56005 > /home/cdnlog/56005.log
+filename=`grep  'profiler output file' /home/cdnlog/56005.log|awk -F':' '{print $2;}'`
+cp ${filename} /home/cdnlog/spark-56005
+
+
+ansible -i /home/zhangwusheng/etc/ansible/neimeng.hosts kafka  -m copy -b -a "src=/home/zhangwusheng/usr/bin/profile_one_minute_spark.sh dest=/home/zhangwusheng/usr/bin "
+
+主机：
+sct-nmg-huhehaote3-loganalysis-73.in.ctcdn.cn 定时生成svg
+
+
 ### 2.5设置ulimit
 
 ```bash
+
+
 export THISBATCH=thirdnew
 ansible ${THISBATCH} -m shell -a 'wget http://192.168.254.40:8181/scripts/third/ulimit.sh -O /home/zhangwusheng/scripts/third/ulimit.sh'
 ansible ${THISBATCH} -m shell -a 'bash /home/zhangwusheng/scripts/third/ulimit.sh'
@@ -370,6 +648,9 @@ echo 'net.ipv6.conf.all.disable_ipv6=1' >> /etc/sysctl.conf
 #cat /etc/sysctl.conf
 sysctl  -p
 #=============================================
+
+查询网络丢包
+mtr -n --report 182.42.78.61
 
 ```
 
@@ -6150,10 +6431,10 @@ spark-sql
 
     ```bash
     echo 'scan "hbase:meta" ' | hbase shell -n  2>/dev/null|grep ','|grep -v zookeeper|awk '{print $1;}'|grep -v 'hbase:'|grep ','|awk '{printf("deleteall \"hbase:meta\",\"%s\"\n",$1);}'
-
+    
     #验证上面输出
     #在hbase shell里面执行，不同的数据输出是不同的！
-
+    
     deleteall "hbase:meta", "cdnlog:testtable,,1578551500025.b7f684b7ef4d39bca29182f88ab9df93."
     deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000010000,1578551500025.f25045990e8bf33efccc9bbb7b090237."
     deleteall "hbase:meta", "cdnlog:testtable,00000000000000000000020000,1578551500025.02c8ec8051730292c1a81068763a6525."
@@ -6221,7 +6502,7 @@ spark-sql
     ```bash
     #针对所有的第15步的assigns，运行
     echo 2e1360529420f2ce8d32a6f37fcd1edb 4478f421a32fe206d9cb1a73732f8fcf 501b997e23409e5251b390f7a22f3a39 6238e0b66e6203fa0c5566532da91d8a 88c4293a2a80543dcd31ebb61a326d57 94cca9bef528ec2466e54c2f9d2c31aa def014fa8dcefca2b2baa8c61b54dee2 e0c4007576835d8c2d42e0192cd3fb4a e507ddd8a7b1ebc07d49956205ca2ebb eb5ad3c230d08aaff7743f8da7389e59 |awk '{for(i=1;i<=NF;i++){printf("assign \"%s\"\n",$i);}}'
-
+    
     #产生类似如下输出：
     assign "2e1360529420f2ce8d32a6f37fcd1edb"
     assign "4478f421a32fe206d9cb1a73732f8fcf"
@@ -6233,9 +6514,9 @@ spark-sql
     assign "e0c4007576835d8c2d42e0192cd3fb4a"
     assign "e507ddd8a7b1ebc07d49956205ca2ebb"
     assign "eb5ad3c230d08aaff7743f8da7389e59"
-
+    
     #将这些命令在hbase shell里面运行
-
+    
     ```
 
 
@@ -6263,7 +6544,7 @@ spark-sql
     get 'cdnlog:testtable','2','info0:1'
     put 'testtable','2','info0:1','1'
     get 'testtable','2','info0:1'
-
+    
     #验证能创建表
     hbase pe --nomapred --rows=1000 --presplit=10 --table=testtable111_hbase25 sequentialWrite 1
     ```
@@ -6307,13 +6588,13 @@ spark-sql
 - 第三步：清理hbase meta表
 
   ```bash
-
+  
   echo  'scan "hbase:meta",{ROWPREFIXFILTER=>"tsdb:cdn_monitor-rollup",COLUMNS=>["info:state"]}' | hbase shell -n > cdn_monitor-rollup.meta
-
+  
   cat cdn_monitor-rollup.meta |awk -F' column=' '{printf("deleteall \"hbase:meta\",\"%s\"\n",$1);}'|sort -u > cdn_monitor-rollup.rowkey
-
+  
   ## !! 检查命令，手工执行输出！！
-
+  
   #检查是否删除干净
   scan "hbase:meta",{ROWPREFIXFILTER=>"tsdb:cdn_monitor-rollup"}
   ```
@@ -6337,7 +6618,7 @@ spark-sql
 
   ```bash
   如果需要恢复表，那么进行如下操作：
-
+  
   ```
 
 #找出所有的region和时间戳
@@ -8181,7 +8462,13 @@ Degraded：硬盘被拔出
 Critical Disks：一颗 HDD 亮黄灯，可看到 VD 状态还是 Optimal (因为这个 HDD 还没死，目前是要死不死当中）
 Predictive Failure Count  
 
+/opt/MegaRAID/MegaCli/MegaCli64 -AdpBbuCmd -GetBbuStatus -aAll
 
+3512  2021-07-10 17:50:28 ansible -i inventory/hosts toinstall -m shell -a '/opt/MegaRAID/storcli/storcli64 /c0 show patrolread' -b
+ 3513  2021-07-10 17:50:56 ansible -i inventory/hosts toinstall -m shell -a '/opt/MegaRAID/storcli/storcli64 /c0 set patrolread=on mode=manual' -b
+ 3514  2021-07-10 17:51:10 ansible -i inventory/hosts toinstall -m shell -a '/opt/MegaRAID/storcli/storcli64 /c0 stop patrolread' -b
+ 3515  2021-07-10 17:51:52 ansible -i inventory/hosts toinstall -m shell -a '/opt/MegaRAID/storcli/storcli64 /c0 set patrolread=off' -b
+ 3516  2021-07-10 17:52:01 ansible -i inventory/hosts toinstall -m shell -a '/opt/MegaRAID/storcli/storcli64 /c0 show patrolread' -b
 
 # 66.spark优化经验
 
@@ -8734,6 +9021,293 @@ to the parser, and can test the parser from the command line.
 
 
 /usr/hdp/current/kafka-broker/bin/kafka-console-consumer.sh --bootstrap-server        edge-js-yangzhou3-loganalysis-01.in.ctcdn.cn:5044 --consumer-property security.protocol=SASL_PLAINTEXT --consumer-property  sasl.mechanism=PLAIN  --from-beginning --topic rsyslog-lizw --group grp-rsyslog-test
+
+
+
+堆栈：
+  32   Thread 0x7f24735bf700 (LWP 10) "rdk:broker-1" 0x00007f2478830c3d in poll
+    () from /lib64/libc.so.6
+  31   Thread 0x7f2472dbe700 (LWP 11) "rdk:main" 0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+  30   Thread 0x7f24725bd700 (LWP 12) "rdk:broker-1" 0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+  29   Thread 0x7f2471dbc700 (LWP 13) "rdk:broker1006" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  28   Thread 0x7f24715bb700 (LWP 14) "rdk:broker1005" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  27   Thread 0x7f2470dba700 (LWP 15) "rdk:broker1012" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  26   Thread 0x7f245bfff700 (LWP 16) "rdk:broker1009" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  25   Thread 0x7f245b7fe700 (LWP 17) "rdk:broker1007" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  24   Thread 0x7f245affd700 (LWP 18) "rdk:broker1008" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  23   Thread 0x7f245a7fc700 (LWP 19) "rdk:broker1011" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  22   Thread 0x7f2459ffb700 (LWP 20) "rdk:broker1004" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+---Type <return> to continue, or q <return> to quit---
+  21   Thread 0x7f24597fa700 (LWP 21) "rdk:broker1010" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  20   Thread 0x7f2458ff9700 (LWP 22) "rdk:broker1003" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  19   Thread 0x7f24705b9700 (LWP 23) "in:impstats" 0x00007f24788329a3 in select () from /lib64/libc.so.6
+  18   Thread 0x7f24587f8700 (LWP 24) "in:imkafka" 0x00007f24788329a3 in select
+    () from /lib64/libc.so.6
+  17   Thread 0x7f242ffff700 (LWP 25) "in:imkafka" 0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+  16   Thread 0x7f241e5d1700 (LWP 26) "rs:main Q:Reg" 0x00007f247976a54d in __lll_lock_wait () from /lib64/libpthread.so.0
+  15   Thread 0x7f241ddd0700 (LWP 27) "rs:action-1-omk" 0x000000000045858b in qDeqLinkedList (pThis=0x1c87950, ppMsg=0x7f241ddcfab8) at queue.c:744
+  14   Thread 0x7f241d5cf700 (LWP 28) "rdk:main" 0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+  13   Thread 0x7f241cdce700 (LWP 29) "rdk:broker-1" 0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+  12   Thread 0x7f2417fff700 (LWP 30) "rdk:broker1006" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  11   Thread 0x7f24177fe700 (LWP 31) "rdk:broker1005" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  10   Thread 0x7f2416ffd700 (LWP 32) "rdk:broker1012" 0x00007f2478830c3d in pol---Type <return> to continue, or q <return> to quit---
+l () from /lib64/libc.so.6
+  9    Thread 0x7f24167fc700 (LWP 33) "rdk:broker1009" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  8    Thread 0x7f24149ca700 (LWP 34) "rdk:broker1007" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  7    Thread 0x7f23f7fff700 (LWP 35) "rdk:broker1008" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  6    Thread 0x7f23f77fe700 (LWP 36) "rdk:broker1011" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  5    Thread 0x7f23f6ffd700 (LWP 37) "rdk:broker1004" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  4    Thread 0x7f23f67fc700 (LWP 38) "rdk:broker1010" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  3    Thread 0x7f23f5ffb700 (LWP 39) "rdk:broker1003" 0x00007f2478830c3d in poll () from /lib64/libc.so.6
+  2    Thread 0x7f242fbfe700 (LWP 232) "rs:main Q:Reg" 0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libpthread.so.0
+* 1    Thread 0x7f2479d9a8c0 (LWP 1) "rsyslogd" 0x00007f2478832a79 in pselect
+
+
+thread 1
+
+#0  0x00007f2478832a79 in pselect () from /lib64/libc.so.6
+#1  0x0000000000410fad in wait_timeout (sigmask=0x7ffe8f628dd0)
+    at rsyslogd.c:1924
+#2  mainloop () at rsyslogd.c:1977
+#3  0x000000000040e4bb in main (argc=4, argv=0x7ffe8f6292d8) at rsyslogd.c:2174
+
+(gdb) thread 2
+[Switching to thread 2 (Thread 0x7f242fbfe700 (LWP 232))]
+#0  0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 ()
+   from /lib64/libpthread.so.0
+(gdb) bt
+#0  0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 ()
+   from /lib64/libpthread.so.0
+#1  0x0000000000457ea7 in doIdleProcessing (
+    pbInactivityTOOccured=<synthetic pointer>, pWtp=0x1dc2310, pThis=0x1dc2f80)
+    at wti.c:363
+#2  wtiWorker (pThis=pThis@entry=0x1dc2f80) at wti.c:438
+#3  0x0000000000454f9a in wtpWorker (arg=0x1dc2f80) at wtp.c:435
+#4  0x00007f2479763ea5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007f247883b96d in clone () from /lib64/libc.so.6
+
+
+
+(gdb) thread 3
+[Switching to thread 3 (Thread 0x7f23f5ffb700 (LWP 39))]
+#0  0x00007f2478830c3d in poll () from /lib64/libc.so.6
+(gdb) bt
+#0  0x00007f2478830c3d in poll () from /lib64/libc.so.6
+#1  0x00007f2475aa725e in rd_kafka_transport_poll (
+    rktrans=rktrans@entry=0x7f23e00043f0, tmout=tmout@entry=179)
+    at rdkafka_transport.c:960
+#2  0x00007f2475aa72ef in rd_kafka_transport_io_serve (rktrans=0x7f23e00043f0, 
+    timeout_ms=179) at rdkafka_transport.c:792
+#3  0x00007f2475a8fc5d in rd_kafka_broker_ops_io_serve (
+    rkb=rkb@entry=0x7f2410010610, abs_timeout=<optimized out>)
+    at rdkafka_broker.c:3380
+#4  0x00007f2475a91488 in rd_kafka_broker_producer_serve (
+    abs_timeout=15702691047474, rkb=0x7f2410010610) at rdkafka_broker.c:3972
+#5  rd_kafka_broker_serve (rkb=rkb@entry=0x7f2410010610, 
+    timeout_ms=<optimized out>, timeout_ms@entry=1000) at rdkafka_broker.c:5064
+#6  0x00007f2475a91bdd in rd_kafka_broker_thread_main (
+    arg=arg@entry=0x7f2410010610) at rdkafka_broker.c:5223
+#7  0x00007f2475b04f77 in _thrd_wrapper_function (aArg=<optimized out>)
+    at tinycthread.c:576
+#8  0x00007f2479763ea5 in start_thread () from /lib64/libpthread.so.0
+#9  0x00007f247883b96d in clone () from /lib64/libc.so.6
+
+(gdb) thread 13
+[Switching to thread 13 (Thread 0x7f241cdce700 (LWP 29))]
+#0  0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 ()
+   from /lib64/libpthread.so.0
+(gdb) bt
+#0  0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 ()
+   from /lib64/libpthread.so.0
+#1  0x00007f2475b05109 in cnd_timedwait (cond=<optimized out>, 
+    mtx=<optimized out>, ts=<optimized out>) at tinycthread.c:462
+#2  0x00007f2475b054bd in cnd_timedwait_abs (cnd=cnd@entry=0x7f24100072c8, 
+    mtx=mtx@entry=0x7f24100072a0, tspec=tspec@entry=0x7f241cdcd800)
+    at tinycthread_extra.c:103
+#3  0x00007f2475aadb6b in rd_kafka_q_pop_serve (rkq=0x7f24100072a0, 
+    timeout_us=<optimized out>, version=version@entry=0, 
+    cb_type=cb_type@entry=RD_KAFKA_Q_CB_RETURN, callback=callback@entry=0x0, 
+    opaque=opaque@entry=0x0) at rdkafka_queue.c:404
+#4  0x00007f2475aadc60 in rd_kafka_q_pop (rkq=<optimized out>, 
+    timeout_us=<optimized out>, version=version@entry=0) at rdkafka_queue.c:428
+#5  0x00007f2475a8fb7f in rd_kafka_broker_ops_serve (
+    rkb=rkb@entry=0x7f2410006660, timeout_us=<optimized out>)
+    at rdkafka_broker.c:3337
+#6  0x00007f2475a8fc6f in rd_kafka_broker_ops_io_serve (
+    rkb=rkb@entry=0x7f2410006660, abs_timeout=<optimized out>, 
+    abs_timeout@entry=15702690994101) at rdkafka_broker.c:3388
+#7  0x00007f2475a916d7 in rd_kafka_broker_internal_serve (
+    abs_timeout=15702690994101, rkb=0x7f2410006660) at rdkafka_broker.c:3559
+#8  rd_kafka_broker_serve (rkb=rkb@entry=0x7f2410006660, 
+    timeout_ms=<optimized out>, timeout_ms@entry=1000) at rdkafka_broker.c:5062
+	---Type <return> to continue, or q <return> to quit---bt
+#9  0x00007f2475a91cc3 in rd_kafka_broker_thread_main (
+    arg=arg@entry=0x7f2410006660) at rdkafka_broker.c:5193
+#10 0x00007f2475b04f77 in _thrd_wrapper_function (aArg=<optimized out>)
+    at tinycthread.c:576
+#11 0x00007f2479763ea5 in start_thread () from /lib64/libpthread.so.0
+#12 0x00007f247883b96d in clone () from /lib64/libc.so.6
+
+
+(gdb) thread 14
+[Switching to thread 14 (Thread 0x7f241d5cf700 (LWP 28))]
+#0  0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 ()
+   from /lib64/libpthread.so.0
+(gdb) bt
+#0  0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 ()
+   from /lib64/libpthread.so.0
+#1  0x00007f2475b05109 in cnd_timedwait (cond=<optimized out>, 
+    mtx=<optimized out>, ts=<optimized out>) at tinycthread.c:462
+#2  0x00007f2475b054bd in cnd_timedwait_abs (cnd=cnd@entry=0x7f2410006018, 
+    mtx=mtx@entry=0x7f2410005ff0, tspec=tspec@entry=0x7f241d5ceb60)
+    at tinycthread_extra.c:103
+#3  0x00007f2475aadf6e in rd_kafka_q_serve (rkq=0x7f2410005ff0, 
+    timeout_ms=<optimized out>, max_cnt=max_cnt@entry=0, 
+    cb_type=cb_type@entry=RD_KAFKA_Q_CB_CALLBACK, callback=callback@entry=0x0, 
+    opaque=opaque@entry=0x0) at rdkafka_queue.c:474
+#4  0x00007f2475a739ec in rd_kafka_thread_main (arg=arg@entry=0x7f2410004f80)
+    at rdkafka.c:2003
+#5  0x00007f2475b04f77 in _thrd_wrapper_function (aArg=<optimized out>)
+    at tinycthread.c:576
+#6  0x00007f2479763ea5 in start_thread () from /lib64/libpthread.so.0
+#7  0x00007f247883b96d in clone () from /lib64/libc.so.6
+
+
+(gdb) thread 15
+[Switching to thread 15 (Thread 0x7f241ddd0700 (LWP 27))]
+#0  0x000000000045858b in qDeqLinkedList (pThis=0x1c87950, 
+    ppMsg=0x7f241ddcfab8) at queue.c:744
+744             *ppMsg = pEntry->pMsg;
+(gdb) bt
+#0  0x000000000045858b in qDeqLinkedList (pThis=0x1c87950, 
+    ppMsg=0x7f241ddcfab8) at queue.c:744
+#1  0x000000000045b265 in qqueueDeq (ppMsg=0x7f241ddcfab8, pThis=0x1c87950)
+    at queue.c:1195
+#2  DequeueConsumableElements (pSkippedMsgs=0x7f241ddcfb2c, 
+    piRemainingQueueSize=<synthetic pointer>, pWti=0x1cc1b50, pThis=0x1c87950)
+    at queue.c:1838
+#3  DequeueConsumable (pSkippedMsgs=0x7f241ddcfb2c, pWti=0x1cc1b50, 
+    pThis=0x1c87950) at queue.c:1913
+#4  DequeueForConsumer (pThis=pThis@entry=0x1c87950, 
+    pWti=pWti@entry=0x1cc1b50, pSkippedMsgs=pSkippedMsgs@entry=0x7f241ddcfb2c)
+    at queue.c:2059
+#5  0x000000000045ba26 in ConsumerReg (pThis=0x1c87950, pWti=0x1cc1b50)
+    at queue.c:2115
+#6  0x0000000000457c01 in wtiWorker (pThis=pThis@entry=0x1cc1b50) at wti.c:428
+#7  0x0000000000454f9a in wtpWorker (arg=0x1cc1b50) at wtp.c:435
+#8  0x00007f2479763ea5 in start_thread () from /lib64/libpthread.so.0
+#9  0x00007f247883b96d in clone () from /lib64/libc.so.6
+
+(gdb) thread 16
+[Switching to thread 16 (Thread 0x7f241e5d1700 (LWP 26))]
+#0  0x00007f247976a54d in __lll_lock_wait () from /lib64/libpthread.so.0
+(gdb) bt
+#0  0x00007f247976a54d in __lll_lock_wait () from /lib64/libpthread.so.0
+#1  0x00007f2479765e9b in _L_lock_883 () from /lib64/libpthread.so.0
+#2  0x00007f2479765d68 in pthread_mutex_lock () from /lib64/libpthread.so.0
+#3  0x000000000045eb43 in qqueueEnqMsg (pThis=0x1c87950, 
+    flowCtlType=flowCtlType@entry=eFLOWCTL_NO_DELAY, pMsg=0x7f23c000b7d0)
+    at queue.c:3196
+#4  0x000000000046ab11 in doSubmitToActionQ (pAction=0x1c86bd0, 
+    pWti=0x1dc24a0, pMsg=0x7f23c000b7d0) at ../action.c:1826
+#5  0x0000000000462305 in execAct (stmt=0x1c854a0, pWti=0x1dc24a0, 
+    pMsg=0x7f23c000b7d0) at ruleset.c:209
+#6  scriptExec (root=<optimized out>, pMsg=pMsg@entry=0x7f23c000b7d0, 
+    pWti=pWti@entry=0x1dc24a0) at ruleset.c:599
+#7  0x000000000046235b in execPROPFILT (pWti=<optimized out>, 
+    pMsg=<optimized out>, stmt=<optimized out>) at ruleset.c:546
+#8  scriptExec (root=<optimized out>, pMsg=pMsg@entry=0x7f23c000b7d0, 
+    pWti=pWti@entry=0x1dc24a0) at ruleset.c:623
+#9  0x0000000000462ea5 in processBatch (pBatch=0x1dc24d8, pWti=0x1dc24a0)
+    at ruleset.c:660
+#10 0x000000000040ed2c in msgConsumer (notNeeded=<optimized out>, 
+    pBatch=0x1dc24d8, pWti=0x1dc24a0) at rsyslogd.c:695
+#11 0x000000000045bc3c in ConsumerReg (pThis=0x1dc1f50, pWti=0x1dc24a0)
+    at queue.c:2145
+#12 0x0000000000457c01 in wtiWorker (pThis=pThis@entry=0x1dc24a0) at wti.c:428
+---Type <return> to continue, or q <return> to quit---
+#13 0x0000000000454f9a in wtpWorker (arg=0x1dc24a0) at wtp.c:435
+#14 0x00007f2479763ea5 in start_thread () from /lib64/libpthread.so.0
+#15 0x00007f247883b96d in clone () from /lib64/libc.so.6
+
+(gdb) thread 17
+[Switching to thread 17 (Thread 0x7f242ffff700 (LWP 25))]
+#0  0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 ()
+   from /lib64/libpthread.so.0
+(gdb) bt
+#0  0x00007f2479767de2 in pthread_cond_timedwait@@GLIBC_2.3.2 ()
+   from /lib64/libpthread.so.0
+#1  0x00007f2475b05109 in cnd_timedwait (cond=<optimized out>, 
+    mtx=<optimized out>, ts=<optimized out>) at tinycthread.c:462
+#2  0x00007f2475b054bd in cnd_timedwait_abs (cnd=cnd@entry=0x1cb3e68, 
+    mtx=mtx@entry=0x1cb3e40, tspec=tspec@entry=0x7f242fffec80)
+    at tinycthread_extra.c:103
+#3  0x00007f2475aadb6b in rd_kafka_q_pop_serve (rkq=rkq@entry=0x1cb3e40, 
+    timeout_us=<optimized out>, version=version@entry=0, 
+    cb_type=cb_type@entry=RD_KAFKA_Q_CB_RETURN, callback=callback@entry=0x0, 
+    opaque=opaque@entry=0x0) at rdkafka_queue.c:404
+#4  0x00007f2475aadc60 in rd_kafka_q_pop (rkq=rkq@entry=0x1cb3e40, 
+    timeout_us=<optimized out>, version=version@entry=0) at rdkafka_queue.c:428
+#5  0x00007f2475a75c51 in rd_kafka_consume0 (rk=0x1cac110, rkq=0x1cb3e40, 
+    timeout_ms=timeout_ms@entry=1000) at rdkafka.c:3023
+#6  0x00007f2475a75f37 in rd_kafka_consumer_poll (rk=<optimized out>, 
+    timeout_ms=timeout_ms@entry=1000) at rdkafka.c:3132
+#7  0x00007f2473d8dc21 in msgConsume (inst=<optimized out>) at imkafka.c:223
+#8  imkafkawrkr (myself=0x7f24340008e0) at imkafka.c:898
+#9  0x00007f2479763ea5 in start_thread () from /lib64/libpthread.so.0
+#10 0x00007f247883b96d in clone () from /lib64/libc.so.6
+
+(gdb) thread 18
+[Switching to thread 18 (Thread 0x7f24587f8700 (LWP 24))]
+#0  0x00007f24788329a3 in select () from /lib64/libc.so.6
+(gdb) bt
+#0  0x00007f24788329a3 in select () from /lib64/libc.so.6
+#1  0x0000000000444433 in srSleep (iSeconds=iSeconds@entry=0, 
+    iuSeconds=iuSeconds@entry=100000) at srutils.c:538
+#2  0x00007f2473d8e22c in runInput (pThrd=<optimized out>) at imkafka.c:795
+#3  0x000000000046c5e8 in thrdStarter (arg=0x1dc4100) at ../threads.c:243
+#4  0x00007f2479763ea5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007f247883b96d in clone () from /lib64/libc.so.6
+
+
+
+(gdb) 
+(gdb) thread 19
+[Switching to thread 19 (Thread 0x7f24705b9700 (LWP 23))]
+#0  0x00007f24788329a3 in select () from /lib64/libc.so.6
+(gdb) bt
+#0  0x00007f24788329a3 in select () from /lib64/libc.so.6
+#1  0x0000000000444433 in srSleep (iSeconds=<optimized out>, 
+    iuSeconds=iuSeconds@entry=0) at srutils.c:538
+#2  0x00007f247643a53f in runInput (pThrd=<optimized out>) at impstats.c:567
+#3  0x000000000046c5e8 in thrdStarter (arg=0x1dc3d80) at ../threads.c:243
+#4  0x00007f2479763ea5 in start_thread () from /lib64/libpthread.so.0
+#5  0x00007f247883b96d in clone () from /lib64/libc.so.6
+
+
+
+(gdb) bt
+#0  0x00007f2478830c3d in poll () from /lib64/libc.so.6
+#1  0x00007f2475aa725e in rd_kafka_transport_poll (
+    rktrans=rktrans@entry=0x7f243c0043f0, tmout=tmout@entry=866)
+    at rdkafka_transport.c:960
+#2  0x00007f2475aa72ef in rd_kafka_transport_io_serve (rktrans=0x7f243c0043f0, 
+    timeout_ms=866) at rdkafka_transport.c:792
+#3  0x00007f2475a8fc5d in rd_kafka_broker_ops_io_serve (
+    rkb=rkb@entry=0x1cc0a70, abs_timeout=<optimized out>)
+    at rdkafka_broker.c:3380
+#4  0x00007f2475a900b8 in rd_kafka_broker_consumer_serve (
+    rkb=rkb@entry=0x1cc0a70, abs_timeout=abs_timeout@entry=15702691643732)
+    at rdkafka_broker.c:4961
+#5  0x00007f2475a91641 in rd_kafka_broker_serve (rkb=rkb@entry=0x1cc0a70, 
+    timeout_ms=<optimized out>, timeout_ms@entry=1000) at rdkafka_broker.c:5066
+#6  0x00007f2475a91bdd in rd_kafka_broker_thread_main (arg=arg@entry=0x1cc0a70)
+    at rdkafka_broker.c:5223
+#7  0x00007f2475b04f77 in _thrd_wrapper_function (aArg=<optimized out>)
+    at tinycthread.c:576
+#8  0x00007f2479763ea5 in start_thread () from /lib64/libpthread.so.0
+#9  0x00007f247883b96d in clone () from /lib64/libc.so.6
+
 
 
 ```
